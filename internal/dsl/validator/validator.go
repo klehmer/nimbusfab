@@ -53,4 +53,6 @@ func phase2APIVersion(proj *ir.Project, report *ir.ValidationReport) error {
 	phase2APIVersionImpl(proj, report)
 	return nil
 }
-func phase3Schema(proj *ir.Project, report *ir.ValidationReport) error { return nil }
+func phase3Schema(proj *ir.Project, report *ir.ValidationReport) error {
+	return phase3SchemaImpl(proj, report)
+}
