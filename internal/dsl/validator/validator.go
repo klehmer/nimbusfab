@@ -49,5 +49,8 @@ func (v *fsValidator) Validate(ctx context.Context, proj *ir.Project) (*ir.Valid
 	return report, nil
 }
 
-func phase2APIVersion(proj *ir.Project, report *ir.ValidationReport) error { return nil }
-func phase3Schema(proj *ir.Project, report *ir.ValidationReport) error     { return nil }
+func phase2APIVersion(proj *ir.Project, report *ir.ValidationReport) error {
+	phase2APIVersionImpl(proj, report)
+	return nil
+}
+func phase3Schema(proj *ir.Project, report *ir.ValidationReport) error { return nil }

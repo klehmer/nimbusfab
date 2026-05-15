@@ -36,3 +36,49 @@ func TestValidator_LiftsLoaderErrorAsIssue(t *testing.T) {
 		t.Errorf("Source = %+v", got.Source)
 	}
 }
+
+func TestValidate_APIVersionMissing(t *testing.T) {
+	proj := &ir.Project{Name: "x", Stacks: map[string]ir.Stack{"dev": {}}}
+	report, err := New().Validate(context.Background(), proj)
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if !hasCode(report, "ErrMissingAPIVersion") {
+		t.Errorf("missing ErrMissingAPIVersion: %+v", report.Issues)
+	}
+}
+
+func TestValidate_APIVersionUnknown(t *testing.T) {
+	proj := &ir.Project{APIVersion: "infra.dev/v999", Name: "x", Stacks: map[string]ir.Stack{"dev": {}}}
+	report, err := New().Validate(context.Background(), proj)
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if !hasCode(report, "ErrUnknownAPIVersion") {
+		t.Errorf("missing ErrUnknownAPIVersion: %+v", report.Issues)
+	}
+}
+
+func TestValidate_APIVersionOK(t *testing.T) {
+	proj := &ir.Project{
+		APIVersion: "infra.dev/v1alpha1",
+		Name:       "x",
+		Stacks:     map[string]ir.Stack{"dev": {}},
+	}
+	report, err := New().Validate(context.Background(), proj)
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if hasCode(report, "ErrMissingAPIVersion") || hasCode(report, "ErrUnknownAPIVersion") {
+		t.Errorf("unexpected APIVersion issue: %+v", report.Issues)
+	}
+}
+
+func hasCode(report *ir.ValidationReport, code string) bool {
+	for _, i := range report.Issues {
+		if i.Code == code {
+			return true
+		}
+	}
+	return false
+}
