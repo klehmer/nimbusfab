@@ -3,6 +3,10 @@ package provisioner
 import (
 	"context"
 	"errors"
+	"fmt"
+
+	"github.com/klehmer/nimbusfab/internal/tofu"
+	"github.com/klehmer/nimbusfab/pkg/cloud"
 )
 
 // ErrNotImplementedYet is returned by Provisioner methods that have not yet
@@ -50,21 +54,32 @@ type DestroyInput struct {
 // Config carries the dependencies a real Provisioner needs.
 type Config struct {
 	WorkRoot string
+	Adapters cloud.Registry
+	Runner   tofu.Runner
 }
 
-// New returns a stub Provisioner. Task 9 replaces this with a real impl.
+// New returns a runtime Provisioner wired against the supplied dependencies.
 func New(cfg Config) (Provisioner, error) {
-	return &stubProvisioner{}, nil
+	if cfg.WorkRoot == "" {
+		return nil, fmt.Errorf("provisioner: Config.WorkRoot is required")
+	}
+	if cfg.Adapters == nil {
+		return nil, fmt.Errorf("provisioner: Config.Adapters is required")
+	}
+	if cfg.Runner == nil {
+		return nil, fmt.Errorf("provisioner: Config.Runner is required")
+	}
+	return &runtimeProvisioner{cfg: cfg}, nil
 }
 
-type stubProvisioner struct{}
+type runtimeProvisioner struct {
+	cfg Config
+}
 
-func (*stubProvisioner) Plan(ctx context.Context, in PlanInput) (*PlanResult, error) {
+// Apply and Destroy still return ErrNotImplementedYet.
+func (*runtimeProvisioner) Apply(ctx context.Context, in ApplyInput) (*ApplyResult, error) {
 	return nil, ErrNotImplementedYet
 }
-func (*stubProvisioner) Apply(ctx context.Context, in ApplyInput) (*ApplyResult, error) {
-	return nil, ErrNotImplementedYet
-}
-func (*stubProvisioner) Destroy(ctx context.Context, in DestroyInput) (*ApplyResult, error) {
+func (*runtimeProvisioner) Destroy(ctx context.Context, in DestroyInput) (*ApplyResult, error) {
 	return nil, ErrNotImplementedYet
 }
