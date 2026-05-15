@@ -1,0 +1,42 @@
+# Binaries
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+
+# Go workspace
+go.work
+go.work.sum
+
+# Local inventory + state
+*.db
+*.sqlite
+*.sqlite3
+
+# OpenTofu working dirs and state
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfplan.bin
+terraform.tfvars
+*.auto.tfvars
+
+# Local secrets and credentials
+*.pem
+*.key
+.envrc
+.env
+.env.*
+
+# Editor / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Coverage
+coverage.out
+coverage.html
