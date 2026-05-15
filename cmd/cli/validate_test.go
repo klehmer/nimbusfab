@@ -72,3 +72,29 @@ func mustWrite(t *testing.T, path string, data []byte) {
 		t.Fatalf("write %s: %v", path, err)
 	}
 }
+
+func TestValidate_ExitCodes(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, filepath.Join(root, "project.yaml"), []byte(`
+apiVersion: infra.dev/v1alpha1
+name: orders
+stacks:
+  dev: {}
+`))
+
+	var stdout, stderr bytes.Buffer
+	if exit := runValidate(&stdout, &stderr, []string{root}); exit != 0 {
+		t.Errorf("clean project exit = %d, want 0", exit)
+	}
+
+	// Make project bad: missing stacks.
+	mustWrite(t, filepath.Join(root, "project.yaml"), []byte(`
+apiVersion: infra.dev/v1alpha1
+name: orders
+`))
+	stdout.Reset()
+	stderr.Reset()
+	if exit := runValidate(&stdout, &stderr, []string{root}); exit == 0 {
+		t.Error("missing stacks should fail validation")
+	}
+}
