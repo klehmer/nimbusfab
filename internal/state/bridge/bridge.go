@@ -5,7 +5,7 @@ package bridge
 import (
 	"context"
 
-	"github.com/kratus8990/cloud-infra-manager/pkg/engine"
+	"github.com/kratus8990/nimbusfab/pkg/engine"
 )
 
 // Bridge is the entry point.

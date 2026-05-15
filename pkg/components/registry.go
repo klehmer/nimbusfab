@@ -7,8 +7,8 @@ package components
 import (
 	"context"
 
-	"github.com/kratus8990/cloud-infra-manager/pkg/cloud"
-	"github.com/kratus8990/cloud-infra-manager/pkg/ir"
+	"github.com/kratus8990/nimbusfab/pkg/cloud"
+	"github.com/kratus8990/nimbusfab/pkg/ir"
 )
 
 // Registry knows the set of recognized component types and, for each, how to

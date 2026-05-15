@@ -1,4 +1,4 @@
-// Command mytool-server runs the cloud-infra-manager web backend. It is a
+// Command nimbusfab-server runs the nimbusfab web backend. It is a
 // long-running HTTP server that wraps the same Engine library the CLI uses.
 // Endpoints live under /api/v1; SSE streams run progress to the browser.
 package main
@@ -41,7 +41,7 @@ func run(ctx context.Context) error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		fmt.Printf("mytool-server listening on %s (stub mode)\n", addr)
+		fmt.Printf("nimbusfab-server listening on %s (stub mode)\n", addr)
 		errCh <- srv.ListenAndServe()
 	}()
 

@@ -5,12 +5,12 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/kratus8990/cloud-infra-manager/pkg/cloud"
-	"github.com/kratus8990/cloud-infra-manager/pkg/components"
-	"github.com/kratus8990/cloud-infra-manager/pkg/cost/collector"
-	"github.com/kratus8990/cloud-infra-manager/pkg/cost/estimator"
-	"github.com/kratus8990/cloud-infra-manager/pkg/inventory"
-	"github.com/kratus8990/cloud-infra-manager/pkg/secrets"
+	"github.com/kratus8990/nimbusfab/pkg/cloud"
+	"github.com/kratus8990/nimbusfab/pkg/components"
+	"github.com/kratus8990/nimbusfab/pkg/cost/collector"
+	"github.com/kratus8990/nimbusfab/pkg/cost/estimator"
+	"github.com/kratus8990/nimbusfab/pkg/inventory"
+	"github.com/kratus8990/nimbusfab/pkg/secrets"
 )
 
 // Config carries all engine dependencies. A nil InventoryRepo activates

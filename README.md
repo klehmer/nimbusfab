@@ -1,4 +1,4 @@
-# cloud-infra-manager
+# nimbusfab
 
 Multi-cloud Infrastructure-as-Code framework. Users declare infrastructure components (network, database, compute, storage, etc.) in YAML, target one or more clouds (AWS / Azure / GCP), and the framework generates and runs OpenTofu under the hood. Includes cost estimation and an actual-cost dashboard pulling from cloud billing APIs.
 
@@ -30,7 +30,7 @@ See `docs/superpowers/specs/2026-05-14-architecture-design.md` for the full arch
 | `internal/inventory/{sqlite,pg}` | Inventory DB implementations. |
 | `internal/webapi` | HTTP server. |
 | `internal/webauth` | OIDC + local users. |
-| `cmd/cli` | The CLI (`mytool`). |
+| `cmd/cli` | The CLI (`nimbusfab`). |
 | `cmd/server` | The web backend. |
 
 ## Build & run

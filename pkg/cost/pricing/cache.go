@@ -14,7 +14,7 @@ import (
 type Cache interface {
 	Lookup(ctx context.Context, cloudName string, key map[string]any) (Entry, error)
 	// Refresh forces a live fetch for the keys, bypassing the cache. Useful
-	// for `mytool cost estimate --refresh-prices`.
+	// for `nimbusfab cost estimate --refresh-prices`.
 	Refresh(ctx context.Context, cloudName string, keys []map[string]any) error
 }
 

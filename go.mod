@@ -1,3 +1,3 @@
-module github.com/kratus8990/cloud-infra-manager
+module github.com/kratus8990/nimbusfab
 
 go 1.22

@@ -1,9 +1,9 @@
-# Architecture-Level Spec: Multi-Cloud IaC Framework (working name: `cloud-infra-manager`)
+# Architecture-Level Spec: Nimbusfab
 
 **Status:** Architecture-level spec. Defines module boundaries, the IR data model, and public interface contracts between subsystems. Each of the four major subsystems (DSL/IR, Provisioner, Cost Estimator, Cost Dashboard) will get its own detailed spec in follow-up cycles.
 
 **Date:** 2026-05-14
-**Target directory:** `/home/kurt/git/cloud-infra-manager/` (currently empty)
+**Target directory:** `/home/kurt/git/nimbusfab/` (currently empty)
 
 ---
 
@@ -173,7 +173,7 @@ type ResourcePrimitive struct {
 
 ## 4. Data flow (three traced examples)
 
-**A) `mytool plan ./project.yaml`**
+**A) `nimbusfab plan ./project.yaml`**
 
 1. CLI builds an `Engine` with SQLite inventory (or none if `--no-inventory`) and local secrets backend.
 2. `Engine.LoadProject(path)` → dsl/loader returns unvalidated IR.
@@ -229,18 +229,18 @@ Construction: `engine.New(cfg Config) (Engine, error)`. `Config` carries invento
 **CLI command tree (skeletal):**
 
 ```
-mytool init                 — scaffolds project.yaml
-mytool validate             — Engine.Validate
-mytool plan [stack]         — Engine.Plan + EstimateCost (diff + cost)
-mytool apply [stack]        — Engine.Plan + Engine.Apply (synchronous; --detach for async)
-mytool up [stack]           — plan+apply with -auto-approve guard
-mytool destroy [stack]      — Engine.Destroy
-mytool cost estimate        — Engine.EstimateCost from last plan
-mytool cost actual          — Engine.GetCostActuals
-mytool drift                — Engine.DetectDrift
-mytool import               — Engine.Import
-mytool state {show,rm,mv}   — tofu-runner passthrough scoped to a deployment
-mytool serve                — starts the web backend in-process
+nimbusfab init                 — scaffolds project.yaml
+nimbusfab validate             — Engine.Validate
+nimbusfab plan [stack]         — Engine.Plan + EstimateCost (diff + cost)
+nimbusfab apply [stack]        — Engine.Plan + Engine.Apply (synchronous; --detach for async)
+nimbusfab up [stack]           — plan+apply with -auto-approve guard
+nimbusfab destroy [stack]      — Engine.Destroy
+nimbusfab cost estimate        — Engine.EstimateCost from last plan
+nimbusfab cost actual          — Engine.GetCostActuals
+nimbusfab drift                — Engine.DetectDrift
+nimbusfab import               — Engine.Import
+nimbusfab state {show,rm,mv}   — tofu-runner passthrough scoped to a deployment
+nimbusfab serve                — starts the web backend in-process
 Global flags: --no-inventory, --inventory-dsn, --org, --stack, --json
 ```
 
@@ -333,7 +333,7 @@ At each architectural seam:
 
 ## 12. Critical files to scaffold first
 
-All under `/home/kurt/git/cloud-infra-manager/`:
+All under `/home/kurt/git/nimbusfab/`:
 
 - `pkg/ir/types.go` — IR Go types
 - `pkg/ir/schema.go` — JSON Schema generation
@@ -391,4 +391,4 @@ This is an architecture-level spec, not an implementation. "Verification" here m
 2. **Adapter contract test scaffolding.** Write the `pkg/plugin/contract` adapter suite as the FIRST piece of real code. If the contract is hard to express in tests, the interfaces are wrong — iterate before writing implementations.
 3. **Round-trip test.** Generate JSON Schema from `pkg/ir` Go types; validate a sample YAML; load it back; round-trip to Tofu JSON; ensure stable bytes.
 4. **Per-subsystem specs reference back.** When the DSL/IR spec, Provisioner spec, etc. are written, each should be implementable without changing this spec. If a follow-up spec needs to change a contract here, that's a signal this spec needs revision before implementation continues.
-5. **Frontend stub.** Before any subsystem ships, build a "hello-world" Engine implementation that returns canned `PlanResult` / `RunEvent` values. Stand up both the CLI (`mytool plan`) and the web backend (`POST /api/v1/projects/{id}/deployments`) against it. If the stub works through both frontends with the SAME engine interface, the layering is right.
+5. **Frontend stub.** Before any subsystem ships, build a "hello-world" Engine implementation that returns canned `PlanResult` / `RunEvent` values. Stand up both the CLI (`nimbusfab plan`) and the web backend (`POST /api/v1/projects/{id}/deployments`) against it. If the stub works through both frontends with the SAME engine interface, the layering is right.

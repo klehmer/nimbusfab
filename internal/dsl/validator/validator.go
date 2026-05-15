@@ -7,8 +7,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/kratus8990/cloud-infra-manager/pkg/engine"
-	"github.com/kratus8990/cloud-infra-manager/pkg/ir"
+	"github.com/kratus8990/nimbusfab/pkg/engine"
+	"github.com/kratus8990/nimbusfab/pkg/ir"
 )
 
 // Validator turns an unvalidated *ir.Project into a ValidationReport. On

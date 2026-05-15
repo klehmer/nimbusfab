@@ -2,7 +2,7 @@
 
 GO       ?= go
 BIN_DIR  ?= bin
-PKG      := github.com/kratus8990/cloud-infra-manager
+PKG      := github.com/kratus8990/nimbusfab
 VERSION  ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
 LDFLAGS := -ldflags "-X $(PKG)/internal/version.Version=$(VERSION)"
@@ -10,10 +10,10 @@ LDFLAGS := -ldflags "-X $(PKG)/internal/version.Version=$(VERSION)"
 build: cli server
 
 cli:
-	$(GO) build $(LDFLAGS) -o $(BIN_DIR)/mytool ./cmd/cli
+	$(GO) build $(LDFLAGS) -o $(BIN_DIR)/nimbusfab ./cmd/cli
 
 server:
-	$(GO) build $(LDFLAGS) -o $(BIN_DIR)/mytool-server ./cmd/server
+	$(GO) build $(LDFLAGS) -o $(BIN_DIR)/nimbusfab-server ./cmd/server
 
 test:
 	$(GO) test ./...

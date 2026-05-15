@@ -9,7 +9,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/kratus8990/cloud-infra-manager/pkg/ir"
+	"github.com/kratus8990/nimbusfab/pkg/ir"
 )
 
 // Adapter is what every cloud provider implements. The engine never

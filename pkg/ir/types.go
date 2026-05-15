@@ -1,5 +1,5 @@
 // Package ir defines the Intermediate Representation that flows between every
-// subsystem of cloud-infra-manager. The YAML loader produces an *ir.Project;
+// subsystem of nimbusfab. The YAML loader produces an *ir.Project;
 // the validator checks and expands it; the provisioner walks it and asks cloud
 // adapters to emit ResourcePrimitives; the cost estimator walks it for pricing
 // keys. Everything downstream agrees on the types in this package.

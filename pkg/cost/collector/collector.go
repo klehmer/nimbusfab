@@ -1,13 +1,13 @@
 // Package collector polls cloud billing APIs and writes normalized rows to
 // the cost_actuals table. Runs as a goroutine in server / daemon mode and as
-// an on-demand call in the CLI (`mytool cost actual --refresh`).
+// an on-demand call in the CLI (`nimbusfab cost actual --refresh`).
 package collector
 
 import (
 	"context"
 	"time"
 
-	"github.com/kratus8990/cloud-infra-manager/pkg/cloud"
+	"github.com/kratus8990/nimbusfab/pkg/cloud"
 )
 
 // Collector exposes the two operations the engine needs.

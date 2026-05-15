@@ -1,5 +1,5 @@
-// Command mytool is the cloud-infra-manager CLI. It instantiates an in-
-// process Engine (SQLite inventory by default, --no-inventory disables
+// Command nimbusfab is the Nimbusfab platform CLI. It instantiates an
+// in-process Engine (SQLite inventory by default, --no-inventory disables
 // persistence) and dispatches commands. The command surface deliberately
 // mirrors what the web backend exposes over REST so the two stay aligned.
 package main
@@ -27,7 +27,7 @@ func main() {
 // cmd/cli has its real surface.
 func run(_ context.Context, args []string) error {
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
-		fmt.Println(`mytool: cloud-infra-manager CLI
+		fmt.Println(`nimbusfab: the Nimbusfab platform CLI
 
 Commands (skeletal):
   init                 scaffold project.yaml
@@ -53,5 +53,5 @@ Global flags:
 Implementation deferred to the per-subsystem specs.`)
 		return nil
 	}
-	return fmt.Errorf("mytool: command %q not implemented yet", args[0])
+	return fmt.Errorf("nimbusfab: command %q not implemented yet", args[0])
 }

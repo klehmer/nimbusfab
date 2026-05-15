@@ -8,7 +8,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/kratus8990/cloud-infra-manager/pkg/ir"
+	"github.com/kratus8990/nimbusfab/pkg/ir"
 )
 
 // Loader is the file-system-aware front door.

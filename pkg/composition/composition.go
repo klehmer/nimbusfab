@@ -7,7 +7,7 @@ package composition
 import (
 	"context"
 
-	"github.com/kratus8990/cloud-infra-manager/pkg/ir"
+	"github.com/kratus8990/nimbusfab/pkg/ir"
 )
 
 // Engine expands user-defined Compositions referenced by Components.
