@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/klehmer/nimbusfab/pkg/ir"
+	"github.com/klehmer/nimbusfab/pkg/parity"
 )
 
 // Adapter is what every cloud provider implements. The engine never
@@ -48,6 +49,26 @@ type Adapter interface {
 	// this cloud when a user has not declared one. Allows zero-config CLI
 	// use against a credentials-bearing local profile.
 	DefaultStateBackend(ctx context.Context, target ir.DeploymentTarget) (ir.StateBackend, error)
+
+	// SupportedComponentTypes returns the built-in component type names this
+	// adapter implements. The validator and provisioner consult this to fail
+	// fast on (component.Type, target.Cloud) mismatches.
+	SupportedComponentTypes() []string
+
+	// TierOneSchema returns the JSON Schema for the `<cloud>:` block under
+	// DeploymentTarget.Spec. Loaded once at startup.
+	TierOneSchema() []byte
+
+	// Validate runs cloud-specific semantic checks. Pure: no network, no disk.
+	Validate(ctx context.Context, target ir.DeploymentTarget) []ir.Issue
+
+	// Profile returns normalized resource attributes. Shared with parity / cost.
+	Profile(ctx context.Context, primitive ir.ResourcePrimitive) (parity.ResourceProfile, error)
+
+	// ProviderBlock returns the provider config the provisioner writes into
+	// provider.tf.json. Credentials material flows in through env vars; it
+	// MUST NOT be embedded in the returned map.
+	ProviderBlock(ctx context.Context, target ir.DeploymentTarget, creds Credentials) (map[string]any, error)
 }
 
 // Credentials is an opaque handle that adapters resolve via the secrets

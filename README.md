@@ -2,7 +2,7 @@
 
 Multi-cloud Infrastructure-as-Code framework. Users declare infrastructure components (network, database, compute, storage, etc.) in YAML, target one or more clouds (AWS / Azure / GCP), and the framework generates and runs OpenTofu under the hood. Includes cost estimation and an actual-cost dashboard pulling from cloud billing APIs.
 
-**Status:** pre-alpha. Architecture spec landed, package skeleton scaffolded, no working features yet.
+**Status:** pre-alpha. Architecture spec landed; DSL/IR Phase 1 (`nimbusfab validate`) merged; Provisioner Phase 1 (`nimbusfab plan` for AWS network) underway.
 
 ## Design
 
@@ -38,10 +38,31 @@ See `docs/superpowers/specs/2026-05-14-architecture-design.md` for the full arch
 Requires Go 1.22+ and `tofu` 1.7+ on `PATH`.
 
 ```bash
-make build       # build the CLI and server binaries into ./bin/
-make test        # run unit tests
-make lint        # gofmt + go vet
+make build              # build the CLI and server binaries into ./bin/
+make test               # run unit tests
+make test-integration   # run unit + integration tests (needs `tofu` on PATH)
+make lint               # gofmt + go vet
 ```
+
+## Commands
+
+### `nimbusfab validate [path]`
+
+Validate a project directory of YAML files. Runs the loader + validator phases
+1–3 (YAML well-formedness, APIVersion check, JSON Schema validation) and
+prints a structured report. Exit codes: 0 OK, 1 validation failed, 2 validator crash.
+
+### `nimbusfab plan --stack <stack> [path]`
+
+Reads the project, validates it, then asks each cloud adapter to emit Tofu
+primitives for every `DeploymentTarget`. Writes canonical workspace files
+(`provider.tf.json`, `backend.tf.json`, `versions.tf.json`, `main.tf.json`)
+into a per-target directory under `$TMPDIR/nimbusfab/<deployment-id>/`, runs
+`tofu init && tofu plan -out plan.bin`, and prints a summary.
+
+**Phase 1 scope:** AWS only; `network` component type only (emits one
+`aws_vpc` per target). Other clouds and component types arrive in subsequent
+phases.
 
 ## License
 

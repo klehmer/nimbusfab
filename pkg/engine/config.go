@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/klehmer/nimbusfab/internal/tofu"
 	"github.com/klehmer/nimbusfab/pkg/cloud"
 	"github.com/klehmer/nimbusfab/pkg/components"
 	"github.com/klehmer/nimbusfab/pkg/cost/collector"
@@ -18,29 +19,26 @@ import (
 // cost-actuals storage is available.
 type Config struct {
 	Logger         *slog.Logger
-	InventoryRepo  inventory.Repo // nil => no-inventory mode
+	InventoryRepo  inventory.Repo
 	SecretsBackend secrets.Backend
-	CloudAdapters  map[string]cloud.Adapter // keyed by cloud short name
+	CloudAdapters  cloud.Registry
 	ComponentTypes components.Registry
 	Estimator      estimator.Estimator
 	Collector      collector.Collector
-	TofuBinary     string // path to `tofu` binary; defaults to PATH lookup
-	WorkDir        string // root of per-deployment workspaces
+	TofuRunner     tofu.Runner
+	TofuBinary     string // (deprecated) path; prefer TofuRunner
+	WorkRoot       string // root of per-deployment workspaces; "" = OS tempdir
+	WorkDir        string // (deprecated) prefer WorkRoot
 }
 
-// New constructs an Engine from cfg. Implementations live alongside this
-// package and are not exported; callers depend only on the Engine interface.
-//
-// Implementation deferred to the per-subsystem specs.
+// New constructs an Engine wired against the supplied dependencies.
 func New(ctx context.Context, cfg Config) (Engine, error) {
-	if cfg.SecretsBackend == nil {
-		return nil, errors.New("engine.New: SecretsBackend is required")
+	if cfg.CloudAdapters == nil {
+		return nil, errors.New("engine.New: CloudAdapters registry is required")
 	}
-	if len(cfg.CloudAdapters) == 0 {
-		return nil, errors.New("engine.New: at least one cloud adapter is required")
-	}
-	if cfg.ComponentTypes == nil {
-		return nil, errors.New("engine.New: ComponentTypes registry is required")
-	}
-	return nil, errors.New("engine.New: not implemented yet")
+	return &runtimeEngine{cfg: cfg}, nil
+}
+
+type runtimeEngine struct {
+	cfg Config
 }

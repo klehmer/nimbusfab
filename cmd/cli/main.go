@@ -17,6 +17,7 @@ func main() {
 		SilenceErrors: true,
 	}
 	root.AddCommand(newValidateCommand())
+	root.AddCommand(newPlanCommand())
 
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
