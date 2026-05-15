@@ -45,4 +45,4 @@ make lint        # gofmt + go vet
 
 ## License
 
-MIT. See `LICENSE`.
+Apache 2.0. See `LICENSE`.

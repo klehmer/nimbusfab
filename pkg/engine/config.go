@@ -5,12 +5,12 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/kratus8990/nimbusfab/pkg/cloud"
-	"github.com/kratus8990/nimbusfab/pkg/components"
-	"github.com/kratus8990/nimbusfab/pkg/cost/collector"
-	"github.com/kratus8990/nimbusfab/pkg/cost/estimator"
-	"github.com/kratus8990/nimbusfab/pkg/inventory"
-	"github.com/kratus8990/nimbusfab/pkg/secrets"
+	"github.com/klehmer/nimbusfab/pkg/cloud"
+	"github.com/klehmer/nimbusfab/pkg/components"
+	"github.com/klehmer/nimbusfab/pkg/cost/collector"
+	"github.com/klehmer/nimbusfab/pkg/cost/estimator"
+	"github.com/klehmer/nimbusfab/pkg/inventory"
+	"github.com/klehmer/nimbusfab/pkg/secrets"
 )
 
 // Config carries all engine dependencies. A nil InventoryRepo activates

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kratus8990/nimbusfab/pkg/cloud"
-	"github.com/kratus8990/nimbusfab/pkg/ir"
+	"github.com/klehmer/nimbusfab/pkg/cloud"
+	"github.com/klehmer/nimbusfab/pkg/ir"
 )
 
 // SuiteOptions parameterizes which checks RunAdapterSuite executes.

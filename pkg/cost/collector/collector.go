@@ -7,7 +7,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/kratus8990/nimbusfab/pkg/cloud"
+	"github.com/klehmer/nimbusfab/pkg/cloud"
 )
 
 // Collector exposes the two operations the engine needs.

@@ -1,3 +1,3 @@
-module github.com/kratus8990/nimbusfab
+module github.com/klehmer/nimbusfab
 
 go 1.22

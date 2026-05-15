@@ -7,7 +7,7 @@ package composition
 import (
 	"context"
 
-	"github.com/kratus8990/nimbusfab/pkg/ir"
+	"github.com/klehmer/nimbusfab/pkg/ir"
 )
 
 // Engine expands user-defined Compositions referenced by Components.

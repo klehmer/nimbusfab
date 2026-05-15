@@ -8,8 +8,8 @@ package estimator
 import (
 	"context"
 
-	"github.com/kratus8990/nimbusfab/pkg/cloud"
-	"github.com/kratus8990/nimbusfab/pkg/ir"
+	"github.com/klehmer/nimbusfab/pkg/cloud"
+	"github.com/klehmer/nimbusfab/pkg/ir"
 )
 
 // Estimator turns a plan-shaped slice of primitives into a cost estimate.

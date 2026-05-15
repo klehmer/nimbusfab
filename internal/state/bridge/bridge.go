@@ -5,7 +5,7 @@ package bridge
 import (
 	"context"
 
-	"github.com/kratus8990/nimbusfab/pkg/engine"
+	"github.com/klehmer/nimbusfab/pkg/engine"
 )
 
 // Bridge is the entry point.

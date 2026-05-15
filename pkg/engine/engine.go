@@ -12,7 +12,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/kratus8990/nimbusfab/pkg/ir"
+	"github.com/klehmer/nimbusfab/pkg/ir"
 )
 
 // Engine is the only interface a frontend should depend on.

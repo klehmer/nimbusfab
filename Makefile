@@ -2,7 +2,7 @@
 
 GO       ?= go
 BIN_DIR  ?= bin
-PKG      := github.com/kratus8990/nimbusfab
+PKG      := github.com/klehmer/nimbusfab
 VERSION  ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
 LDFLAGS := -ldflags "-X $(PKG)/internal/version.Version=$(VERSION)"
