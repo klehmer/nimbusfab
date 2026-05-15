@@ -9,8 +9,12 @@ schema:
       enum: [small, medium, large]
 template:
   resources:
-    - name: ${input.name}-db
+    - name: tuned-postgres-db
       type: database
       spec:
         engine: postgres
         size: ${input.size}
+      targets:
+        - cloud: aws
+          region: us-east-1
+          credentialRef: aws-dev
