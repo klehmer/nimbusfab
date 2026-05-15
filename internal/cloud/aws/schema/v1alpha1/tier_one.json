@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nimbusfab.dev/schema/cloud/aws/v1alpha1/tier_one.json",
+  "title": "AWSTargetSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "tags": {
+      "description": "Per-target additional resource tags merged with framework tags.",
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    }
+  }
+}
