@@ -27,12 +27,18 @@ const (
 // Project is the top-level unit a user works on. One Project == one inventory
 // scope (one row in the projects table) and lives in one directory of YAML.
 type Project struct {
-	APIVersion  string           `json:"apiVersion" yaml:"apiVersion" jsonschema:"required,enum=infra.dev/v1alpha1"`
-	Name        string           `json:"name"       yaml:"name"       jsonschema:"required,pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?$,maxLength=63"`
-	Description string           `json:"description,omitempty" yaml:"description,omitempty"`
-	Stacks      map[string]Stack `json:"stacks"     yaml:"stacks"     jsonschema:"required,minProperties=1"`
-	Components  []Component      `json:"components,omitempty" yaml:"components,omitempty"`
-	Comps       []Composition    `json:"compositions,omitempty" yaml:"compositions,omitempty"`
+	APIVersion  string `json:"apiVersion" yaml:"apiVersion" jsonschema:"required,enum=infra.dev/v1alpha1"`
+	Name        string `json:"name"       yaml:"name"       jsonschema:"required,pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?$,maxLength=63"`
+	Description string `json:"description,omitempty" yaml:"description,omitempty"`
+	// Stacks declares the named environments for this Project. At least one
+	// must be present. NOTE: invopop/jsonschema does not propagate
+	// `minProperties` through to map-typed fields in the generated schema, so
+	// the `>= 1 entry` invariant is enforced programmatically by the
+	// validator's semantic-checks phase (DSL/IR Phase 2 plan), not by JSON
+	// Schema.
+	Stacks     map[string]Stack `json:"stacks" yaml:"stacks" jsonschema:"required,minProperties=1"`
+	Components []Component      `json:"components,omitempty" yaml:"components,omitempty"`
+	Comps      []Composition    `json:"compositions,omitempty" yaml:"compositions,omitempty"`
 }
 
 // Stack is a named environment within a Project (dev / staging / prod).
