@@ -94,12 +94,12 @@ type DeploymentTarget struct {
 // resource block in the OpenTofu JSON configuration syntax that tofu-runner
 // writes to disk.
 type ResourcePrimitive struct {
-	ID         string         `json:"id"`         // "<component>.<target>.<localname>"
-	Cloud      string         `json:"cloud"`
-	TofuType   string         `json:"tofuType"`   // e.g. "aws_db_instance"
-	TofuName   string         `json:"tofuName"`
-	Attributes map[string]any `json:"attributes"` // raw tofu JSON body
-	DependsOn  []string       `json:"dependsOn,omitempty"`
+	ID         string            `json:"id"` // "<component>.<target>.<localname>"
+	Cloud      string            `json:"cloud"`
+	TofuType   string            `json:"tofuType"` // e.g. "aws_db_instance"
+	TofuName   string            `json:"tofuName"`
+	Attributes map[string]any    `json:"attributes"` // raw tofu JSON body
+	DependsOn  []string          `json:"dependsOn,omitempty"`
 	Tags       map[string]string `json:"tags,omitempty"`
 }
 
