@@ -13,6 +13,23 @@ import (
 	"time"
 
 	"github.com/klehmer/nimbusfab/pkg/ir"
+	"github.com/klehmer/nimbusfab/pkg/provisioner"
+)
+
+// PlanResult is what Engine.Plan returns. Aliased to provisioner.PlanResult
+// so the engine surface and the provisioner output stay in lockstep.
+type PlanResult = provisioner.PlanResult
+
+// TargetPlan mirrors provisioner.TargetPlan for the same reason.
+type TargetPlan = provisioner.TargetPlan
+
+// PartialFailurePolicy mirrors provisioner.PartialFailurePolicy.
+type PartialFailurePolicy = provisioner.PartialFailurePolicy
+
+const (
+	PartialFailureLeave       = provisioner.PartialFailureLeave
+	PartialFailureRollback    = provisioner.PartialFailureRollback
+	PartialFailureRetryFailed = provisioner.PartialFailureRetryFailed
 )
 
 // Engine is the only interface a frontend should depend on.
@@ -64,62 +81,23 @@ const (
 	SeverityInfo    Severity = "info"
 )
 
-// PlanOpts controls plan generation. RefreshState forces a `tofu refresh`
-// before plan; DetectDrift adds a separate drift pass.
+// PlanOpts controls plan generation.
 type PlanOpts struct {
-	RefreshState bool
-	DetectDrift  bool
-	Parallelism  int
-	Targets      []string // restrict to specific Components, "" = all
-	OutputDir    string   // workdir for tofu workspaces; "" = engine default
-}
-
-// PlanResult is the durable artifact of a plan. PlanID references the row in
-// the inventory's runs table; the engine reads it back during Apply.
-type PlanResult struct {
-	PlanID    string
-	ProjectID string
-	StackID   string
-	CreatedAt time.Time
-	Targets   []TargetPlan
-	CostHint  *CostEstimate
-}
-
-// TargetPlan is the per-(component, cloud, region) plan output, parsed from
-// `tofu show -json plan.bin`. The raw form is retained for audit.
-type TargetPlan struct {
-	DeploymentTargetID string
-	Component          string
-	Cloud              string
-	Region             string
-	PrimitiveDiff      []PrimitiveDiff
-	TofuPlanJSON       []byte
-}
-
-// PrimitiveDiff is one resource's change in a plan: create / update / destroy
-// / no-op. Detailed attribute diffs live in TofuPlanJSON.
-type PrimitiveDiff struct {
-	PrimitiveID string
-	Action      string // "create" | "update" | "destroy" | "replace" | "noop"
+	RefreshState   bool
+	DetectDrift    bool
+	Parallelism    int
+	Targets        []provisioner.TargetFilter
+	OutputDir      string
+	PartialFailure PartialFailurePolicy
 }
 
 // ApplyOpts controls Apply behavior.
 type ApplyOpts struct {
 	AutoApprove    bool
 	PartialFailure PartialFailurePolicy
-	Detach         bool   // CLI uses Detach=false for synchronous streaming
-	ActorUserID    string // who initiated; recorded in audit_log
+	Detach         bool
+	ActorUserID    string
 }
-
-// PartialFailurePolicy decides what happens when one cloud target fails and
-// another succeeds within the same Apply.
-type PartialFailurePolicy string
-
-const (
-	PartialFailureLeave       PartialFailurePolicy = "leave" // default
-	PartialFailureRollback    PartialFailurePolicy = "rollback"
-	PartialFailureRetryFailed PartialFailurePolicy = "retry-failed"
-)
 
 // DestroyOpts controls Destroy.
 type DestroyOpts struct {
