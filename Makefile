@@ -1,4 +1,4 @@
-.PHONY: build cli server test lint fmt tidy clean
+.PHONY: build cli server test lint fmt tidy clean schemagen generate
 
 GO       ?= go
 BIN_DIR  ?= bin
@@ -27,6 +27,11 @@ fmt:
 
 tidy:
 	$(GO) mod tidy
+
+schemagen:
+	$(GO) run ./tools/schemagen/
+
+generate: schemagen
 
 clean:
 	rm -rf $(BIN_DIR)
