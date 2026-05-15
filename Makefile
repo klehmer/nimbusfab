@@ -1,4 +1,4 @@
-.PHONY: build cli server test lint fmt tidy clean schemagen generate
+.PHONY: build cli server test test-integration lint fmt tidy clean schemagen generate
 
 GO       ?= go
 BIN_DIR  ?= bin
@@ -17,6 +17,9 @@ server:
 
 test:
 	$(GO) test ./...
+
+test-integration:
+	$(GO) test -tags integration ./...
 
 lint:
 	$(GO) vet ./...
