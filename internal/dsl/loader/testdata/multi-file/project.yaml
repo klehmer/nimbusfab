@@ -1,0 +1,6 @@
+apiVersion: infra.dev/v1alpha1
+name: orders-multi
+stacks:
+  dev:
+    stateBackend:
+      kind: local

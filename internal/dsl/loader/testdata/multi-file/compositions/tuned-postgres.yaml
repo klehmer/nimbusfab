@@ -1,0 +1,16 @@
+apiVersion: infra.dev/v1alpha1
+kind: TunedPostgres
+schema:
+  type: object
+  required: [size]
+  properties:
+    size:
+      type: string
+      enum: [small, medium, large]
+template:
+  resources:
+    - name: ${input.name}-db
+      type: database
+      spec:
+        engine: postgres
+        size: ${input.size}

@@ -13,6 +13,7 @@ import (
 
 	"github.com/klehmer/nimbusfab/internal/dsl/yamlnode"
 	"github.com/klehmer/nimbusfab/pkg/ir"
+	"gopkg.in/yaml.v3"
 )
 
 // Loader is the public entry point. Construct with New().
@@ -26,18 +27,15 @@ func New() Loader { return &fsLoader{} }
 type fsLoader struct{}
 
 func (l *fsLoader) Load(ctx context.Context, root string) (*ir.Project, error) {
-	_ = ctx
 	projectPath := filepath.Join(root, "project.yaml")
 	body, err := os.ReadFile(projectPath)
 	if err != nil {
 		return nil, fmt.Errorf("read project.yaml: %w", err)
 	}
-
 	doc, err := yamlnode.Decode(projectPath, body)
 	if err != nil {
 		return nil, err
 	}
-
 	proj := &ir.Project{}
 	if err := doc.Raw.Decode(proj); err != nil {
 		return nil, &yamlnode.Error{
@@ -46,6 +44,96 @@ func (l *fsLoader) Load(ctx context.Context, root string) (*ir.Project, error) {
 		}
 	}
 
-	// (Multi-file discovery, includes, stack values arrive in later tasks.)
+	if err := l.loadComponentsDir(root, proj); err != nil {
+		return nil, err
+	}
+	if err := l.loadCompositionsDir(root, proj); err != nil {
+		return nil, err
+	}
+	if err := assertUniqueComponents(proj); err != nil {
+		return nil, err
+	}
+	if err := assertUniqueCompositions(proj); err != nil {
+		return nil, err
+	}
+
+	_ = ctx
 	return proj, nil
+}
+
+func (l *fsLoader) loadComponentsDir(root string, proj *ir.Project) error {
+	dir := filepath.Join(root, "components")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read components/: %w", err)
+	}
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".yaml" {
+			continue
+		}
+		path := filepath.Join(dir, e.Name())
+		body, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", path, err)
+		}
+		// Components files contain one Component each (multi-doc support in a later task).
+		var comp ir.Component
+		if err := yaml.Unmarshal(body, &comp); err != nil {
+			return &yamlnode.Error{Source: ir.Source{File: path}, Err: err}
+		}
+		proj.Components = append(proj.Components, comp)
+	}
+	return nil
+}
+
+func (l *fsLoader) loadCompositionsDir(root string, proj *ir.Project) error {
+	dir := filepath.Join(root, "compositions")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read compositions/: %w", err)
+	}
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".yaml" {
+			continue
+		}
+		path := filepath.Join(dir, e.Name())
+		body, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", path, err)
+		}
+		var comp ir.Composition
+		if err := yaml.Unmarshal(body, &comp); err != nil {
+			return &yamlnode.Error{Source: ir.Source{File: path}, Err: err}
+		}
+		proj.Comps = append(proj.Comps, comp)
+	}
+	return nil
+}
+
+func assertUniqueComponents(proj *ir.Project) error {
+	seen := map[string]bool{}
+	for _, c := range proj.Components {
+		if seen[c.Name] {
+			return fmt.Errorf("duplicate component %q (declared in both inline and components/)", c.Name)
+		}
+		seen[c.Name] = true
+	}
+	return nil
+}
+
+func assertUniqueCompositions(proj *ir.Project) error {
+	seen := map[string]bool{}
+	for _, c := range proj.Comps {
+		if seen[c.Kind] {
+			return fmt.Errorf("duplicate composition kind %q", c.Kind)
+		}
+		seen[c.Kind] = true
+	}
+	return nil
 }
