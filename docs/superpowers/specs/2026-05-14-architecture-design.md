@@ -375,11 +375,12 @@ These are deferred to per-subsystem specs:
 
 1. **DSL & IR spec** — finalize JSON Schema, define v1 component types (`network`, `compute`, `database`, `storage` as starting set), YAML reference syntax, validation rules.
 2. **Provisioner & cloud-adapter spec** — exact Tofu JSON emission per primitive type, adapter interface details, multi-target orchestration mechanics, drift detection algorithm.
-3. **Cost estimator spec** — pricing-key normalization, usage-assumption model, snapshot format, estimation accuracy targets.
-4. **Cost dashboard spec** — billing-API integration per cloud, cost-export integrations, normalization schema, dashboard query shapes.
-5. **Web app spec** — API endpoints in full, auth flows, UI surface inventory.
-6. **gRPC plugin spec** (v2) — go-plugin wiring, plugin discovery, protocol versioning.
-7. **GitOps daemon spec** (v2) — repo polling vs. webhook, reconciliation loop, drift policy.
+3. **Parity & SKU normalization spec** — cross-cloud parity reporting, contract floors per component type and T-shirt size, `Adapter.Profile()`, opt-in user rules that gate deploys. See `docs/superpowers/specs/2026-05-15-parity-design.md`.
+4. **Cost estimator spec** — pricing-key normalization, usage-assumption model, snapshot format, estimation accuracy targets. Shares `Profile()` infrastructure with parity.
+5. **Cost dashboard spec** — billing-API integration per cloud, cost-export integrations, normalization schema, dashboard query shapes.
+6. **Web app spec** — API endpoints in full, auth flows, UI surface inventory.
+7. **gRPC plugin spec** (v2) — go-plugin wiring, plugin discovery, protocol versioning.
+8. **GitOps daemon spec** (v2) — repo polling vs. webhook, reconciliation loop, drift policy.
 
 ---
 
