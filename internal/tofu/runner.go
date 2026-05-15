@@ -13,6 +13,7 @@ import (
 // Runner runs OpenTofu commands against a workspace directory.
 type Runner interface {
 	Init(ctx context.Context, ws Workspace) error
+	Validate(ctx context.Context, ws Workspace) (*ValidateResult, error)
 	Plan(ctx context.Context, ws Workspace, opts PlanOpts) (*PlanArtifact, error)
 	Apply(ctx context.Context, ws Workspace, planFile string, opts ApplyOpts) error
 	Destroy(ctx context.Context, ws Workspace, opts DestroyOpts) error
@@ -20,7 +21,14 @@ type Runner interface {
 	StateShow(ctx context.Context, ws Workspace) ([]byte, error)             // `tofu show -json`
 	StateRm(ctx context.Context, ws Workspace, address string) error
 	StateMv(ctx context.Context, ws Workspace, from, to string) error
+	Output(ctx context.Context, ws Workspace) (map[string]any, error) // `tofu output -json`
 	Version(ctx context.Context) (string, error)
+}
+
+// ValidateResult captures the structured output of `tofu validate -json`.
+type ValidateResult struct {
+	Valid       bool
+	Diagnostics []Diagnostic
 }
 
 // Workspace is one (deployment_target_id) directory on disk plus its backend
