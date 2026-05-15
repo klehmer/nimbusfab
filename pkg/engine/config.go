@@ -17,15 +17,15 @@ import (
 // no-inventory mode: Plan / Apply still work, but no run history, drift, or
 // cost-actuals storage is available.
 type Config struct {
-	Logger          *slog.Logger
-	InventoryRepo   inventory.Repo            // nil => no-inventory mode
-	SecretsBackend  secrets.Backend
-	CloudAdapters   map[string]cloud.Adapter  // keyed by cloud short name
-	ComponentTypes  components.Registry
-	Estimator       estimator.Estimator
-	Collector       collector.Collector
-	TofuBinary      string                    // path to `tofu` binary; defaults to PATH lookup
-	WorkDir         string                    // root of per-deployment workspaces
+	Logger         *slog.Logger
+	InventoryRepo  inventory.Repo // nil => no-inventory mode
+	SecretsBackend secrets.Backend
+	CloudAdapters  map[string]cloud.Adapter // keyed by cloud short name
+	ComponentTypes components.Registry
+	Estimator      estimator.Estimator
+	Collector      collector.Collector
+	TofuBinary     string // path to `tofu` binary; defaults to PATH lookup
+	WorkDir        string // root of per-deployment workspaces
 }
 
 // New constructs an Engine from cfg. Implementations live alongside this

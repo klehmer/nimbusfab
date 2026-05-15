@@ -24,7 +24,7 @@ type Collector interface {
 // PollInput selects what to collect for a single pass.
 type PollInput struct {
 	OrgID    string
-	Adapters map[string]cloud.Adapter   // keyed by cloud name
+	Adapters map[string]cloud.Adapter     // keyed by cloud name
 	Creds    map[string]cloud.Credentials // keyed by credential ref name
 	Since    time.Time
 	Until    time.Time
@@ -38,7 +38,7 @@ type PollResult struct {
 
 // Schedule configures the Run loop.
 type Schedule struct {
-	Interval        time.Duration // default 6h for in-scope; 24h for full sweep
-	JitterFraction  float64       // 0..1; defaults to 0.1
-	InitialDelay    time.Duration
+	Interval       time.Duration // default 6h for in-scope; 24h for full sweep
+	JitterFraction float64       // 0..1; defaults to 0.1
+	InitialDelay   time.Duration
 }
