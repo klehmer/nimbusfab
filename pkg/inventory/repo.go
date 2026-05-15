@@ -89,12 +89,12 @@ type ProjectRepo interface {
 
 // Stack is a named environment within a project.
 type Stack struct {
-	ID                string
-	OrgID             string
-	ProjectID         string
-	Name              string
-	StateBackendKind  string
-	StateBackendCfg   []byte // JSON
+	ID               string
+	OrgID            string
+	ProjectID        string
+	Name             string
+	StateBackendKind string
+	StateBackendCfg  []byte // JSON
 }
 
 // StackRepo manages Stack rows.

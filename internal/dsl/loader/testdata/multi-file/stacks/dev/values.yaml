@@ -1,0 +1,11 @@
+apiVersion: infra.dev/v1alpha1
+vars:
+  aws_region: us-east-1
+  db_size: small
+  pi_enabled: false
+disabled:
+  components:
+    - analytics-warehouse
+  targets:
+    - component: web-network
+      cloud: azure

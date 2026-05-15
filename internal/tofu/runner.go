@@ -36,11 +36,11 @@ type Workspace struct {
 
 // PlanOpts adjust the plan invocation.
 type PlanOpts struct {
-	Destroy      bool
-	Refresh      bool
-	Targets      []string
-	OutFile      string        // plan binary path; required
-	Timeout      time.Duration
+	Destroy bool
+	Refresh bool
+	Targets []string
+	OutFile string // plan binary path; required
+	Timeout time.Duration
 }
 
 // ApplyOpts adjust the apply invocation.

@@ -27,17 +27,24 @@ const (
 // Project is the top-level unit a user works on. One Project == one inventory
 // scope (one row in the projects table) and lives in one directory of YAML.
 type Project struct {
-	APIVersion string             `json:"apiVersion" yaml:"apiVersion"`
-	Name       string             `json:"name"       yaml:"name"`
-	Stacks     map[string]Stack   `json:"stacks"     yaml:"stacks"`
-	Components []Component        `json:"components" yaml:"components"`
-	Comps      []Composition      `json:"compositions,omitempty" yaml:"compositions,omitempty"`
+	APIVersion  string `json:"apiVersion" yaml:"apiVersion" jsonschema:"required,enum=infra.dev/v1alpha1"`
+	Name        string `json:"name"       yaml:"name"       jsonschema:"required,pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?$,maxLength=63"`
+	Description string `json:"description,omitempty" yaml:"description,omitempty"`
+	// Stacks declares the named environments for this Project. At least one
+	// must be present. NOTE: invopop/jsonschema does not propagate
+	// `minProperties` through to map-typed fields in the generated schema, so
+	// the `>= 1 entry` invariant is enforced programmatically by the
+	// validator's semantic-checks phase (DSL/IR Phase 2 plan), not by JSON
+	// Schema.
+	Stacks     map[string]Stack `json:"stacks" yaml:"stacks" jsonschema:"required,minProperties=1"`
+	Components []Component      `json:"components,omitempty" yaml:"components,omitempty"`
+	Comps      []Composition    `json:"compositions,omitempty" yaml:"compositions,omitempty"`
 }
 
 // Stack is a named environment within a Project (dev / staging / prod).
 // Stack-level vars are merged into Component.Spec at validation time.
 type Stack struct {
-	Name         string         `json:"name"         yaml:"name"`
+	Name         string         `json:"name"         yaml:"name"         jsonschema:"pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?$,maxLength=63"`
 	Vars         map[string]any `json:"vars,omitempty" yaml:"vars,omitempty"`
 	StateBackend StateBackend   `json:"stateBackend,omitempty" yaml:"stateBackend,omitempty"`
 }
@@ -46,7 +53,7 @@ type Stack struct {
 // backend is one of the standard tofu backends (s3 / gcs / azurerm / pg /
 // local). Concrete Config keys are backend-specific.
 type StateBackend struct {
-	Kind   string         `json:"kind"             yaml:"kind"`
+	Kind   string         `json:"kind"             yaml:"kind"             jsonschema:"required,enum=s3,enum=gcs,enum=azurerm,enum=pg,enum=local"`
 	Config map[string]any `json:"config,omitempty" yaml:"config,omitempty"`
 }
 
@@ -54,11 +61,11 @@ type StateBackend struct {
 // DeploymentTargets via the target shorthand (ModeReplicate) or be a single
 // cross-cloud target (ModeComposed, v2).
 type Component struct {
-	Name    string             `json:"name"    yaml:"name"`
-	Type    string             `json:"type"    yaml:"type"`
-	Mode    TargetMode         `json:"mode,omitempty" yaml:"mode,omitempty"`
-	Spec    map[string]any     `json:"spec"    yaml:"spec"`
-	Targets []DeploymentTarget `json:"targets" yaml:"targets"`
+	Name    string             `json:"name"    yaml:"name"    jsonschema:"required,pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?$,maxLength=63"`
+	Type    string             `json:"type"    yaml:"type"    jsonschema:"required"`
+	Mode    TargetMode         `json:"mode,omitempty" yaml:"mode,omitempty" jsonschema:"enum=replicate,enum=composed"`
+	Spec    map[string]any     `json:"spec"    yaml:"spec"    jsonschema:"required"`
+	Targets []DeploymentTarget `json:"targets" yaml:"targets" jsonschema:"required,minItems=1"`
 	Refs    []ComponentRef     `json:"refs,omitempty" yaml:"refs,omitempty"`
 	Policy  ComponentPolicy    `json:"policy,omitempty" yaml:"policy,omitempty"`
 }
@@ -74,7 +81,7 @@ type ComponentPolicy struct {
 // to resolve outputs across components (e.g. a database referencing a
 // network's VPC id).
 type ComponentRef struct {
-	Component string `json:"component" yaml:"component"`
+	Component string `json:"component" yaml:"component" jsonschema:"required"`
 	Output    string `json:"output,omitempty" yaml:"output,omitempty"`
 	As        string `json:"as,omitempty"     yaml:"as,omitempty"`
 }
@@ -82,9 +89,9 @@ type ComponentRef struct {
 // DeploymentTarget is the concrete (Component, Cloud, Region, CredentialRef)
 // tuple. The cloud adapter populates Primitives at plan time.
 type DeploymentTarget struct {
-	Cloud         string              `json:"cloud"          yaml:"cloud"`
-	Region        string              `json:"region"         yaml:"region"`
-	CredentialRef string              `json:"credentialRef"  yaml:"credentialRef"`
+	Cloud         string              `json:"cloud"          yaml:"cloud"          jsonschema:"required,pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?$,maxLength=63"`
+	Region        string              `json:"region"         yaml:"region"         jsonschema:"required"`
+	CredentialRef string              `json:"credentialRef"  yaml:"credentialRef"  jsonschema:"required"`
 	Spec          map[string]any      `json:"spec,omitempty" yaml:"spec,omitempty"`
 	Primitives    []ResourcePrimitive `json:"primitives,omitempty" yaml:"-"`
 }
@@ -93,12 +100,12 @@ type DeploymentTarget struct {
 // resource block in the OpenTofu JSON configuration syntax that tofu-runner
 // writes to disk.
 type ResourcePrimitive struct {
-	ID         string         `json:"id"`         // "<component>.<target>.<localname>"
-	Cloud      string         `json:"cloud"`
-	TofuType   string         `json:"tofuType"`   // e.g. "aws_db_instance"
-	TofuName   string         `json:"tofuName"`
-	Attributes map[string]any `json:"attributes"` // raw tofu JSON body
-	DependsOn  []string       `json:"dependsOn,omitempty"`
+	ID         string            `json:"id"` // "<component>.<target>.<localname>"
+	Cloud      string            `json:"cloud"`
+	TofuType   string            `json:"tofuType"` // e.g. "aws_db_instance"
+	TofuName   string            `json:"tofuName"`
+	Attributes map[string]any    `json:"attributes"` // raw tofu JSON body
+	DependsOn  []string          `json:"dependsOn,omitempty"`
 	Tags       map[string]string `json:"tags,omitempty"`
 }
 
@@ -107,10 +114,10 @@ type ResourcePrimitive struct {
 // expanded primitives. Expansion semantics are snapshot-per-deployment: edits
 // to the Composition do not live-update existing deployments.
 type Composition struct {
-	APIVersion string           `json:"apiVersion" yaml:"apiVersion"`
-	Kind       string           `json:"kind"       yaml:"kind"`
-	Schema     map[string]any   `json:"schema"     yaml:"schema"`     // JSON Schema for the type's spec
-	Template   CompositionTpl   `json:"template"   yaml:"template"`
+	APIVersion string         `json:"apiVersion" yaml:"apiVersion" jsonschema:"required,enum=infra.dev/v1alpha1"`
+	Kind       string         `json:"kind"       yaml:"kind"       jsonschema:"required,pattern=^[A-Za-z][A-Za-z0-9]*$,maxLength=63"`
+	Schema     map[string]any `json:"schema"     yaml:"schema"     jsonschema:"required"` // JSON Schema for the type's spec
+	Template   CompositionTpl `json:"template"   yaml:"template"   jsonschema:"required"`
 }
 
 // CompositionTpl is the body of a Composition. Resources reference built-in

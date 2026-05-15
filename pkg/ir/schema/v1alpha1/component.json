@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/klehmer/nimbusfab/pkg/ir/component",
+  "$ref": "#/$defs/Component",
+  "$defs": {
+    "Component": {
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 63,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+        },
+        "type": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "replicate",
+            "composed"
+          ]
+        },
+        "spec": {
+          "type": "object"
+        },
+        "targets": {
+          "items": {
+            "$ref": "#/$defs/DeploymentTarget"
+          },
+          "type": "array",
+          "minItems": 1
+        },
+        "refs": {
+          "items": {
+            "$ref": "#/$defs/ComponentRef"
+          },
+          "type": "array"
+        },
+        "policy": {
+          "$ref": "#/$defs/ComponentPolicy"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "name",
+        "type",
+        "spec",
+        "targets"
+      ]
+    },
+    "ComponentPolicy": {
+      "properties": {
+        "serial": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "ComponentRef": {
+      "properties": {
+        "component": {
+          "type": "string"
+        },
+        "output": {
+          "type": "string"
+        },
+        "as": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "component"
+      ]
+    },
+    "DeploymentTarget": {
+      "properties": {
+        "cloud": {
+          "type": "string",
+          "maxLength": 63,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+        },
+        "region": {
+          "type": "string"
+        },
+        "credentialRef": {
+          "type": "string"
+        },
+        "spec": {
+          "type": "object"
+        },
+        "primitives": {
+          "items": {
+            "$ref": "#/$defs/ResourcePrimitive"
+          },
+          "type": "array"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "cloud",
+        "region",
+        "credentialRef"
+      ]
+    },
+    "ResourcePrimitive": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "cloud": {
+          "type": "string"
+        },
+        "tofuType": {
+          "type": "string"
+        },
+        "tofuName": {
+          "type": "string"
+        },
+        "attributes": {
+          "type": "object"
+        },
+        "dependsOn": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "tags": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    }
+  }
+}

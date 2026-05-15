@@ -1,0 +1,22 @@
+apiVersion: infra.dev/v1alpha1
+name: orders
+description: small single-file test project
+stacks:
+  dev:
+    stateBackend:
+      kind: local
+  prod:
+    stateBackend:
+      kind: s3
+      config:
+        bucket: nimbusfab-state
+        region: us-east-1
+components:
+  - name: web-network
+    type: network
+    spec:
+      cidrBlock: 10.0.0.0/16
+    targets:
+      - cloud: aws
+        region: us-east-1
+        credentialRef: aws-dev

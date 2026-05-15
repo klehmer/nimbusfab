@@ -1,0 +1,10 @@
+apiVersion: infra.dev/v1alpha1
+name: orders-db
+type: database
+spec:
+  engine: postgres
+  size: small
+targets:
+  - cloud: aws
+    region: us-east-1
+    credentialRef: aws-dev

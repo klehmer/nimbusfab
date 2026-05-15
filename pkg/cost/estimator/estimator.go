@@ -53,12 +53,12 @@ type TargetEstimate struct {
 
 // PrimitiveEstimate is the per-resource leaf.
 type PrimitiveEstimate struct {
-	PrimitiveID    string
-	PricingKey     map[string]any
-	UnitPrice      float64
-	Units          float64
-	UnitOfMeasure  string
-	Subtotal       float64
+	PrimitiveID   string
+	PricingKey    map[string]any
+	UnitPrice     float64
+	Units         float64
+	UnitOfMeasure string
+	Subtotal      float64
 }
 
 // PricingProvider answers price lookups given an adapter-supplied key. The

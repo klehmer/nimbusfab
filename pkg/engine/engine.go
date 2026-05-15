@@ -31,6 +31,9 @@ type Engine interface {
 }
 
 // ValidationReport collects all schema and semantic diagnostics for a Project.
+//
+// Deprecated: prefer ir.ValidationReport. The engine package will switch
+// to that type when the validator subsystem lands (DSL/IR Phase 1 Task 9).
 type ValidationReport struct {
 	OK     bool
 	Issues []Issue
@@ -38,15 +41,21 @@ type ValidationReport struct {
 
 // Issue is a single diagnostic returned by validation. Severity discriminates
 // blocking errors from advisory warnings.
+//
+// Deprecated: prefer ir.Issue. The engine package will switch to that type
+// when the validator subsystem lands (DSL/IR Phase 1 Task 9).
 type Issue struct {
-	Severity  Severity
-	Code      string
-	Message   string
-	Path      string // dotted IR path, e.g. "components[0].targets[1].region"
-	Source    string // YAML file:line where available
+	Severity Severity
+	Code     string
+	Message  string
+	Path     string // dotted IR path, e.g. "components[0].targets[1].region"
+	Source   string // YAML file:line where available
 }
 
 // Severity classifies a diagnostic.
+//
+// Deprecated: prefer ir.Severity. The engine package will switch to that type
+// when the validator subsystem lands (DSL/IR Phase 1 Task 9).
 type Severity string
 
 const (
@@ -58,22 +67,22 @@ const (
 // PlanOpts controls plan generation. RefreshState forces a `tofu refresh`
 // before plan; DetectDrift adds a separate drift pass.
 type PlanOpts struct {
-	RefreshState  bool
-	DetectDrift   bool
-	Parallelism   int
-	Targets       []string // restrict to specific Components, "" = all
-	OutputDir     string   // workdir for tofu workspaces; "" = engine default
+	RefreshState bool
+	DetectDrift  bool
+	Parallelism  int
+	Targets      []string // restrict to specific Components, "" = all
+	OutputDir    string   // workdir for tofu workspaces; "" = engine default
 }
 
 // PlanResult is the durable artifact of a plan. PlanID references the row in
 // the inventory's runs table; the engine reads it back during Apply.
 type PlanResult struct {
-	PlanID     string
-	ProjectID  string
-	StackID    string
-	CreatedAt  time.Time
-	Targets    []TargetPlan
-	CostHint   *CostEstimate
+	PlanID    string
+	ProjectID string
+	StackID   string
+	CreatedAt time.Time
+	Targets   []TargetPlan
+	CostHint  *CostEstimate
 }
 
 // TargetPlan is the per-(component, cloud, region) plan output, parsed from
@@ -96,10 +105,10 @@ type PrimitiveDiff struct {
 
 // ApplyOpts controls Apply behavior.
 type ApplyOpts struct {
-	AutoApprove     bool
-	PartialFailure  PartialFailurePolicy
-	Detach          bool   // CLI uses Detach=false for synchronous streaming
-	ActorUserID     string // who initiated; recorded in audit_log
+	AutoApprove    bool
+	PartialFailure PartialFailurePolicy
+	Detach         bool   // CLI uses Detach=false for synchronous streaming
+	ActorUserID    string // who initiated; recorded in audit_log
 }
 
 // PartialFailurePolicy decides what happens when one cloud target fails and
@@ -107,7 +116,7 @@ type ApplyOpts struct {
 type PartialFailurePolicy string
 
 const (
-	PartialFailureLeave       PartialFailurePolicy = "leave"        // default
+	PartialFailureLeave       PartialFailurePolicy = "leave" // default
 	PartialFailureRollback    PartialFailurePolicy = "rollback"
 	PartialFailureRetryFailed PartialFailurePolicy = "retry-failed"
 )
@@ -205,21 +214,21 @@ type TargetCostEstimate struct {
 
 // PrimitiveCostEstimate is the leaf cost for a single primitive.
 type PrimitiveCostEstimate struct {
-	PrimitiveID  string
-	PricingKey   map[string]any // adapter-supplied; opaque to the engine
-	UnitPrice    float64
-	Units        float64
+	PrimitiveID   string
+	PricingKey    map[string]any // adapter-supplied; opaque to the engine
+	UnitPrice     float64
+	Units         float64
 	UnitOfMeasure string
-	Subtotal     float64
+	Subtotal      float64
 }
 
 // CostQuery selects actuals from the cost_actuals table.
 type CostQuery struct {
-	OrgID    string
-	Since    time.Time
-	Until    time.Time
-	GroupBy  []string // "cloud" | "service" | "component" | "region"
-	Filter   map[string]string
+	OrgID   string
+	Since   time.Time
+	Until   time.Time
+	GroupBy []string // "cloud" | "service" | "component" | "region"
+	Filter  map[string]string
 }
 
 // CostReport returns the result of a CostQuery.

@@ -1,0 +1,20 @@
+apiVersion: infra.dev/v1alpha1
+kind: TunedPostgres
+schema:
+  type: object
+  required: [size]
+  properties:
+    size:
+      type: string
+      enum: [small, medium, large]
+template:
+  resources:
+    - name: tuned-postgres-db
+      type: database
+      spec:
+        engine: postgres
+        size: ${input.size}
+      targets:
+        - cloud: aws
+          region: us-east-1
+          credentialRef: aws-dev

@@ -1,22 +1,38 @@
 package ir
 
-// GenerateJSONSchema returns the JSON Schema document describing valid Project
-// YAML for the current IR APIVersion. The schema is derived from the Go types
-// in this package; the YAML loader, the runtime validator, and the IDE schema
-// distributed with releases all consume the same generated artifact, so they
-// cannot drift.
+import (
+	"embed"
+	"fmt"
+)
+
+//go:embed schema/v1alpha1/*.json
+var embeddedSchemaFS embed.FS
+
+// EmbeddedSchema returns the bytes of the named schema file under
+// schema/v1alpha1/, e.g. EmbeddedSchema("project.json").
 //
-// Implementation is deferred to the DSL & IR subsystem spec; this stub fixes
-// the public signature.
-func GenerateJSONSchema() ([]byte, error) {
-	return nil, errUnimplemented
+// The schemas are generated from the Go types in this package by
+// tools/schemagen and committed to git. Run `make generate` to refresh
+// them after changing IR struct tags.
+func EmbeddedSchema(name string) ([]byte, error) {
+	data, err := embeddedSchemaFS.ReadFile("schema/v1alpha1/" + name)
+	if err != nil {
+		return nil, fmt.Errorf("embedded schema %q: %w", name, err)
+	}
+	return data, nil
 }
 
-// errUnimplemented is intentionally unexported and shared across stub
-// functions in this package. Subsystem implementations replace each stub
-// independently.
-var errUnimplemented = stubError("not implemented yet")
-
-type stubError string
-
-func (e stubError) Error() string { return string(e) }
+// EmbeddedSchemaNames returns the filenames of all embedded schemas.
+func EmbeddedSchemaNames() ([]string, error) {
+	entries, err := embeddedSchemaFS.ReadDir("schema/v1alpha1")
+	if err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(entries))
+	for _, e := range entries {
+		if !e.IsDir() {
+			out = append(out, e.Name())
+		}
+	}
+	return out, nil
+}
