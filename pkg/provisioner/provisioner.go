@@ -46,8 +46,5 @@ type runtimeProvisioner struct {
 	cfg Config
 }
 
-// Phase-2 stubs — DetectDrift lands in drift.go (Task 8); stays here until.
-
-func (*runtimeProvisioner) DetectDrift(ctx context.Context, in DriftInput) (*DriftReport, error) {
-	return nil, ErrNotImplementedYet
-}
+// Apply / Destroy / DetectDrift are implemented in apply.go / destroy.go /
+// drift.go respectively.

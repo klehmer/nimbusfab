@@ -29,6 +29,9 @@ type FakeRunner struct {
 	OutputReturn    map[string]any
 	VersionReturn   string
 
+	// DriftPlan, if non-nil, is returned from Plan when PlanOpts.RefreshOnly is true.
+	DriftPlan *PlanArtifact
+
 	// If non-empty, FakeRunner.Plan writes this byte slice to opts.OutFile so
 	// downstream code that reads the plan file sees plausible content.
 	PlanFileContents []byte
@@ -79,6 +82,9 @@ func (f *FakeRunner) Plan(ctx context.Context, ws Workspace, opts PlanOpts) (*Pl
 		if err := os.WriteFile(opts.OutFile, f.PlanFileContents, 0o600); err != nil {
 			return nil, err
 		}
+	}
+	if opts.RefreshOnly && f.DriftPlan != nil {
+		return f.DriftPlan, nil
 	}
 	if f.PlanReturn != nil {
 		return f.PlanReturn, nil
