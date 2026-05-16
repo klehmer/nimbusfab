@@ -1,0 +1,8 @@
+apiVersion: parity.dev/v1alpha1
+kind: ComponentContract
+type: compute
+sizes:
+  small:  { compute: { minVCPU: 2, minMemoryGB: 2 },  storage: { minSizeGB: 20, classIn: [ssd] } }
+  medium: { compute: { minVCPU: 2, minMemoryGB: 4 },  storage: { minSizeGB: 20, classIn: [ssd] } }
+  large:  { compute: { minVCPU: 2, minMemoryGB: 8 },  storage: { minSizeGB: 30, classIn: [ssd] } }
+  xlarge: { compute: { minVCPU: 4, minMemoryGB: 16 }, storage: { minSizeGB: 50, classIn: [ssd] } }

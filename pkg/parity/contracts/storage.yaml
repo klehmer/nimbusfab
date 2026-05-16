@@ -1,0 +1,8 @@
+apiVersion: parity.dev/v1alpha1
+kind: ComponentContract
+type: storage
+sizes:
+  small:  { storage: { classIn: [ssd, tiered], encrypted: required } }
+  medium: { storage: { classIn: [ssd, tiered], encrypted: required } }
+  large:  { storage: { classIn: [ssd, tiered], encrypted: required } }
+  xlarge: { storage: { classIn: [ssd, tiered], encrypted: required } }
