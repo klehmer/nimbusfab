@@ -1,6 +1,35 @@
 # Changelog
 
-## Unreleased — Validator Phase 4 (Per-Type Spec Schema)
+## Unreleased — Validator Phase 5 (Cross-Component Refs)
+
+### Added
+
+- `internal/dsl/validator/phase5_refs.go` — new pipeline phase that
+  validates the cross-component reference graph. Per-ref checks:
+  self-reference (`ref.Component == comp.Name`); component existence
+  (referenced name is in the project); output existence
+  (`ref.Output` is in target `Type.Outputs()`). After the per-ref
+  pass, DFS with three-color marking detects cycles in the directed
+  ref graph.
+- Four new issue codes: `ErrValidatorRefSelf`, `ErrValidatorRefUnknownComponent`,
+  `ErrValidatorRefUnknownOutput`, `ErrValidatorRefCycle`. All
+  `SeverityError` — every case would fail at provision time anyway.
+- Cycle reports include the full path joined by ' → ' (e.g.
+  `web-app → orders-db → web-app`) with the issue's Path pointing at
+  `components[N].refs` where N is the cycle's first node.
+- Suppression rule: if a ref target has an unknown type (Phase 4
+  already flagged it), Phase 5 skips the output check rather than
+  emit noise. The user fixes the type, re-runs, then any remaining
+  ref-output errors surface.
+- 10 unit tests in `phase5_refs_test.go` + 4 end-to-end CLI tests in
+  `validate_test.go`.
+
+### Performance
+
+O(N + E) where N = components and E = refs. Negligible for realistic
+projects.
+
+## Earlier — Validator Phase 4 (Per-Type Spec Schema)
 
 ### Added
 
