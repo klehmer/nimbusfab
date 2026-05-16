@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/klehmer/nimbusfab/pkg/ir"
+	"github.com/klehmer/nimbusfab/pkg/parity"
 )
 
 // PartialFailurePolicy selects how a multi-target Apply handles per-target
@@ -51,6 +52,10 @@ type PlanResult struct {
 	HasChanges     bool
 	Diagnostics    []Diagnostic
 	GeneratedAt    time.Time
+	// ParityReports holds one report per component (across its targets).
+	// Empty when no parity engine is configured or no components have
+	// multi-target deployments worth comparing.
+	ParityReports []parity.ParityReport
 }
 
 // TargetPlan is one (component, cloud, region) plan slice.
@@ -68,6 +73,10 @@ type TargetPlan struct {
 	Changes            int
 	Destroys           int
 	Tags               map[string]string
+	// PrimitiveProfiles holds parity.TargetProfile-shaped data — one entry
+	// per emitted primitive that has a meaningful profile. Adapters that
+	// return ErrProfileUnavailable for a primitive get nothing here.
+	PrimitiveProfiles []parity.TargetProfile
 }
 
 // Diagnostic is a non-fatal note attached to a PlanResult. Errors are

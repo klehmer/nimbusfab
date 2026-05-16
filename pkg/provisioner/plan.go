@@ -12,6 +12,7 @@ import (
 	"github.com/klehmer/nimbusfab/internal/tofu"
 	"github.com/klehmer/nimbusfab/pkg/cloud"
 	"github.com/klehmer/nimbusfab/pkg/ir"
+	"github.com/klehmer/nimbusfab/pkg/parity"
 )
 
 func (rp *runtimeProvisioner) Plan(ctx context.Context, in PlanInput) (*PlanResult, error) {
@@ -55,7 +56,67 @@ func (rp *runtimeProvisioner) Plan(ctx context.Context, in PlanInput) (*PlanResu
 			res.Targets = append(res.Targets, tp)
 		}
 	}
+	// Aggregate parity reports per component.
+	if pEngine, err := parity.NewEngine(); err == nil {
+		res.ParityReports = aggregateParityReports(ctx, pEngine, in.Project, res.Targets)
+	}
 	return res, nil
+}
+
+// aggregateParityReports groups TargetPlans by component, picks each target's
+// primary profile (matching the component class), and asks the parity engine
+// to Compare. Errors from Compare are silently dropped — parity is informative
+// and shouldn't fail Plan.
+func aggregateParityReports(ctx context.Context, e parity.Engine, project *ir.Project, targets []TargetPlan) []parity.ParityReport {
+	byComp := map[string][]TargetPlan{}
+	for _, tp := range targets {
+		byComp[tp.Component] = append(byComp[tp.Component], tp)
+	}
+	var out []parity.ParityReport
+	for compName, comps := range byComp {
+		var compType, size string
+		for _, c := range project.Components {
+			if c.Name == compName {
+				compType = c.Type
+				if sz, ok := c.Spec["size"].(string); ok {
+					size = sz
+				}
+				break
+			}
+		}
+		var perTarget []parity.TargetProfile
+		for _, tp := range comps {
+			if prof, ok := pickPrimaryProfile(tp.PrimitiveProfiles, compType); ok {
+				perTarget = append(perTarget, prof)
+			}
+		}
+		if len(perTarget) == 0 {
+			continue
+		}
+		rep, err := e.Compare(ctx, parity.CompareInput{
+			Component: compName, Type: compType, Size: size, Targets: perTarget,
+		})
+		if err == nil && rep != nil {
+			out = append(out, *rep)
+		}
+	}
+	return out
+}
+
+// pickPrimaryProfile finds the profile whose Class matches the component type
+// (e.g., aws_db_instance for a "database" component, not the subnet_group).
+func pickPrimaryProfile(profiles []parity.TargetProfile, compType string) (parity.TargetProfile, bool) {
+	for _, p := range profiles {
+		if p.Profile.Class == compType {
+			return p, true
+		}
+	}
+	for _, p := range profiles {
+		if p.Profile.Class != "" {
+			return p, true
+		}
+	}
+	return parity.TargetProfile{}, false
 }
 
 func (rp *runtimeProvisioner) planOne(ctx context.Context, in PlanInput, stack ir.Stack, comp ir.Component, target ir.DeploymentTarget) (TargetPlan, error) {
@@ -78,6 +139,20 @@ func (rp *runtimeProvisioner) planOne(ctx context.Context, in PlanInput, stack i
 	tagCtx := tagContext{Component: comp.Name, DeploymentID: in.DeploymentID, OrgID: in.OrgID}
 	for i, p := range primitives {
 		primitives[i] = injectFrameworkTags(p, tagCtx)
+	}
+
+	// Collect parity profiles per primitive (drop unavailable ones).
+	var profiles []parity.TargetProfile
+	for _, p := range primitives {
+		prof, perr := adapter.Profile(ctx, p)
+		if perr != nil {
+			continue
+		}
+		profiles = append(profiles, parity.TargetProfile{
+			Cloud:   target.Cloud,
+			Region:  target.Region,
+			Profile: prof,
+		})
 	}
 
 	backend := stack.StateBackend
@@ -151,6 +226,7 @@ func (rp *runtimeProvisioner) planOne(ctx context.Context, in PlanInput, stack i
 		Changes:            changes,
 		Destroys:           destroys,
 		Tags:               frameworkTags(comp.Name, in.DeploymentID, in.OrgID),
+		PrimitiveProfiles:  profiles,
 	}, nil
 }
 
