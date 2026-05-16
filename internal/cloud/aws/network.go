@@ -106,7 +106,7 @@ func (*Adapter) emitDatabase(ctx context.Context, target ir.DeploymentTarget, re
 }
 
 func (*Adapter) emitStorage(ctx context.Context, target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.ResourcePrimitive, error) {
-	return nil, fmt.Errorf("aws: storage emit not yet implemented")
+	return emitStorageImpl(target, refs)
 }
 
 func intFromSpec(spec map[string]any, key string, def int) int {
