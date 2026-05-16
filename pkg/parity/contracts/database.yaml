@@ -1,0 +1,23 @@
+apiVersion: parity.dev/v1alpha1
+kind: ComponentContract
+type: database
+description: |
+  Minimum guarantees for the `database` component type across all supported
+  clouds. Adapters select the cheapest cloud SKU that satisfies these minimums.
+sizes:
+  small:
+    compute:  { minVCPU: 2,  minMemoryGB: 2 }
+    storage:  { minSizeGB: 100, minIOPS: 1000, classIn: [ssd] }
+    features: { pointInTimeRestore: required }
+  medium:
+    compute:  { minVCPU: 2,  minMemoryGB: 4 }
+    storage:  { minSizeGB: 250, minIOPS: 3000, classIn: [ssd] }
+    features: { pointInTimeRestore: required }
+  large:
+    compute:  { minVCPU: 2,  minMemoryGB: 8 }
+    storage:  { minSizeGB: 500, minIOPS: 5000, classIn: [ssd] }
+    features: { pointInTimeRestore: required }
+  xlarge:
+    compute:  { minVCPU: 4,  minMemoryGB: 16 }
+    storage:  { minSizeGB: 1000, minIOPS: 10000, classIn: [ssd] }
+    features: { pointInTimeRestore: required }

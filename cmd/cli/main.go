@@ -29,6 +29,7 @@ func main() {
 	root.AddCommand(newApplyCommand())
 	root.AddCommand(newDestroyCommand())
 	root.AddCommand(newDriftCommand())
+	root.AddCommand(newParityCommand())
 
 	if err := root.Execute(); err != nil {
 		os.Exit(1)

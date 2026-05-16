@@ -1,0 +1,8 @@
+apiVersion: parity.dev/v1alpha1
+kind: ComponentContract
+type: network
+sizes:
+  small:  { network: { minSubnets: 2 } }
+  medium: { network: { minSubnets: 3 } }
+  large:  { network: { minSubnets: 3 } }
+  xlarge: { network: { minSubnets: 3 } }
