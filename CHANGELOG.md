@@ -1,6 +1,53 @@
 # Changelog
 
-## Unreleased — Cost Estimator Phase 1
+## Unreleased — Azure Adapter Phase 4
+
+### Added
+
+- `internal/cloud/azure` — full `cloud.Adapter` implementation mirroring
+  AWS Phase 3's structure: per-type emit files (network / compute /
+  database / storage), dispatch on `target.Spec["__type"]`,
+  `PricingKey()` + `Profile()` real implementations,
+  `DefaultStateBackend()` (azurerm backend), `ProviderBlock()`
+  (azurerm provider with mandatory features block).
+- Per-type emissions:
+  - network = ResourceGroup + VirtualNetwork + NSG + N subnets
+  - compute = RG + NSG + N (Public IP + NIC + Linux VM); default image
+    Ubuntu 22.04 LTS (publisher=Canonical)
+  - database = RG + PostgreSQL/MySQL Flexible Server (+ default database)
+    OR classic MariaDB server (Azure deprecated MariaDB Flexible)
+  - storage = RG + StorageV2 account (LRS replication) + Container
+- T-shirt size mappings — compute: Standard_B2s/B2ms/B4ms/D4s_v5;
+  database: Standard_B1ms/B2s/D2s_v3/D4s_v3 (Burstable / GeneralPurpose
+  tiers).
+- Azure pricing snapshot (`pkg/cost/pricing/snapshot/azure.json`) covering
+  the Phase-4 VM / Flexible Server / Storage SKUs across
+  `{eastus, eastus2, westeurope}`.
+- `pkg/cost/estimator.UnitsFor` extended to recognize Azure Tofu types
+  (linux_virtual_machine, postgresql/mysql/mariadb servers, storage account).
+- `pkg/plugin/contract.RunProvisionerScenarios` passes for Azure adapter.
+- `cmd/cli/clouds.go` — `defaultCloudRegistry()` helper registers both
+  AWS and Azure for all CLI commands (refactored 6 production files).
+- Full-stack fixture (`cmd/cli/testdata/full-stack-project/`) now targets
+  both AWS and Azure for every component: 4 components × 2 clouds = 8
+  targets. `nimbusfab parity` reports non-trivial scores; `nimbusfab
+  cost estimate` shows per-cloud subtotals.
+- Region naming: Azure adapter rejects AWS-style names
+  (`us-east-1`); use Azure location format (`eastus`, `westeurope`, etc.).
+
+### Out of scope (deferred)
+
+- AzAPI provider for resources not yet covered by AzureRM. v2.
+- Managed identities / RBAC role assignments. v2.
+- Azure SQL Database / Cosmos DB / Synapse. Future per-service specs.
+- Application Gateway / Front Door / Traffic Manager. v2.
+- VM Scale Sets (auto-scaling case). v2.
+- Storage lifecycle / immutability policies. v2.
+- Spot VMs / Reserved Instances / Hybrid Benefit. v2.
+- Tier-1 `<cloud>: azure:` escape hatch schemas.
+- LocalStack / Azurite integration testing. Credentials-gated CI phase.
+
+## Cost Estimator Phase 1
 
 ### Added
 

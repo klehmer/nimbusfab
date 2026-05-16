@@ -85,4 +85,3 @@ func dbTierFromSKU(sku string) string {
 	}
 	return "GeneralPurpose"
 }
-

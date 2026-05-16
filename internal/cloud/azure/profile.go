@@ -126,4 +126,3 @@ func lookupDBComputeProfile(sku string) parity.ComputeProfile {
 	}
 	return parity.ComputeProfile{Architecture: "x86_64"}
 }
-

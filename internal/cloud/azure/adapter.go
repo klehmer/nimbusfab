@@ -39,8 +39,8 @@ func (*Adapter) Validate(ctx context.Context, target ir.DeploymentTarget) []ir.I
 	if hasHyphen(target.Region) {
 		return []ir.Issue{{
 			Severity: ir.SeverityError, Code: "ErrAdapterAzureRegionInvalid",
-			Message:  fmt.Sprintf("Azure region %q looks like an AWS region name; use Azure format (e.g. 'eastus' not 'us-east-1')", target.Region),
-			Path:     "target.region",
+			Message: fmt.Sprintf("Azure region %q looks like an AWS region name; use Azure format (e.g. 'eastus' not 'us-east-1')", target.Region),
+			Path:    "target.region",
 		}}
 	}
 	return nil
