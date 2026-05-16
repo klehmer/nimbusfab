@@ -98,7 +98,7 @@ func (*Adapter) emitNetwork(ctx context.Context, target ir.DeploymentTarget, ref
 // Per-type stubs that Tasks 6-8 replace.
 
 func (*Adapter) emitCompute(ctx context.Context, target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.ResourcePrimitive, error) {
-	return nil, fmt.Errorf("aws: compute emit not yet implemented")
+	return emitComputeImpl(target, refs)
 }
 
 func (*Adapter) emitDatabase(ctx context.Context, target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.ResourcePrimitive, error) {
