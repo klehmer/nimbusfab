@@ -122,3 +122,92 @@ func TestNew_NilRepoRejected(t *testing.T) {
 		t.Error("expected error for nil repo")
 	}
 }
+
+// --- HTTP Phase 1: /api/v1/* ---
+
+// newServerWithToken builds a test server with an APIToken set; lets the
+// auth-required tests share the seeded-repo helper.
+func newServerWithToken(t *testing.T, token string, seed func(context.Context, *sqlite.Repo)) *httptest.Server {
+	t.Helper()
+	r, err := sqlite.Open("sqlite::memory:")
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+	if err := r.Migrate(context.Background()); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	ctx := context.Background()
+	_ = r.Orgs().Create(ctx, inventory.Org{ID: "default", Name: "default"})
+	if seed != nil {
+		seed(ctx, r)
+	}
+	h, err := webapi.New(webapi.Config{Repo: r, OrgID: "default", APIToken: token})
+	if err != nil {
+		t.Fatalf("webapi.New: %v", err)
+	}
+	srv := httptest.NewServer(h)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestRouter_APIProjectsEmpty(t *testing.T) {
+	srv, _ := newServer(t, nil)
+	resp, body := get(t, srv, "/api/v1/projects")
+	if resp.StatusCode != 200 {
+		t.Errorf("status = %d, body=%s", resp.StatusCode, body)
+	}
+	if !strings.Contains(body, `"projects":[]`) {
+		t.Errorf("body missing empty projects array: %s", body)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.Contains(ct, "application/json") {
+		t.Errorf("Content-Type = %q", ct)
+	}
+}
+
+func TestRouter_APIProjectMissing(t *testing.T) {
+	srv, _ := newServer(t, nil)
+	resp, body := get(t, srv, "/api/v1/projects/missing")
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", resp.StatusCode)
+	}
+	if !strings.Contains(body, `"code":"ErrNotFound"`) {
+		t.Errorf("body missing error code: %s", body)
+	}
+}
+
+func TestRouter_APIWithToken_NoHeader_401(t *testing.T) {
+	srv := newServerWithToken(t, "secret", nil)
+	resp, body := get(t, srv, "/api/v1/projects")
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("status = %d, want 401", resp.StatusCode)
+	}
+	if !strings.Contains(body, "ErrUnauthorized") {
+		t.Errorf("body missing ErrUnauthorized: %s", body)
+	}
+}
+
+func TestRouter_APIWithToken_GoodHeader_200(t *testing.T) {
+	srv := newServerWithToken(t, "secret", nil)
+	req, _ := http.NewRequest("GET", srv.URL+"/api/v1/projects", nil)
+	req.Header.Set("Authorization", "Bearer secret")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Errorf("status = %d", resp.StatusCode)
+	}
+}
+
+func TestRouter_UIUnaffectedByAPIToken(t *testing.T) {
+	// UI routes should never require bearer auth in Phase 1, even when an
+	// API token is configured. Auth Phase 1 introduces cookie sessions
+	// for the UI; until then, UI access is fully open.
+	srv := newServerWithToken(t, "secret", nil)
+	resp, _ := get(t, srv, "/ui/projects")
+	if resp.StatusCode != 200 {
+		t.Errorf("UI route blocked by API token: status = %d", resp.StatusCode)
+	}
+}
