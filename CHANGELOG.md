@@ -1,6 +1,55 @@
 # Changelog
 
-## Unreleased — Web App UI Phase 1 (Read-Only Pages)
+## Unreleased — Web App HTTP Phase 1 (Read-Only JSON Endpoints)
+
+### Added
+
+- `internal/webapi/api` package — JSON GET handlers for the same
+  data UI Phase 1 displays as HTML:
+  - `GET /api/v1/projects` → `{"data": {"projects": [...]}}`
+  - `GET /api/v1/projects/{id}` → project + stacks + components + recent deployments
+  - `GET /api/v1/deployments/{id}` → deployment + targets
+  - `GET /api/v1/runs/{id}` → run
+- JSON envelope conventions: success → `{"data": ...}`; error →
+  `{"error": {"code": "...", "message": "..."}}` matching the web
+  app spec. Time fields RFC3339. Inventory Go types converted to
+  camelCase via per-type `*JSON` helpers (decouples wire shape from
+  Go struct names).
+- `internal/webapi/middleware/auth.go` — `BearerToken(token)`
+  middleware. Empty token → no-op (dev mode); non-empty → requires
+  exact match on `Authorization: Bearer <token>`. Wrong/missing
+  headers return 401 with the JSON error envelope.
+- `webapi.Config.APIToken` field; `cmd/server` reads
+  `NIMBUSFAB_API_TOKEN` env var and logs a clear startup note
+  about whether API auth is required.
+- 18 new unit/integration tests (4 middleware + 9 API handler + 5
+  router). End-to-end smoke-tested with both auth on and off.
+
+### Design notes
+
+- **Per-handler auth wrapping** (not subtree mount). Go's ServeMux
+  rejects ambiguous overlaps between path-only and method-specific
+  patterns (`/api/v1/` vs `GET /`); registering each API route
+  individually with the middleware bypasses the conflict and keeps
+  the auth surface exactly scoped to /api/v1/*.
+- **UI deliberately ignores APIToken.** UI routes remain
+  unauthenticated in Phase 1 even when API auth is configured.
+  Auth Phase 1 will add cookie sessions for the UI; until then,
+  do not expose the binary publicly.
+- **Phase-1 PAT stub.** Single shared token compared via string
+  match. Real PATs (per-user, argon2 hashed, expirable) land in
+  Auth Phase 1; the middleware shape is forward-compatible.
+
+### Out of scope (deferred)
+
+- Mutating endpoints — POST applies / destroys / drifts (HTTP Phase 2).
+- SSE on `/api/v1/runs/{id}/events` (HTTP Phase 2).
+- Real PAT data model (Auth Phase 1).
+- Idempotency keys (HTTP Phase 2).
+- Pagination / filtering (Polish Phase 1).
+- Cost / parity / drift endpoints (Dashboards Phase 1, Drift Phase 1).
+
+## Earlier — Web App UI Phase 1 (Read-Only Pages)
 
 ### Added
 
