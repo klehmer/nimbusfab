@@ -1,12 +1,16 @@
 // Command nimbusfab is the Nimbusfab platform CLI. It instantiates an
-// in-process Engine and dispatches commands. Phase 1 wires only the
-// `validate` subcommand; later phases add `show`, `plan`, `apply`, etc.
+// in-process Engine and dispatches commands.
 package main
 
 import (
 	"os"
 
 	"github.com/spf13/cobra"
+)
+
+var (
+	flagInventoryDSN string
+	flagNoInventory  bool
 )
 
 func main() {
@@ -16,6 +20,10 @@ func main() {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
+	root.PersistentFlags().StringVar(&flagInventoryDSN, "inventory-dsn", "",
+		"inventory DB DSN (default: sqlite://~/.config/nimbusfab/inventory.db)")
+	root.PersistentFlags().BoolVar(&flagNoInventory, "no-inventory", false,
+		"disable inventory persistence; all operations are in-process only")
 	root.AddCommand(newValidateCommand())
 	root.AddCommand(newPlanCommand())
 	root.AddCommand(newApplyCommand())
