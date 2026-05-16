@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nimbusfab.dev/schema/components/v1alpha1/database.json",
+  "title": "DatabaseSpec",
+  "type": "object",
+  "required": ["engine"],
+  "additionalProperties": false,
+  "oneOf": [
+    { "required": ["size"] },
+    { "required": ["compute", "storage"] }
+  ],
+  "properties": {
+    "engine": { "type": "string", "enum": ["postgres", "mysql", "mariadb"] },
+    "version": { "type": "string" },
+    "size": { "type": "string", "enum": ["small", "medium", "large", "xlarge"] },
+    "compute": {
+      "type": "object",
+      "required": ["vCPU", "memoryGB"],
+      "additionalProperties": false,
+      "properties": {
+        "vCPU": { "type": "integer", "minimum": 1 },
+        "memoryGB": { "type": "number", "minimum": 0.5 }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sizeGB": { "type": "integer", "minimum": 20, "default": 100 },
+        "iops": { "type": "integer", "minimum": 1000 },
+        "class": { "type": "string", "enum": ["ssd"], "default": "ssd" }
+      }
+    },
+    "multiAZ": { "type": "boolean", "default": false },
+    "pointInTimeRestore": { "type": "boolean", "default": true }
+  }
+}

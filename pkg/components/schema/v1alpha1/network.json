@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nimbusfab.dev/schema/components/v1alpha1/network.json",
+  "title": "NetworkSpec",
+  "type": "object",
+  "required": ["cidr"],
+  "additionalProperties": false,
+  "properties": {
+    "cidr": {
+      "type": "string",
+      "description": "IPv4 CIDR block for the VPC. /16 recommended for >=3 /24 subnets.",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$"
+    },
+    "enableIPv6": { "type": "boolean", "default": false },
+    "subnetCount": { "type": "integer", "minimum": 1, "maximum": 16, "default": 3 }
+  }
+}

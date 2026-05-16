@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nimbusfab.dev/schema/components/v1alpha1/compute.json",
+  "title": "ComputeSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "oneOf": [
+    { "required": ["size"] },
+    { "required": ["compute"] }
+  ],
+  "properties": {
+    "size": { "type": "string", "enum": ["small", "medium", "large", "xlarge"] },
+    "compute": {
+      "type": "object",
+      "required": ["vCPU", "memoryGB"],
+      "additionalProperties": false,
+      "properties": {
+        "vCPU": { "type": "integer", "minimum": 1 },
+        "memoryGB": { "type": "number", "minimum": 0.5 },
+        "architecture": { "type": "string", "enum": ["x86_64", "arm64"], "default": "x86_64" }
+      }
+    },
+    "replicas": { "type": "integer", "minimum": 1, "default": 1 },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sizeGB": { "type": "integer", "minimum": 8, "default": 30 },
+        "class": { "type": "string", "enum": ["ssd", "hdd"], "default": "ssd" }
+      }
+    },
+    "imageRef": { "type": "string" }
+  }
+}
