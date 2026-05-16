@@ -83,7 +83,7 @@ func runDrift(ctx context.Context, in driftArgs) int {
 
 	var drift *provisioner.DriftReport
 	if isDeploymentID {
-		drift, err = eng.DetectDrift(ctx, in.PositionalArg)
+		drift, err = eng.DetectDrift(ctx, in.PositionalArg, engine.DriftOpts{})
 	} else {
 		if in.Stack == "" {
 			fmt.Fprintln(in.Stderr, "error: --stack required when no deployment ID given")
