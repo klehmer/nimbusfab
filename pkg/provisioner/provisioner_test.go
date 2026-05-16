@@ -30,7 +30,10 @@ func TestNew_RequiresRunner(t *testing.T) {
 	}
 }
 
-func TestRuntimeProvisioner_ApplyAndDestroyNotImplemented(t *testing.T) {
+func TestRuntimeProvisioner_DestroyAndDriftNotYetImplemented(t *testing.T) {
+	// Apply now works (Phase 2 Task 5). Destroy + DetectDrift land in Tasks
+	// 7 and 8; until then they should return ErrNotImplementedYet so callers
+	// fail fast rather than receiving a nil result.
 	p, err := New(Config{
 		WorkRoot: t.TempDir(),
 		Adapters: cloud.NewRegistry(),
@@ -40,10 +43,10 @@ func TestRuntimeProvisioner_ApplyAndDestroyNotImplemented(t *testing.T) {
 		t.Fatalf("New: %v", err)
 	}
 	ctx := context.Background()
-	if _, err := p.Apply(ctx, ApplyInput{}); !errors.Is(err, ErrNotImplementedYet) {
-		t.Errorf("Apply: want ErrNotImplementedYet, got %v", err)
-	}
 	if _, err := p.Destroy(ctx, DestroyInput{}); !errors.Is(err, ErrNotImplementedYet) {
 		t.Errorf("Destroy: want ErrNotImplementedYet, got %v", err)
+	}
+	if _, err := p.DetectDrift(ctx, DriftInput{}); !errors.Is(err, ErrNotImplementedYet) {
+		t.Errorf("DetectDrift: want ErrNotImplementedYet, got %v", err)
 	}
 }

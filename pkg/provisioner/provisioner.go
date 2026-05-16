@@ -46,12 +46,10 @@ type runtimeProvisioner struct {
 	cfg Config
 }
 
-// Phase-2 stubs — replaced by apply.go / destroy.go / drift.go as those land.
-// Kept here so the package compiles between tasks.
+// Phase-2 stubs — Apply lives in apply.go (Task 5+), Destroy in destroy.go
+// (Task 7), DetectDrift in drift.go (Task 8). Destroy/Drift stubs stay here
+// until those tasks land.
 
-func (*runtimeProvisioner) Apply(ctx context.Context, in ApplyInput) (*ApplyResult, error) {
-	return nil, ErrNotImplementedYet
-}
 func (*runtimeProvisioner) Destroy(ctx context.Context, in DestroyInput) (*ApplyResult, error) {
 	return nil, ErrNotImplementedYet
 }

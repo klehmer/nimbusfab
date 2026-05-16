@@ -1,7 +1,11 @@
-// Package bridge parses `tofu show -json` output into the provisioner's
-// StateSnapshot type. It does NOT touch the inventory database — that lives
-// in the inventory persistence phase. Bridge is pure: given JSON bytes,
-// return a typed snapshot.
+// Package bridge parses `tofu show -json` output into a typed snapshot.
+// It does NOT touch the inventory database — that lives in the inventory
+// persistence phase. Bridge is pure: given JSON bytes, return typed state.
+//
+// Bridge defines its own Snapshot/Resource types rather than importing
+// pkg/provisioner — pkg/provisioner imports bridge, so the reverse would
+// create an import cycle. The Apply path in pkg/provisioner converts these
+// to provisioner.StateSnapshot trivially.
 package bridge
 
 import (
@@ -11,13 +15,29 @@ import (
 	"fmt"
 	"sort"
 	"time"
-
-	"github.com/klehmer/nimbusfab/pkg/provisioner"
 )
 
-// Parse turns `tofu show -json` raw bytes into a StateSnapshot.
-// DeploymentTargetID is left empty — the caller fills it from context.
-func Parse(raw []byte) (*provisioner.StateSnapshot, error) {
+// Snapshot is the parsed tofu state.
+type Snapshot struct {
+	TofuVersion  string
+	SerialNumber int64
+	Resources    []Resource
+	Outputs      map[string]any
+	CapturedAt   time.Time
+}
+
+// Resource is one entry from the parsed state.
+type Resource struct {
+	Address         string
+	Type            string
+	Name            string
+	CloudResourceID string
+	AttributesHash  string
+	Attributes      map[string]any
+}
+
+// Parse turns `tofu show -json` raw bytes into a Snapshot.
+func Parse(raw []byte) (*Snapshot, error) {
 	var doc struct {
 		FormatVersion    string `json:"format_version"`
 		TerraformVersion string `json:"terraform_version"`
@@ -40,7 +60,7 @@ func Parse(raw []byte) (*provisioner.StateSnapshot, error) {
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		return nil, fmt.Errorf("bridge.Parse: %w", err)
 	}
-	snap := &provisioner.StateSnapshot{
+	snap := &Snapshot{
 		TofuVersion:  doc.TerraformVersion,
 		SerialNumber: doc.Serial,
 		Outputs:      map[string]any{},
@@ -50,7 +70,7 @@ func Parse(raw []byte) (*provisioner.StateSnapshot, error) {
 		snap.Outputs[k] = v.Value
 	}
 	for _, r := range doc.Values.RootModule.Resources {
-		snap.Resources = append(snap.Resources, provisioner.StateResource{
+		snap.Resources = append(snap.Resources, Resource{
 			Address:         r.Address,
 			Type:            r.Type,
 			Name:            r.Name,
