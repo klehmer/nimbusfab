@@ -1,6 +1,7 @@
 package ui_test
 
 import (
+	"bytes"
 	"context"
 	"io/fs"
 	"net/http"
@@ -35,6 +36,31 @@ func TestAssetsFS_ContainsStylesheet(t *testing.T) {
 	}
 	if len(data) == 0 {
 		t.Error("style.css is empty")
+	}
+	// UI Phase 2: assert new classes are present.
+	for _, want := range []string{".actions", ".log-pane", ".log-line"} {
+		if !bytes.Contains(data, []byte(want)) {
+			t.Errorf("style.css missing UI Phase 2 class %q", want)
+		}
+	}
+}
+
+func TestAssetsFS_ContainsAppJS(t *testing.T) {
+	assets, err := ui.AssetsFS()
+	if err != nil {
+		t.Fatalf("AssetsFS: %v", err)
+	}
+	data, err := fs.ReadFile(assets, "app.js")
+	if err != nil {
+		t.Fatalf("read app.js: %v", err)
+	}
+	if len(data) == 0 {
+		t.Error("app.js is empty")
+	}
+	for _, want := range []string{"attachDeploymentActions", "EventSource", "window.nimbusfab"} {
+		if !bytes.Contains(data, []byte(want)) {
+			t.Errorf("app.js missing %q", want)
+		}
 	}
 }
 

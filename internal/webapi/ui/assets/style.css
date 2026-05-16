@@ -89,3 +89,51 @@ code {
   font-size: 0.95em;
 }
 .muted { color: #888; font-style: italic; }
+
+/* UI Phase 2: action bar + live log pane */
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.actions button {
+  font: inherit;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid #2266cc;
+  background: #2266cc;
+  color: #fff;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+.actions button:hover { background: #1a4f9a; }
+.actions button:disabled { background: #aaa; border-color: #aaa; cursor: not-allowed; }
+.actions button.destructive { background: #c33; border-color: #c33; }
+.actions button.destructive:hover { background: #a22; }
+
+.log-pane {
+  border: 1px solid #ddd;
+  background: #fafafa;
+  border-radius: 0.3rem;
+  padding: 0.5rem 0.75rem;
+  margin: 1rem 0;
+  min-height: 4em;
+  max-height: 50vh;
+  overflow-y: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}
+.log-pane:empty::before {
+  content: "No live events yet — click an action above to begin.";
+  color: #999;
+  font-style: italic;
+  font-family: inherit;
+}
+.log-line { padding: 0.1rem 0; }
+.log-line .ts { color: #888; margin-right: 0.5em; }
+.log-line .target { color: #2266cc; margin-right: 0.5em; }
+.log-line .kind { display: inline-block; min-width: 5em; color: #555; }
+.log-line.success .msg { color: #1a5a1a; }
+.log-line.failure { background: #fff0f0; }
+.log-line.complete { color: #555; font-style: italic; }
