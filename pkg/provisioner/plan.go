@@ -100,12 +100,23 @@ func (rp *runtimeProvisioner) planOne(ctx context.Context, in PlanInput, stack i
 		comp.Name,
 	)
 
+	// Cross-component refs: assume same backend kind/config in Phase 2.
+	// Cross-stack refs are v2.
+	var upstreamRefs []UpstreamStateRef
+	for _, ref := range comp.Refs {
+		upstreamRefs = append(upstreamRefs, UpstreamStateRef{
+			Component: ref.Component,
+			Backend:   backend,
+		})
+	}
+
 	layout := WorkspaceLayout{
 		Dir:            workspaceDir,
 		ProviderName:   adapter.Name(),
 		ProviderConfig: providerBlock,
 		Backend:        backend,
 		Primitives:     primitives,
+		UpstreamRefs:   upstreamRefs,
 	}
 	if err := WriteWorkspace(layout); err != nil {
 		return TargetPlan{}, fmt.Errorf("WriteWorkspace: %w", err)
