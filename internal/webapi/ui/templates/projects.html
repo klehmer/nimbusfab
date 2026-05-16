@@ -1,0 +1,20 @@
+{{define "title"}}Projects{{end}}
+{{define "content"}}
+<h1>Projects</h1>
+{{if .Projects}}
+<table>
+  <thead><tr><th>Name</th><th>ID</th><th>Created</th></tr></thead>
+  <tbody>
+  {{range .Projects}}
+  <tr>
+    <td><a href="/ui/projects/{{.ID}}">{{.Name}}</a></td>
+    <td><code>{{shortID .ID}}</code></td>
+    <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="muted">No projects registered yet. Run <code>nimbusfab plan</code> with inventory enabled to register one.</p>
+{{end}}
+{{end}}
