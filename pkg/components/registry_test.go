@@ -13,9 +13,9 @@ type fakeType struct {
 	name string
 }
 
-func (f fakeType) Name() string                       { return f.name }
-func (f fakeType) SpecSchema() []byte                 { return []byte(`{}`) }
-func (f fakeType) SupportedClouds() []string          { return []string{"aws"} }
+func (f fakeType) Name() string              { return f.name }
+func (f fakeType) SpecSchema() []byte        { return []byte(`{}`) }
+func (f fakeType) SupportedClouds() []string { return []string{"aws"} }
 func (f fakeType) Outputs() map[string]components.OutputType {
 	return map[string]components.OutputType{}
 }

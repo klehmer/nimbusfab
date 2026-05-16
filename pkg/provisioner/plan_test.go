@@ -67,8 +67,9 @@ func TestPlan_SingleAWSNetworkTarget(t *testing.T) {
 	if tp.Component != "web-network" || tp.Cloud != "aws" || tp.Region != "us-east-1" {
 		t.Errorf("target identity wrong: %+v", tp)
 	}
-	if tp.PrimitiveCount != 1 {
-		t.Errorf("PrimitiveCount = %d, want 1", tp.PrimitiveCount)
+	// Phase 3: network emit produces VPC + IGW + RT + subnets + RTAs.
+	if tp.PrimitiveCount < 1 {
+		t.Errorf("PrimitiveCount = %d, want >=1", tp.PrimitiveCount)
 	}
 	for _, f := range []string{"main.tf.json", "provider.tf.json", "backend.tf.json", "versions.tf.json"} {
 		if _, err := os.Stat(filepath.Join(tp.WorkspaceDir, f)); err != nil {

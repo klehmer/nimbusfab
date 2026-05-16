@@ -1,0 +1,2 @@
+apiVersion: infra.dev/v1alpha1
+vars: {}

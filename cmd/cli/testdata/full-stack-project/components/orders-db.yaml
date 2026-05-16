@@ -1,0 +1,18 @@
+apiVersion: infra.dev/v1alpha1
+name: orders-db
+type: database
+spec:
+  engine: postgres
+  version: "16"
+  size: small
+targets:
+  - cloud: aws
+    region: us-east-1
+    credentialRef: aws-dev
+refs:
+  - component: web-network
+    output: subnet_ids
+    as: subnetIds
+  - component: web-network
+    output: vpc_id
+    as: vpcId

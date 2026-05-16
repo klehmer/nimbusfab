@@ -1,0 +1,5 @@
+apiVersion: infra.dev/v1alpha1
+name: full-stack-demo
+stacks:
+  dev:
+    stateBackend: { kind: local }
