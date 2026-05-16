@@ -1,6 +1,6 @@
-// Command nimbusfab-server runs the nimbusfab web backend. It is a
-// long-running HTTP server that wraps the same Engine library the CLI uses.
-// Endpoints live under /api/v1; SSE streams run progress to the browser.
+// Command nimbusfab-server runs the nimbusfab web backend. It wraps the
+// same Engine library the CLI uses; UI Phase 1 mounts a read-only browser
+// UI over the SQLite inventory.
 package main
 
 import (
@@ -11,12 +11,15 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/klehmer/nimbusfab/internal/inventory/sqlite"
+	"github.com/klehmer/nimbusfab/internal/webapi"
+	"github.com/klehmer/nimbusfab/pkg/inventory"
 )
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-
 	if err := run(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -24,24 +27,28 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte("ok"))
-	})
-	mux.HandleFunc("/api/v1/version", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"apiVersion":"v1","status":"pre-alpha"}`))
-	})
+	addr := envDefault("NIMBUSFAB_LISTEN_ADDR", ":8080")
+	dsn := envDefault("NIMBUSFAB_DB_DSN", "sqlite:./nimbusfab.db")
+	orgID := envDefault("NIMBUSFAB_ORG_ID", "default")
 
-	addr := envDefault("LISTEN_ADDR", ":8080")
+	repo, err := openRepo(ctx, dsn)
+	if err != nil {
+		return fmt.Errorf("open repo (%s): %w", dsn, err)
+	}
+
+	handler, err := webapi.New(webapi.Config{Repo: repo, OrgID: orgID})
+	if err != nil {
+		return err
+	}
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	errCh := make(chan error, 1)
 	go func() {
-		fmt.Printf("nimbusfab-server listening on %s (stub mode)\n", addr)
+		fmt.Printf("nimbusfab-server listening on %s (UI Phase 1; auth disabled; org=%s)\n", addr, orgID)
 		errCh <- srv.ListenAndServe()
 	}()
 
@@ -56,6 +63,20 @@ func run(ctx context.Context) error {
 		}
 		return err
 	}
+}
+
+// openRepo opens the SQLite inventory. Postgres support lands in Inventory
+// Phase 2.
+func openRepo(ctx context.Context, dsn string) (inventory.Repo, error) {
+	r, err := sqlite.Open(dsn)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.Migrate(ctx); err != nil {
+		_ = r.Close()
+		return nil, fmt.Errorf("migrate: %w", err)
+	}
+	return r, nil
 }
 
 func envDefault(key, fallback string) string {
