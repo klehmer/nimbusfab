@@ -1,6 +1,47 @@
 # Changelog
 
-## Unreleased — GCP Adapter Phase 5
+## Unreleased — Validator Phase 4 (Per-Type Spec Schema)
+
+### Added
+
+- `internal/dsl/validator/phase4_typespec.go` — new pipeline phase that
+  validates each component's `spec` against the JSON Schema declared
+  by its `components.Type.SpecSchema()`. Schemas already shipped in
+  `pkg/components/schema/v1alpha1/{network,compute,database,storage}.json`
+  but were not previously applied; Phase 4 wires them in.
+- Two new issue codes: `ErrValidatorUnknownType` (type name not in
+  registry — typo in `type:` field) and `ErrValidatorTypeSpec` (spec
+  failed schema validation with field path, e.g.
+  `components[2].spec.cidr`).
+- Schema-compilation cache scoped to one `Validate()` invocation so
+  N components of the same type recompile only once.
+- 9 unit tests in `phase4_typespec_test.go` + 3 end-to-end CLI tests
+  in `validate_test.go`.
+
+### Changed
+
+- `validator.New()` signature → `validator.New(registry components.Registry)`.
+  Production callers in all 8 CLI command files pass
+  `components.DefaultRegistry()`. The registry will be the hook for
+  user-defined types (plugin loading) in a future phase.
+- `internal/dsl/loader/testdata/multi-file/components/web-network.yaml` —
+  Phase 4 surfaced a real pre-existing typo (`cidrBlock` instead of
+  `cidr`) that prior validation had silently accepted. Fixed the
+  fixture to use the schema-required field name.
+
+### Out of scope (deferred)
+
+- Cross-component ref validation (does the referenced component exist;
+  does the named output match `Type.Outputs()`?). Future Phase 5 of
+  the validator.
+- Plugin-loaded user-defined types. The Registry-based design is the
+  hook; the loader is later.
+- Per-cloud `Type.SupportedClouds()` check — latent until v2 types
+  with cloud restrictions.
+- Spec interpolation (`${var.foo}` substitution) before validation.
+  Future phase.
+
+## Earlier — GCP Adapter Phase 5
 
 ### Added
 

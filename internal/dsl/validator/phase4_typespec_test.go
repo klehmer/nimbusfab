@@ -185,7 +185,7 @@ func TestPhase4_MultipleComponentsMultipleErrors(t *testing.T) {
 		APIVersion: ir.APIVersionV1Alpha1,
 		Name:       "p",
 		Components: []ir.Component{
-			componentWithSpec("net1", "network", map[string]any{}),       // missing cidr
+			componentWithSpec("net1", "network", map[string]any{}),              // missing cidr
 			componentWithSpec("net2", "network", map[string]any{"cidr": "bad"}), // bad pattern
 			componentWithSpec("net3", "network", map[string]any{"cidr": "10.0.0.0/16"}),
 		},
