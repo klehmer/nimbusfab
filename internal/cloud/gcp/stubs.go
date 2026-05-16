@@ -33,5 +33,5 @@ func (*Adapter) Profile(ctx context.Context, p ir.ResourcePrimitive) (parity.Res
 }
 
 func (*Adapter) PricingKey(ctx context.Context, p ir.ResourcePrimitive) (map[string]any, error) {
-	return nil, nil
+	return pricingKeyImpl(p)
 }
