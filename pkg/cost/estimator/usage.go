@@ -19,12 +19,14 @@ func UnitsFor(tofuType string, usage map[string]any) float64 {
 		"azurerm_linux_virtual_machine",
 		"azurerm_postgresql_flexible_server",
 		"azurerm_mysql_flexible_server",
-		"azurerm_mariadb_server":
+		"azurerm_mariadb_server",
+		"google_compute_instance",
+		"google_sql_database_instance":
 		if hr, ok := numberFrom(usage["hoursPerMonth"]); ok {
 			return hr
 		}
 		return HoursPerMonth
-	case "aws_s3_bucket", "azurerm_storage_account":
+	case "aws_s3_bucket", "azurerm_storage_account", "google_storage_bucket":
 		if gb, ok := numberFrom(usage["storageGB"]); ok {
 			return gb
 		}

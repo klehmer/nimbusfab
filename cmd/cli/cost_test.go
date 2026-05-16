@@ -33,8 +33,8 @@ func TestCostEstimateCommand_FullStackFixture(t *testing.T) {
 	if !strings.Contains(out, "/month") {
 		t.Errorf("expected per-month label: %s", out)
 	}
-	// Phase 4: estimate should include both AWS and Azure subtotals.
-	for _, target := range []string{"aws/us-east-1", "azure/eastus"} {
+	// Phase 5: estimate should include AWS, Azure, and GCP subtotals.
+	for _, target := range []string{"aws/us-east-1", "azure/eastus", "gcp/us-central1"} {
 		if !strings.Contains(out, target) {
 			t.Errorf("missing target %q in cost output:\n%s", target, out)
 		}

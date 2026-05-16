@@ -2,7 +2,7 @@
 
 Multi-cloud Infrastructure-as-Code framework. Users declare infrastructure components (network, database, compute, storage, etc.) in YAML, target one or more clouds (AWS / Azure / GCP), and the framework generates and runs OpenTofu under the hood. Includes cost estimation and an actual-cost dashboard pulling from cloud billing APIs.
 
-**Status:** pre-alpha. Architecture spec landed; DSL/IR Phase 1, Provisioner Phases 1–2, Inventory Persistence Phase 1, AWS Expansion Phase 3, Parity Engine Phase 1, Cost Estimator Phase 1, and Azure Adapter Phase 4 merged. Multi-cloud projects now work end-to-end: a project targeting `[aws, azure]` produces per-cloud Tofu workspaces, the parity engine reports real cross-cloud SKU divergence, and the cost estimator shows per-cloud subtotals.
+**Status:** pre-alpha. Architecture spec landed; DSL/IR Phase 1, Provisioner Phases 1–2, Inventory Persistence Phase 1, AWS Expansion Phase 3, Parity Engine Phase 1, Cost Estimator Phase 1, Azure Adapter Phase 4, and GCP Adapter Phase 5 merged. Three-cloud projects work end-to-end: a project targeting `[aws, azure, gcp]` produces per-cloud Tofu workspaces, the parity engine reports real cross-cloud SKU divergence with 3-way weighted scores, and the cost estimator shows per-cloud subtotals.
 
 ## Design
 

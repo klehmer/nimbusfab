@@ -35,8 +35,8 @@ func TestPlanCommand_FullStackFixture(t *testing.T) {
 			t.Errorf("plan output missing component %q:\n%s", name, out)
 		}
 	}
-	// Phase 4: each component now has 2 targets (aws + azure).
-	for _, target := range []string{"aws/us-east-1", "azure/eastus"} {
+	// Phase 5: each component has 3 targets (aws + azure + gcp).
+	for _, target := range []string{"aws/us-east-1", "azure/eastus", "gcp/us-central1"} {
 		if !strings.Contains(out, target) {
 			t.Errorf("plan output missing target %q:\n%s", target, out)
 		}
