@@ -20,6 +20,22 @@ type Repo struct {
 	db *sql.DB
 }
 
+// init registers the sqlite scheme with the inventory dispatcher so
+// inventory.Open(ctx, "sqlite:...") routes here automatically.
+func init() {
+	inventory.RegisterBackend("sqlite", func(ctx context.Context, dsn string) (inventory.Repo, error) {
+		r, err := Open(dsn)
+		if err != nil {
+			return nil, err
+		}
+		if err := r.Migrate(ctx); err != nil {
+			_ = r.Close()
+			return nil, err
+		}
+		return r, nil
+	})
+}
+
 // Open returns a SQLite Repo from a DSN like "sqlite:///path/to/file.db" or
 // "sqlite::memory:". Foreign keys are enabled.
 func Open(dsn string) (*Repo, error) {
