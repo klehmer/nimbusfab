@@ -2,7 +2,7 @@
 
 Multi-cloud Infrastructure-as-Code framework. Users declare infrastructure components (network, database, compute, storage, etc.) in YAML, target one or more clouds (AWS / Azure / GCP), and the framework generates and runs OpenTofu under the hood. Includes cost estimation and an actual-cost dashboard pulling from cloud billing APIs.
 
-**Status:** pre-alpha. Architecture spec landed; DSL/IR Phase 1 (`nimbusfab validate`) merged; Provisioner Phase 1 (`nimbusfab plan` for AWS network) underway.
+**Status:** pre-alpha. Architecture spec landed; DSL/IR Phase 1, Provisioner Phase 1, and Provisioner Phase 2 merged. `validate` / `plan` / `apply` / `destroy` / `drift` work in-process against the FakeRunner and via the real `tofu` binary; inventory persistence is the next phase.
 
 ## Design
 
@@ -63,6 +63,22 @@ into a per-target directory under `$TMPDIR/nimbusfab/<deployment-id>/`, runs
 **Phase 1 scope:** AWS only; `network` component type only (emits one
 `aws_vpc` per target). Other clouds and component types arrive in subsequent
 phases.
+
+### `nimbusfab apply --stack <stack> [path]`
+
+Validates, plans, then applies. Phase 2 supports partial-failure policies via
+`--partial-failure {leave|rollback|retry-failed}`. Apply still works
+in-process (no inventory persistence yet); a future phase wires Apply against
+a stored Plan ID.
+
+### `nimbusfab destroy --stack <stack> [path]`
+
+Tears down a stack by running `tofu destroy` per target in reverse order of
+the components.
+
+### `nimbusfab drift --stack <stack> [path]`
+
+Runs `tofu plan -refresh-only` per target and reports per-resource drift.
 
 ## License
 
