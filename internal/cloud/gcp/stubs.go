@@ -20,7 +20,7 @@ func (*Adapter) emitCompute(ctx context.Context, target ir.DeploymentTarget, ref
 }
 
 func (*Adapter) emitDatabase(ctx context.Context, target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.ResourcePrimitive, error) {
-	return nil, fmt.Errorf("gcp: database emit not yet implemented")
+	return emitDatabaseImpl(target, refs)
 }
 
 func (*Adapter) emitStorage(ctx context.Context, target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.ResourcePrimitive, error) {
