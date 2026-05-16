@@ -1,0 +1,22 @@
+{{define "layout"}}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{block "title" .}}nimbusfab{{end}}</title>
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/ui/projects">nimbusfab</a>
+    <nav>
+      <a href="/ui/projects">Projects</a>
+    </nav>
+  </header>
+  <main class="container">
+    {{block "content" .}}{{end}}
+  </main>
+  <footer class="footer">UI Phase 1 — read-only</footer>
+</body>
+</html>
+{{end}}
