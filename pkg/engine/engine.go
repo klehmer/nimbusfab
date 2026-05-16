@@ -60,7 +60,7 @@ type Engine interface {
 	StreamRun(ctx context.Context, runID string) (<-chan RunEvent, error)
 	EstimateCost(ctx context.Context, plan *PlanResult) (*CostEstimate, error)
 	GetCostActuals(ctx context.Context, query CostQuery) (*CostReport, error)
-	DetectDrift(ctx context.Context, deploymentID string) (*DriftReport, error)
+	DetectDrift(ctx context.Context, deploymentID string, opts DriftOpts) (*DriftReport, error)
 
 	// Phase-2 surface: pass the PlanResult directly since inventory
 	// persistence isn't wired yet. These become the no-arg Apply/Destroy/
@@ -120,6 +120,10 @@ type ApplyOpts struct {
 	PartialFailure PartialFailurePolicy
 	Detach         bool
 	ActorUserID    string
+	// EventSink, if non-nil, receives one provisioner.RunEvent per
+	// target-level state transition. The engine forwards this through to
+	// the provisioner; callers (CLI, web app) own the channel's lifecycle.
+	EventSink chan<- provisioner.RunEvent
 }
 
 // DestroyOpts controls Destroy.
@@ -127,6 +131,12 @@ type DestroyOpts struct {
 	AutoApprove bool
 	Detach      bool
 	ActorUserID string
+	EventSink   chan<- provisioner.RunEvent
+}
+
+// DriftOpts controls DetectDrift.
+type DriftOpts struct {
+	EventSink chan<- provisioner.RunEvent
 }
 
 // ImportMap is opaque to the engine; cloud adapters interpret it. Roughly:

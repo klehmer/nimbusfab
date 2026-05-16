@@ -130,7 +130,7 @@ func (e *runtimeEngine) GetCostActuals(ctx context.Context, query CostQuery) (*C
 	return nil, errNotImplemented
 }
 
-func (e *runtimeEngine) DetectDrift(ctx context.Context, deploymentID string) (*DriftReport, error) {
+func (e *runtimeEngine) DetectDrift(ctx context.Context, deploymentID string, opts DriftOpts) (*DriftReport, error) {
 	if inventory.IsNullRepo(e.cfg.InventoryRepo) {
 		return nil, inventory.ErrInventoryRequired
 	}
@@ -138,7 +138,7 @@ func (e *runtimeEngine) DetectDrift(ctx context.Context, deploymentID string) (*
 	if err != nil {
 		return nil, err
 	}
-	rep, err := e.DetectDriftWithPlan(ctx, plan)
+	rep, err := e.detectDriftWithPlan(ctx, plan, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -187,6 +187,7 @@ func (e *runtimeEngine) ApplyWithPlan(ctx context.Context, plan *PlanResult, opt
 		OrgID:          e.orgID(),
 		PartialFailure: opts.PartialFailure,
 		AutoApprove:    opts.AutoApprove,
+		EventSink:      opts.EventSink,
 	})
 }
 
@@ -200,11 +201,16 @@ func (e *runtimeEngine) DestroyWithPlan(ctx context.Context, plan *PlanResult, o
 		PlanResult:  plan,
 		OrgID:       e.orgID(),
 		AutoApprove: opts.AutoApprove,
+		EventSink:   opts.EventSink,
 	})
 }
 
 // DetectDriftWithPlan runs drift detection against an in-memory plan.
 func (e *runtimeEngine) DetectDriftWithPlan(ctx context.Context, plan *PlanResult) (*DriftReport, error) {
+	return e.detectDriftWithPlan(ctx, plan, DriftOpts{})
+}
+
+func (e *runtimeEngine) detectDriftWithPlan(ctx context.Context, plan *PlanResult, opts DriftOpts) (*DriftReport, error) {
 	p, err := e.newProvisioner()
 	if err != nil {
 		return nil, err
@@ -212,6 +218,7 @@ func (e *runtimeEngine) DetectDriftWithPlan(ctx context.Context, plan *PlanResul
 	return p.DetectDrift(ctx, provisioner.DriftInput{
 		PlanResult: plan,
 		OrgID:      e.orgID(),
+		EventSink:  opts.EventSink,
 	})
 }
 

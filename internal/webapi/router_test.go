@@ -211,3 +211,33 @@ func TestRouter_UIUnaffectedByAPIToken(t *testing.T) {
 		t.Errorf("UI route blocked by API token: status = %d", resp.StatusCode)
 	}
 }
+
+// --- HTTP Phase 2 router mounts ---
+
+func TestRouter_NoEngine_NoMutatingRoutes(t *testing.T) {
+	// When Config.Engine is nil, POST /api/v1/.../applies should 404 —
+	// the route was never registered.
+	srv, _ := newServer(t, nil)
+	resp, _ := post(t, srv, "/api/v1/deployments/anything/applies", `{}`)
+	if resp.StatusCode != http.StatusNotFound && resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("status = %d, want 404 or 405", resp.StatusCode)
+	}
+}
+
+// post is a helper paralleling get() for POST requests.
+func post(t *testing.T, srv *httptest.Server, path, body string) (*http.Response, string) {
+	t.Helper()
+	client := srv.Client()
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+	req, _ := http.NewRequest("POST", srv.URL+path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("POST %s: %v", path, err)
+	}
+	respBody, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	return resp, string(respBody)
+}

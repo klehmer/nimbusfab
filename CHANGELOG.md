@@ -1,6 +1,66 @@
 # Changelog
 
-## Unreleased — Web App HTTP Phase 1 (Read-Only JSON Endpoints)
+## Unreleased — Web App HTTP Phase 2 (Mutating Endpoints + SSE)
+
+### Added
+
+- 3 mutating endpoints under `/api/v1/deployments/{id}/`:
+  - `POST .../applies`  → 202 + JSON envelope; engine.Apply runs async
+  - `POST .../destroys` → engine.Destroy async
+  - `POST .../drifts`   → engine.DetectDrift async
+  Each kicks off the engine call in a goroutine with a fresh
+  context.Background (request context would cancel when 202 returns,
+  killing the operation mid-flight). Response includes `deploymentId`,
+  `operation`, `status`, and an `eventsUrl` pointer.
+- 1 SSE endpoint `GET /api/v1/deployments/{id}/events` streams
+  `RunEvent`s for the deployment. Initial `: connected` hello;
+  per-event `id`/`event`/`data` lines with JSON payload; `: ping`
+  heartbeat every 15s; `event: complete` on operation finish.
+  Subscribers see events posted AFTER they connect (no replay; replay
+  needs the stubbed `RunLogs` repo).
+- `internal/webapi/runner` package with `RunBroker` — in-process
+  pub/sub keyed by deployment ID. One broker per nimbusfab-server
+  process; subscribers come and go as SSE clients connect/disconnect.
+  Non-blocking dispatch with drop-on-full-subscriber policy.
+- `engine.ApplyOpts` / `engine.DestroyOpts` gain `EventSink`. New
+  `engine.DriftOpts`. Plumbed through to existing
+  `provisioner.ApplyInput.EventSink` / `DestroyInput` / `DriftInput`
+  fields. `engine.DetectDrift` signature changes (now takes opts).
+  CLI updated to pass `engine.DriftOpts{}`.
+- `webapi.Config.Engine` field; mutating + SSE routes mount only when
+  configured. cmd/server gains `defaultCloudRegistry()` (mirrors CLI's)
+  and constructs the full engine wiring (SQLite repo + DefaultBackend
+  secrets + ExecRunner tofu + WorkRoot from `NIMBUSFAB_WORK_ROOT`).
+- 14 new unit/integration tests (6 broker + 4 mutation handlers + 4
+  SSE handler). End-to-end smoke-tested with a running binary: POST
+  returns 202, concurrent SSE subscriber receives connected→complete.
+
+### Design notes
+
+- **Background context for engine goroutine.** The HTTP request
+  context cancels when the response is written; the apply runs
+  longer. Using `context.Background()` keeps the operation alive.
+  Future: thread server-shutdown context so graceful shutdown waits
+  for in-flight applies.
+- **Deployment-level events (not per-run).** One deployment fans out
+  to multiple targets, each with its own run; the spec's per-run SSE
+  URL would have required splitting events. Keeping it per-deployment
+  matches how the engine already fan-ins events to one channel; SSE
+  subscribers see all targets' events interleaved with their
+  `deploymentTargetId` field.
+- **No replay.** The `RunLogs` inventory repo is stubbed; reconnect
+  via `Last-Event-ID` lands when persistence does.
+
+### Out of scope (deferred)
+
+- POST `/api/v1/projects/{id}/plans` — Plan endpoint (CLI plans; web
+  app applies/destroys/drifts).
+- Idempotency-Key middleware (Auth Phase 1 or later).
+- `?wait=true` sync mode.
+- Reconnect via `Last-Event-ID` (needs RunLogs repo).
+- UI Phase 2 (browser buttons + JS) — separate phase.
+
+## Earlier — Web App HTTP Phase 1 (Read-Only JSON Endpoints)
 
 ### Added
 

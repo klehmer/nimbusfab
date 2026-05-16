@@ -1,6 +1,7 @@
 // Command nimbusfab-server runs the nimbusfab web backend. It wraps the
 // same Engine library the CLI uses; UI Phase 1 mounts a read-only browser
-// UI over the SQLite inventory.
+// UI over the SQLite inventory and HTTP Phase 2 adds mutating endpoints +
+// SSE for browser-triggered deployments with live log streaming.
 package main
 
 import (
@@ -9,12 +10,20 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
+	"github.com/klehmer/nimbusfab/internal/cloud/aws"
+	"github.com/klehmer/nimbusfab/internal/cloud/azure"
+	"github.com/klehmer/nimbusfab/internal/cloud/gcp"
 	"github.com/klehmer/nimbusfab/internal/inventory/sqlite"
+	"github.com/klehmer/nimbusfab/internal/tofu"
 	"github.com/klehmer/nimbusfab/internal/webapi"
+	"github.com/klehmer/nimbusfab/pkg/cloud"
+	"github.com/klehmer/nimbusfab/pkg/engine"
 	"github.com/klehmer/nimbusfab/pkg/inventory"
+	"github.com/klehmer/nimbusfab/pkg/secrets"
 )
 
 func main() {
@@ -31,14 +40,31 @@ func run(ctx context.Context) error {
 	dsn := envDefault("NIMBUSFAB_DB_DSN", "sqlite:./nimbusfab.db")
 	orgID := envDefault("NIMBUSFAB_ORG_ID", "default")
 	apiToken := os.Getenv("NIMBUSFAB_API_TOKEN")
+	workRoot := envDefault("NIMBUSFAB_WORK_ROOT", filepath.Join(os.TempDir(), "nimbusfab-server"))
 
 	repo, err := openRepo(ctx, dsn)
 	if err != nil {
 		return fmt.Errorf("open repo (%s): %w", dsn, err)
 	}
 
+	reg, err := defaultCloudRegistry()
+	if err != nil {
+		return fmt.Errorf("cloud registry: %w", err)
+	}
+
+	eng, err := engine.New(ctx, engine.Config{
+		CloudAdapters:  reg,
+		InventoryRepo:  repo,
+		SecretsBackend: secrets.DefaultBackend(),
+		TofuRunner:     tofu.NewExecRunner(),
+		WorkRoot:       workRoot,
+	})
+	if err != nil {
+		return fmt.Errorf("engine: %w", err)
+	}
+
 	handler, err := webapi.New(webapi.Config{
-		Repo: repo, OrgID: orgID, APIToken: apiToken,
+		Repo: repo, OrgID: orgID, APIToken: apiToken, Engine: eng,
 	})
 	if err != nil {
 		return err
@@ -55,7 +81,7 @@ func run(ctx context.Context) error {
 	}
 	errCh := make(chan error, 1)
 	go func() {
-		fmt.Printf("nimbusfab-server listening on %s (HTTP Phase 1; UI auth disabled; org=%s; %s)\n", addr, orgID, authNote)
+		fmt.Printf("nimbusfab-server listening on %s (HTTP Phase 2; UI auth disabled; org=%s; %s)\n", addr, orgID, authNote)
 		errCh <- srv.ListenAndServe()
 	}()
 
@@ -84,6 +110,22 @@ func openRepo(ctx context.Context, dsn string) (inventory.Repo, error) {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
 	return r, nil
+}
+
+// defaultCloudRegistry mirrors the CLI's helper: register every in-tree
+// adapter (AWS, Azure, GCP). One edit per new cloud.
+func defaultCloudRegistry() (cloud.Registry, error) {
+	reg := cloud.NewRegistry()
+	if err := reg.Register(aws.New()); err != nil {
+		return nil, err
+	}
+	if err := reg.Register(azure.New()); err != nil {
+		return nil, err
+	}
+	if err := reg.Register(gcp.New()); err != nil {
+		return nil, err
+	}
+	return reg, nil
 }
 
 func envDefault(key, fallback string) string {
