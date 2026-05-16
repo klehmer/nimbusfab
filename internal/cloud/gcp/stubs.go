@@ -2,7 +2,6 @@ package gcp
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/klehmer/nimbusfab/pkg/cloud"
 	"github.com/klehmer/nimbusfab/pkg/ir"
@@ -24,7 +23,7 @@ func (*Adapter) emitDatabase(ctx context.Context, target ir.DeploymentTarget, re
 }
 
 func (*Adapter) emitStorage(ctx context.Context, target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.ResourcePrimitive, error) {
-	return nil, fmt.Errorf("gcp: storage emit not yet implemented")
+	return emitStorageImpl(target, refs)
 }
 
 // Profile + PricingKey stubs (replaced by Tasks 6-7).
