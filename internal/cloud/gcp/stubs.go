@@ -16,7 +16,7 @@ func (*Adapter) emitNetwork(ctx context.Context, target ir.DeploymentTarget, ref
 }
 
 func (*Adapter) emitCompute(ctx context.Context, target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.ResourcePrimitive, error) {
-	return nil, fmt.Errorf("gcp: compute emit not yet implemented")
+	return emitComputeImpl(target, refs)
 }
 
 func (*Adapter) emitDatabase(ctx context.Context, target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.ResourcePrimitive, error) {
