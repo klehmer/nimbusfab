@@ -10,27 +10,24 @@ import (
 	"github.com/klehmer/nimbusfab/pkg/ir"
 )
 
-func (*Adapter) Emit(ctx context.Context, target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.ResourcePrimitive, error) {
-	cidr, _ := target.Spec["cidr"].(string)
-	if cidr == "" {
-		cidr = "10.0.0.0/16"
+// Emit dispatches on target.Spec["__type"] (set by the provisioner). Each
+// supported type's emit logic lives in its own file: network.go, compute.go,
+// database.go, storage.go.
+func (a *Adapter) Emit(ctx context.Context, target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.ResourcePrimitive, error) {
+	compType, _ := target.Spec["__type"].(string)
+	switch compType {
+	case "network", "":
+		// Empty == back-compat for Phase-1 tests that don't set __type.
+		return a.emitNetwork(ctx, target, refs)
+	case "compute":
+		return a.emitCompute(ctx, target, refs)
+	case "database":
+		return a.emitDatabase(ctx, target, refs)
+	case "storage":
+		return a.emitStorage(ctx, target, refs)
+	default:
+		return nil, fmt.Errorf("aws: unsupported component type %q", compType)
 	}
-	component, _ := target.Spec["__component"].(string)
-	if component == "" {
-		component = "network"
-	}
-	tofuName := tofuIdentifier(component)
-	return []ir.ResourcePrimitive{{
-		ID:       fmt.Sprintf("%s.aws-%s.vpc", component, target.Region),
-		Cloud:    "aws",
-		TofuType: "aws_vpc",
-		TofuName: tofuName,
-		Attributes: map[string]any{
-			"cidr_block":           cidr,
-			"enable_dns_support":   true,
-			"enable_dns_hostnames": true,
-		},
-	}}, nil
 }
 
 var tofuIdentRe = regexp.MustCompile(`[^a-z0-9_]`)

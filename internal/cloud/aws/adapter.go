@@ -24,7 +24,9 @@ var _ cloud.Adapter = (*Adapter)(nil)
 
 func (*Adapter) Name() string                      { return "aws" }
 func (*Adapter) SupportedAPIVersions() []string    { return []string{ir.APIVersionV1Alpha1} }
-func (*Adapter) SupportedComponentTypes() []string { return []string{"network"} }
+func (*Adapter) SupportedComponentTypes() []string {
+	return []string{"network", "compute", "database", "storage"}
+}
 func (*Adapter) TierOneSchema() []byte             { return tierOneSchema }
 
 func (*Adapter) Validate(ctx context.Context, target ir.DeploymentTarget) []ir.Issue {
