@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	"github.com/klehmer/nimbusfab/internal/dsl/yamlnode"
+	"github.com/klehmer/nimbusfab/pkg/components"
 	"github.com/klehmer/nimbusfab/pkg/ir"
 )
 
 func TestValidator_LiftsLoaderErrorAsIssue(t *testing.T) {
-	v := New()
+	v := New(components.DefaultRegistry())
 	loaderErr := &yamlnode.Error{
 		Source: ir.Source{File: "project.yaml", Line: 3, Column: 5},
 		Err:    errors.New("mapping values are not allowed here"),
@@ -39,7 +40,7 @@ func TestValidator_LiftsLoaderErrorAsIssue(t *testing.T) {
 
 func TestValidate_APIVersionMissing(t *testing.T) {
 	proj := &ir.Project{Name: "x", Stacks: map[string]ir.Stack{"dev": {}}}
-	report, err := New().Validate(context.Background(), proj)
+	report, err := New(components.DefaultRegistry()).Validate(context.Background(), proj)
 	if err != nil {
 		t.Fatalf("Validate: %v", err)
 	}
@@ -50,7 +51,7 @@ func TestValidate_APIVersionMissing(t *testing.T) {
 
 func TestValidate_APIVersionUnknown(t *testing.T) {
 	proj := &ir.Project{APIVersion: "infra.dev/v999", Name: "x", Stacks: map[string]ir.Stack{"dev": {}}}
-	report, err := New().Validate(context.Background(), proj)
+	report, err := New(components.DefaultRegistry()).Validate(context.Background(), proj)
 	if err != nil {
 		t.Fatalf("Validate: %v", err)
 	}
@@ -65,7 +66,7 @@ func TestValidate_APIVersionOK(t *testing.T) {
 		Name:       "x",
 		Stacks:     map[string]ir.Stack{"dev": {}},
 	}
-	report, err := New().Validate(context.Background(), proj)
+	report, err := New(components.DefaultRegistry()).Validate(context.Background(), proj)
 	if err != nil {
 		t.Fatalf("Validate: %v", err)
 	}

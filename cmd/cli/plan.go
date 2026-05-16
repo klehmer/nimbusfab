@@ -12,6 +12,7 @@ import (
 	"github.com/klehmer/nimbusfab/internal/dsl/validator"
 	"github.com/klehmer/nimbusfab/internal/tofu"
 	"github.com/klehmer/nimbusfab/pkg/cloud"
+	"github.com/klehmer/nimbusfab/pkg/components"
 	"github.com/klehmer/nimbusfab/pkg/engine"
 	"github.com/klehmer/nimbusfab/pkg/inventory"
 )
@@ -83,7 +84,7 @@ func runPlan(ctx context.Context, in planArgs) int {
 		fmt.Fprintf(in.Stderr, "load: %v\n", err)
 		return 1
 	}
-	report, err := validator.New().Validate(ctx, project)
+	report, err := validator.New(components.DefaultRegistry()).Validate(ctx, project)
 	if err != nil {
 		fmt.Fprintf(in.Stderr, "validator: %v\n", err)
 		return 2

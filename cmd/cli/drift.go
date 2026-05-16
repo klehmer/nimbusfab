@@ -13,6 +13,7 @@ import (
 	"github.com/klehmer/nimbusfab/internal/dsl/validator"
 	"github.com/klehmer/nimbusfab/internal/tofu"
 	"github.com/klehmer/nimbusfab/pkg/cloud"
+	"github.com/klehmer/nimbusfab/pkg/components"
 	"github.com/klehmer/nimbusfab/pkg/engine"
 	"github.com/klehmer/nimbusfab/pkg/inventory"
 	"github.com/klehmer/nimbusfab/pkg/provisioner"
@@ -96,7 +97,7 @@ func runDrift(ctx context.Context, in driftArgs) int {
 			fmt.Fprintf(in.Stderr, "load: %v\n", lerr)
 			return 1
 		}
-		rep, verr := validator.New().Validate(ctx, project)
+		rep, verr := validator.New(components.DefaultRegistry()).Validate(ctx, project)
 		if verr != nil {
 			fmt.Fprintf(in.Stderr, "validator: %v\n", verr)
 			return 2

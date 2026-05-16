@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/klehmer/nimbusfab/pkg/components"
 	"github.com/klehmer/nimbusfab/pkg/ir"
 )
 
@@ -13,7 +14,7 @@ func TestValidate_Schema_MissingRequiredName(t *testing.T) {
 		Stacks:     map[string]ir.Stack{"dev": {}},
 		// Name intentionally absent.
 	}
-	report, err := New().Validate(context.Background(), proj)
+	report, err := New(components.DefaultRegistry()).Validate(context.Background(), proj)
 	if err != nil {
 		t.Fatalf("Validate: %v", err)
 	}
@@ -28,7 +29,7 @@ func TestValidate_Schema_InvalidName(t *testing.T) {
 		Name:       "Has Spaces",
 		Stacks:     map[string]ir.Stack{"dev": {}},
 	}
-	report, err := New().Validate(context.Background(), proj)
+	report, err := New(components.DefaultRegistry()).Validate(context.Background(), proj)
 	if err != nil {
 		t.Fatalf("Validate: %v", err)
 	}
@@ -43,7 +44,7 @@ func TestValidate_Schema_OK(t *testing.T) {
 		Name:       "orders",
 		Stacks:     map[string]ir.Stack{"dev": {}},
 	}
-	report, err := New().Validate(context.Background(), proj)
+	report, err := New(components.DefaultRegistry()).Validate(context.Background(), proj)
 	if err != nil {
 		t.Fatalf("Validate: %v", err)
 	}
