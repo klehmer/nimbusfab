@@ -1,0 +1,166 @@
+{
+  "$schema": "https://nimbusfab.dev/schema/pricing/snapshot/v1alpha1.json",
+  "cloud": "aws",
+  "currency": "USD",
+  "fetchedAt": "2026-05-16T00:00:00Z",
+  "source": "manual-curation-phase-1",
+  "entries": [
+    {
+      "key": { "service": "AmazonEC2", "instanceType": "t3.small", "region": "us-east-1", "tenancy": "Shared", "operatingSystem": "Linux", "preInstalledSw": "NA", "capacitystatus": "Used" },
+      "unitPrice": 0.0208,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonEC2", "instanceType": "t3.medium", "region": "us-east-1", "tenancy": "Shared", "operatingSystem": "Linux", "preInstalledSw": "NA", "capacitystatus": "Used" },
+      "unitPrice": 0.0416,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonEC2", "instanceType": "t3.large", "region": "us-east-1", "tenancy": "Shared", "operatingSystem": "Linux", "preInstalledSw": "NA", "capacitystatus": "Used" },
+      "unitPrice": 0.0832,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonEC2", "instanceType": "t3.xlarge", "region": "us-east-1", "tenancy": "Shared", "operatingSystem": "Linux", "preInstalledSw": "NA", "capacitystatus": "Used" },
+      "unitPrice": 0.1664,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonEC2", "instanceType": "m6i.large", "region": "us-east-1", "tenancy": "Shared", "operatingSystem": "Linux", "preInstalledSw": "NA", "capacitystatus": "Used" },
+      "unitPrice": 0.0960,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonEC2", "instanceType": "m6i.xlarge", "region": "us-east-1", "tenancy": "Shared", "operatingSystem": "Linux", "preInstalledSw": "NA", "capacitystatus": "Used" },
+      "unitPrice": 0.1920,
+      "unitOfMeasure": "Hrs"
+    },
+
+    {
+      "key": { "service": "AmazonEC2", "instanceType": "t3.small", "region": "us-west-2", "tenancy": "Shared", "operatingSystem": "Linux", "preInstalledSw": "NA", "capacitystatus": "Used" },
+      "unitPrice": 0.0208,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonEC2", "instanceType": "t3.medium", "region": "us-west-2", "tenancy": "Shared", "operatingSystem": "Linux", "preInstalledSw": "NA", "capacitystatus": "Used" },
+      "unitPrice": 0.0416,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonEC2", "instanceType": "t3.large", "region": "us-west-2", "tenancy": "Shared", "operatingSystem": "Linux", "preInstalledSw": "NA", "capacitystatus": "Used" },
+      "unitPrice": 0.0832,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonEC2", "instanceType": "t3.xlarge", "region": "us-west-2", "tenancy": "Shared", "operatingSystem": "Linux", "preInstalledSw": "NA", "capacitystatus": "Used" },
+      "unitPrice": 0.1664,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonEC2", "instanceType": "m6i.large", "region": "us-west-2", "tenancy": "Shared", "operatingSystem": "Linux", "preInstalledSw": "NA", "capacitystatus": "Used" },
+      "unitPrice": 0.0960,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonEC2", "instanceType": "m6i.xlarge", "region": "us-west-2", "tenancy": "Shared", "operatingSystem": "Linux", "preInstalledSw": "NA", "capacitystatus": "Used" },
+      "unitPrice": 0.1920,
+      "unitOfMeasure": "Hrs"
+    },
+
+    {
+      "key": { "service": "AmazonEC2", "instanceType": "t3.small", "region": "eu-west-1", "tenancy": "Shared", "operatingSystem": "Linux", "preInstalledSw": "NA", "capacitystatus": "Used" },
+      "unitPrice": 0.0228,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonEC2", "instanceType": "t3.medium", "region": "eu-west-1", "tenancy": "Shared", "operatingSystem": "Linux", "preInstalledSw": "NA", "capacitystatus": "Used" },
+      "unitPrice": 0.0456,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonEC2", "instanceType": "m6i.large", "region": "eu-west-1", "tenancy": "Shared", "operatingSystem": "Linux", "preInstalledSw": "NA", "capacitystatus": "Used" },
+      "unitPrice": 0.1070,
+      "unitOfMeasure": "Hrs"
+    },
+
+    {
+      "key": { "service": "AmazonRDS", "instanceType": "db.t3.small", "region": "us-east-1", "engineCode": "postgres", "deploymentOption": "Single-AZ", "licenseModel": "No license required" },
+      "unitPrice": 0.034,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonRDS", "instanceType": "db.t3.medium", "region": "us-east-1", "engineCode": "postgres", "deploymentOption": "Single-AZ", "licenseModel": "No license required" },
+      "unitPrice": 0.068,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonRDS", "instanceType": "db.m6i.large", "region": "us-east-1", "engineCode": "postgres", "deploymentOption": "Single-AZ", "licenseModel": "No license required" },
+      "unitPrice": 0.197,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonRDS", "instanceType": "db.m6i.xlarge", "region": "us-east-1", "engineCode": "postgres", "deploymentOption": "Single-AZ", "licenseModel": "No license required" },
+      "unitPrice": 0.395,
+      "unitOfMeasure": "Hrs"
+    },
+
+    {
+      "key": { "service": "AmazonRDS", "instanceType": "db.t3.small", "region": "us-east-1", "engineCode": "postgres", "deploymentOption": "Multi-AZ", "licenseModel": "No license required" },
+      "unitPrice": 0.068,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonRDS", "instanceType": "db.t3.medium", "region": "us-east-1", "engineCode": "postgres", "deploymentOption": "Multi-AZ", "licenseModel": "No license required" },
+      "unitPrice": 0.136,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonRDS", "instanceType": "db.m6i.large", "region": "us-east-1", "engineCode": "postgres", "deploymentOption": "Multi-AZ", "licenseModel": "No license required" },
+      "unitPrice": 0.394,
+      "unitOfMeasure": "Hrs"
+    },
+
+    {
+      "key": { "service": "AmazonRDS", "instanceType": "db.t3.small", "region": "us-east-1", "engineCode": "mysql", "deploymentOption": "Single-AZ", "licenseModel": "No license required" },
+      "unitPrice": 0.034,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonRDS", "instanceType": "db.t3.medium", "region": "us-east-1", "engineCode": "mysql", "deploymentOption": "Single-AZ", "licenseModel": "No license required" },
+      "unitPrice": 0.068,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonRDS", "instanceType": "db.m6i.large", "region": "us-east-1", "engineCode": "mysql", "deploymentOption": "Single-AZ", "licenseModel": "No license required" },
+      "unitPrice": 0.171,
+      "unitOfMeasure": "Hrs"
+    },
+
+    {
+      "key": { "service": "AmazonRDS", "instanceType": "db.t3.small", "region": "us-east-1", "engineCode": "mariadb", "deploymentOption": "Single-AZ", "licenseModel": "No license required" },
+      "unitPrice": 0.034,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AmazonRDS", "instanceType": "db.t3.medium", "region": "us-east-1", "engineCode": "mariadb", "deploymentOption": "Single-AZ", "licenseModel": "No license required" },
+      "unitPrice": 0.068,
+      "unitOfMeasure": "Hrs"
+    },
+
+    {
+      "key": { "service": "AmazonS3", "region": "us-east-1", "storageClass": "Standard" },
+      "unitPrice": 0.023,
+      "unitOfMeasure": "GB-Mo"
+    },
+    {
+      "key": { "service": "AmazonS3", "region": "us-west-2", "storageClass": "Standard" },
+      "unitPrice": 0.023,
+      "unitOfMeasure": "GB-Mo"
+    },
+    {
+      "key": { "service": "AmazonS3", "region": "eu-west-1", "storageClass": "Standard" },
+      "unitPrice": 0.023,
+      "unitOfMeasure": "GB-Mo"
+    }
+  ]
+}
