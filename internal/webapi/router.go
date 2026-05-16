@@ -10,7 +10,9 @@ import (
 
 	"github.com/klehmer/nimbusfab/internal/webapi/api"
 	"github.com/klehmer/nimbusfab/internal/webapi/middleware"
+	"github.com/klehmer/nimbusfab/internal/webapi/runner"
 	"github.com/klehmer/nimbusfab/internal/webapi/ui"
+	"github.com/klehmer/nimbusfab/pkg/engine"
 	"github.com/klehmer/nimbusfab/pkg/inventory"
 )
 
@@ -19,6 +21,10 @@ type Config struct {
 	Repo     inventory.Repo
 	OrgID    string // until Auth Phase 1; "default" in disabled-auth mode
 	APIToken string // optional; empty = no auth on /api/v1/* (dev mode)
+	// Engine is required for HTTP Phase 2 mutating endpoints + SSE. When
+	// nil, /applies, /destroys, /drifts, and /events routes are not
+	// mounted; the read-only API + UI still work.
+	Engine engine.Engine
 }
 
 // New returns an http.Handler mounting all UI Phase 1 routes.
@@ -75,6 +81,18 @@ func New(cfg Config) (http.Handler, error) {
 	mux.Handle("GET /api/v1/projects/{id}", apiAuth(http.HandlerFunc(apiHandlers.GetProject)))
 	mux.Handle("GET /api/v1/deployments/{id}", apiAuth(http.HandlerFunc(apiHandlers.GetDeployment)))
 	mux.Handle("GET /api/v1/runs/{id}", apiAuth(http.HandlerFunc(apiHandlers.GetRun)))
+
+	// HTTP Phase 2: mutating endpoints + SSE. Mounted only when an Engine
+	// is configured so test setups without an engine still work.
+	if cfg.Engine != nil {
+		broker := runner.NewRunBroker(64)
+		mutations := &api.Mutations{Engine: cfg.Engine, Broker: broker, OrgID: cfg.OrgID}
+		sse := &api.SSEEvents{Broker: broker}
+		mux.Handle("POST /api/v1/deployments/{id}/applies", apiAuth(http.HandlerFunc(mutations.PostApply)))
+		mux.Handle("POST /api/v1/deployments/{id}/destroys", apiAuth(http.HandlerFunc(mutations.PostDestroy)))
+		mux.Handle("POST /api/v1/deployments/{id}/drifts", apiAuth(http.HandlerFunc(mutations.PostDrift)))
+		mux.Handle("GET /api/v1/deployments/{id}/events", apiAuth(http.HandlerFunc(sse.Handle)))
+	}
 
 	return mux, nil
 }
