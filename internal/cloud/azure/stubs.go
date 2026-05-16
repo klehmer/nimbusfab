@@ -2,7 +2,6 @@ package azure
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/klehmer/nimbusfab/pkg/cloud"
 	"github.com/klehmer/nimbusfab/pkg/ir"
@@ -21,7 +20,7 @@ func (*Adapter) emitDatabase(ctx context.Context, target ir.DeploymentTarget, re
 }
 
 func (*Adapter) emitStorage(ctx context.Context, target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.ResourcePrimitive, error) {
-	return nil, fmt.Errorf("azure: storage emit not yet implemented")
+	return emitStorageImpl(target, refs)
 }
 
 // Profile + PricingKey stubs — replaced by profile.go / pricing.go in Tasks 6-7.
