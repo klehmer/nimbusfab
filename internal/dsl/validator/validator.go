@@ -7,6 +7,7 @@ package validator
 import (
 	"context"
 
+	"github.com/klehmer/nimbusfab/pkg/components"
 	"github.com/klehmer/nimbusfab/pkg/ir"
 )
 
@@ -22,10 +23,16 @@ type Validator interface {
 	Validate(ctx context.Context, proj *ir.Project) (*ir.ValidationReport, error)
 }
 
-// New returns the default Validator.
-func New() Validator { return &fsValidator{} }
+// New returns the default Validator. The registry is consumed by Phase 4
+// (per-type spec schema). Production callers should pass
+// components.DefaultRegistry(); tests can inject a minimal registry.
+func New(registry components.Registry) Validator {
+	return &fsValidator{registry: registry}
+}
 
-type fsValidator struct{}
+type fsValidator struct {
+	registry components.Registry
+}
 
 // Validate runs the configured phases. Phase 1 plan covers phases 2 and 3;
 // phases 4-9 land in the Phase 2 plan and currently return immediately.
@@ -45,6 +52,9 @@ func (v *fsValidator) Validate(ctx context.Context, proj *ir.Project) (*ir.Valid
 	if err := phase3Schema(proj, report); err != nil {
 		return nil, err
 	}
+	if err := phase4TypeSpec(proj, v.registry, report); err != nil {
+		return nil, err
+	}
 	_ = ctx
 	return report, nil
 }
@@ -55,4 +65,7 @@ func phase2APIVersion(proj *ir.Project, report *ir.ValidationReport) error {
 }
 func phase3Schema(proj *ir.Project, report *ir.ValidationReport) error {
 	return phase3SchemaImpl(proj, report)
+}
+func phase4TypeSpec(proj *ir.Project, reg components.Registry, report *ir.ValidationReport) error {
+	return phase4TypeSpecImpl(proj, reg, report)
 }

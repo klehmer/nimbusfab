@@ -12,6 +12,7 @@ import (
 	"github.com/klehmer/nimbusfab/internal/dsl/validator"
 	"github.com/klehmer/nimbusfab/internal/tofu"
 	"github.com/klehmer/nimbusfab/pkg/cloud"
+	"github.com/klehmer/nimbusfab/pkg/components"
 	"github.com/klehmer/nimbusfab/pkg/engine"
 	"github.com/klehmer/nimbusfab/pkg/inventory"
 	"github.com/klehmer/nimbusfab/pkg/parity"
@@ -80,7 +81,7 @@ func runParity(ctx context.Context, in parityArgs) int {
 		fmt.Fprintf(in.Stderr, "load: %v\n", err)
 		return 1
 	}
-	if rep, vErr := validator.New().Validate(ctx, project); vErr != nil {
+	if rep, vErr := validator.New(components.DefaultRegistry()).Validate(ctx, project); vErr != nil {
 		fmt.Fprintf(in.Stderr, "validator: %v\n", vErr)
 		return 2
 	} else if rep != nil && !rep.OK() {

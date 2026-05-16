@@ -10,6 +10,7 @@ import (
 
 	"github.com/klehmer/nimbusfab/internal/dsl/loader"
 	"github.com/klehmer/nimbusfab/internal/dsl/validator"
+	"github.com/klehmer/nimbusfab/pkg/components"
 	"github.com/klehmer/nimbusfab/pkg/ir"
 )
 
@@ -25,12 +26,12 @@ func runValidate(stdout, stderr io.Writer, args []string) int {
 	proj, loaderErr := loader.New().Load(ctx, root)
 	if loaderErr != nil {
 		// Lift the loader error into a Phase-1 report.
-		report, _ := validator.New().ValidateLoaderError(ctx, loaderErr)
+		report, _ := validator.New(components.DefaultRegistry()).ValidateLoaderError(ctx, loaderErr)
 		printReport(stdout, stderr, report)
 		return 1
 	}
 
-	report, err := validator.New().Validate(ctx, proj)
+	report, err := validator.New(components.DefaultRegistry()).Validate(ctx, proj)
 	if err != nil {
 		fmt.Fprintln(stderr, "validator failed:", err)
 		return 2
