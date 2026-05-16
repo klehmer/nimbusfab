@@ -36,12 +36,71 @@ func (rp *runtimeProvisioner) Apply(ctx context.Context, in ApplyInput) (*ApplyR
 	for _, comp := range componentsOrdered {
 		results = append(results, runComponent(ctx, comp, sems, work)...)
 	}
+	results = rp.maybeRetry(ctx, in, results, work, sems)
+	if in.PartialFailure == PartialFailureRollback && hasAnyFailure(results) {
+		results = rp.rollback(ctx, in, results)
+	}
 	return &ApplyResult{
 		DeploymentID:  plan.DeploymentID,
 		Status:        summarizeApplyStatus(results),
 		TargetResults: results,
 		GeneratedAt:   time.Now().UTC(),
 	}, nil
+}
+
+func hasAnyFailure(rs []TargetApplyResult) bool {
+	for _, r := range rs {
+		if r.Status == RunStatusFailed {
+			return true
+		}
+	}
+	return false
+}
+
+func (rp *runtimeProvisioner) maybeRetry(ctx context.Context, in ApplyInput, results []TargetApplyResult, work targetWorker, sems *semaphores) []TargetApplyResult {
+	if in.PartialFailure != PartialFailureRetryFailed {
+		return results
+	}
+	for attempt := 1; attempt <= in.MaxRetries; attempt++ {
+		if !hasAnyFailure(results) {
+			break
+		}
+		for i, r := range results {
+			if r.Status != RunStatusFailed {
+				continue
+			}
+			comp := ir.Component{Name: r.Component, Targets: []ir.DeploymentTarget{{
+				Cloud: r.Cloud, Region: r.Region,
+			}}}
+			retried := runComponent(ctx, comp, sems, work)
+			if len(retried) > 0 {
+				results[i] = retried[0]
+			}
+		}
+	}
+	return results
+}
+
+func (rp *runtimeProvisioner) rollback(ctx context.Context, in ApplyInput, results []TargetApplyResult) []TargetApplyResult {
+	plan := in.PlanResult
+	for i, r := range results {
+		if r.Status != RunStatusSucceeded {
+			continue
+		}
+		tp := findTargetPlan(plan, r.Component, r.Cloud, r.Region)
+		if tp == nil {
+			continue
+		}
+		ws := tofu.Workspace{Dir: tp.WorkspaceDir}
+		if err := rp.cfg.Runner.Destroy(ctx, ws, tofu.DestroyOpts{AutoApprove: true}); err != nil {
+			results[i].Status = RunStatusFailed
+			results[i].Error = fmt.Errorf("rollback destroy failed: %w (original status: succeeded)", err)
+			continue
+		}
+		results[i].Status = RunStatusReverted
+		results[i].FinishedAt = time.Now().UTC()
+	}
+	return results
 }
 
 func (rp *runtimeProvisioner) applyWorker(in ApplyInput) targetWorker {
