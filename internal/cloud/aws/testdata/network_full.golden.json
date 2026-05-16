@@ -1,0 +1,24 @@
+{
+  "primitives_by_type": {
+    "aws_vpc": {
+      "count": 1,
+      "attribute_keys": ["cidr_block", "enable_dns_hostnames", "enable_dns_support"]
+    },
+    "aws_internet_gateway": {
+      "count": 1,
+      "attribute_keys": ["vpc_id"]
+    },
+    "aws_route_table": {
+      "count": 1,
+      "attribute_keys": ["vpc_id", "route"]
+    },
+    "aws_subnet": {
+      "count": 3,
+      "attribute_keys": ["vpc_id", "cidr_block", "availability_zone", "map_public_ip_on_launch"]
+    },
+    "aws_route_table_association": {
+      "count": 3,
+      "attribute_keys": ["subnet_id", "route_table_id"]
+    }
+  }
+}
