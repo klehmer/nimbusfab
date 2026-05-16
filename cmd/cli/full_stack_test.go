@@ -6,15 +6,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klehmer/nimbusfab/internal/cloud/aws"
 	"github.com/klehmer/nimbusfab/internal/tofu"
-	"github.com/klehmer/nimbusfab/pkg/cloud"
 	"github.com/klehmer/nimbusfab/pkg/inventory"
 )
 
 func TestPlanCommand_FullStackFixture(t *testing.T) {
-	reg := cloud.NewRegistry()
-	_ = reg.Register(aws.New())
+	reg, err := defaultCloudRegistry()
+	if err != nil {
+		t.Fatalf("registry: %v", err)
+	}
 	var stdout, stderr bytes.Buffer
 	code := runPlan(context.Background(), planArgs{
 		ProjectPath: "testdata/full-stack-project",
@@ -33,6 +33,12 @@ func TestPlanCommand_FullStackFixture(t *testing.T) {
 	for _, name := range []string{"web-network", "orders-db", "web-app", "uploads"} {
 		if !strings.Contains(out, name) {
 			t.Errorf("plan output missing component %q:\n%s", name, out)
+		}
+	}
+	// Phase 4: each component now has 2 targets (aws + azure).
+	for _, target := range []string{"aws/us-east-1", "azure/eastus"} {
+		if !strings.Contains(out, target) {
+			t.Errorf("plan output missing target %q:\n%s", target, out)
 		}
 	}
 }

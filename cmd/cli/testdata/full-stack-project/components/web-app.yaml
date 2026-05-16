@@ -8,6 +8,9 @@ targets:
   - cloud: aws
     region: us-east-1
     credentialRef: aws-dev
+  - cloud: azure
+    region: eastus
+    credentialRef: azure-dev
 refs:
   - component: web-network
     output: subnet_ids

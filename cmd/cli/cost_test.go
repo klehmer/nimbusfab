@@ -6,15 +6,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klehmer/nimbusfab/internal/cloud/aws"
 	"github.com/klehmer/nimbusfab/internal/tofu"
-	"github.com/klehmer/nimbusfab/pkg/cloud"
 	"github.com/klehmer/nimbusfab/pkg/inventory"
 )
 
 func TestCostEstimateCommand_FullStackFixture(t *testing.T) {
-	reg := cloud.NewRegistry()
-	_ = reg.Register(aws.New())
+	reg, err := defaultCloudRegistry()
+	if err != nil {
+		t.Fatalf("registry: %v", err)
+	}
 	var stdout, stderr bytes.Buffer
 	code := runCostEstimate(context.Background(), costEstimateArgs{
 		ProjectPath: "testdata/full-stack-project",
@@ -32,5 +32,11 @@ func TestCostEstimateCommand_FullStackFixture(t *testing.T) {
 	}
 	if !strings.Contains(out, "/month") {
 		t.Errorf("expected per-month label: %s", out)
+	}
+	// Phase 4: estimate should include both AWS and Azure subtotals.
+	for _, target := range []string{"aws/us-east-1", "azure/eastus"} {
+		if !strings.Contains(out, target) {
+			t.Errorf("missing target %q in cost output:\n%s", target, out)
+		}
 	}
 }
