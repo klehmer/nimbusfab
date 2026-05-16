@@ -1,0 +1,99 @@
+{
+  "$schema": "https://nimbusfab.dev/schema/pricing/snapshot/v1alpha1.json",
+  "cloud": "azure",
+  "currency": "USD",
+  "fetchedAt": "2026-05-16T00:00:00Z",
+  "source": "manual-curation-phase-4",
+  "entries": [
+    {
+      "key": { "service": "VirtualMachines", "armSkuName": "Standard_B2s", "armRegionName": "eastus", "priceType": "Consumption", "productName": "Virtual Machines BS Series" },
+      "unitPrice": 0.0416,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "VirtualMachines", "armSkuName": "Standard_B2ms", "armRegionName": "eastus", "priceType": "Consumption", "productName": "Virtual Machines BS Series" },
+      "unitPrice": 0.0832,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "VirtualMachines", "armSkuName": "Standard_B4ms", "armRegionName": "eastus", "priceType": "Consumption", "productName": "Virtual Machines BS Series" },
+      "unitPrice": 0.1664,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "VirtualMachines", "armSkuName": "Standard_D4s_v5", "armRegionName": "eastus", "priceType": "Consumption", "productName": "Virtual Machines BS Series" },
+      "unitPrice": 0.1920,
+      "unitOfMeasure": "Hrs"
+    },
+
+    {
+      "key": { "service": "VirtualMachines", "armSkuName": "Standard_B2s", "armRegionName": "eastus2", "priceType": "Consumption", "productName": "Virtual Machines BS Series" },
+      "unitPrice": 0.0416,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "VirtualMachines", "armSkuName": "Standard_B2ms", "armRegionName": "eastus2", "priceType": "Consumption", "productName": "Virtual Machines BS Series" },
+      "unitPrice": 0.0832,
+      "unitOfMeasure": "Hrs"
+    },
+
+    {
+      "key": { "service": "VirtualMachines", "armSkuName": "Standard_B2s", "armRegionName": "westeurope", "priceType": "Consumption", "productName": "Virtual Machines BS Series" },
+      "unitPrice": 0.0456,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "VirtualMachines", "armSkuName": "Standard_B2ms", "armRegionName": "westeurope", "priceType": "Consumption", "productName": "Virtual Machines BS Series" },
+      "unitPrice": 0.0912,
+      "unitOfMeasure": "Hrs"
+    },
+
+    {
+      "key": { "service": "AzureDatabaseforPostgreSQL", "skuName": "Standard_B1ms", "armRegionName": "eastus", "tier": "Burstable", "priceType": "Consumption" },
+      "unitPrice": 0.034,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AzureDatabaseforPostgreSQL", "skuName": "Standard_B2s", "armRegionName": "eastus", "tier": "Burstable", "priceType": "Consumption" },
+      "unitPrice": 0.068,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AzureDatabaseforPostgreSQL", "skuName": "Standard_D2s_v3", "armRegionName": "eastus", "tier": "GeneralPurpose", "priceType": "Consumption" },
+      "unitPrice": 0.198,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AzureDatabaseforPostgreSQL", "skuName": "Standard_D4s_v3", "armRegionName": "eastus", "tier": "GeneralPurpose", "priceType": "Consumption" },
+      "unitPrice": 0.396,
+      "unitOfMeasure": "Hrs"
+    },
+
+    {
+      "key": { "service": "AzureDatabaseforMySQL", "skuName": "Standard_B1ms", "armRegionName": "eastus", "tier": "Burstable", "priceType": "Consumption" },
+      "unitPrice": 0.034,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "AzureDatabaseforMySQL", "skuName": "Standard_B2s", "armRegionName": "eastus", "tier": "Burstable", "priceType": "Consumption" },
+      "unitPrice": 0.068,
+      "unitOfMeasure": "Hrs"
+    },
+
+    {
+      "key": { "service": "Storage", "skuName": "Standard LRS", "armRegionName": "eastus", "tier": "Standard", "meterName": "LRS Data Stored" },
+      "unitPrice": 0.0184,
+      "unitOfMeasure": "GB-Mo"
+    },
+    {
+      "key": { "service": "Storage", "skuName": "Standard LRS", "armRegionName": "eastus2", "tier": "Standard", "meterName": "LRS Data Stored" },
+      "unitPrice": 0.0184,
+      "unitOfMeasure": "GB-Mo"
+    },
+    {
+      "key": { "service": "Storage", "skuName": "Standard LRS", "armRegionName": "westeurope", "tier": "Standard", "meterName": "LRS Data Stored" },
+      "unitPrice": 0.0198,
+      "unitOfMeasure": "GB-Mo"
+    }
+  ]
+}
