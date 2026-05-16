@@ -1,6 +1,56 @@
 # Changelog
 
-## Unreleased — Secrets Phase 1 (Env + File Backends)
+## Unreleased — Web App UI Phase 1 (Read-Only Pages)
+
+### Added
+
+- `internal/webapi/ui` package — `html/template` page renderer with
+  `embed.FS`-backed templates and CSS. Each page is parsed into its
+  own `*template.Template` instance (avoids `{{define "content"}}`
+  collisions across pages in Go's global per-Template namespace).
+- 4 read-only pages: `/ui/projects` (table of registered projects),
+  `/ui/projects/{id}` (stacks + components + recent deployments),
+  `/ui/deployments/{id}` (per-target rows with status badges + run
+  links), `/ui/runs/{id}` (kv block: kind, status, exit code,
+  timestamps; placeholder for UI Phase 2's live log stream).
+- `internal/webapi/router.go` mounts UI routes plus `/assets/*`
+  (http.FileServerFS), `/healthz`, `/readyz`, and `/` → `/ui/projects`
+  redirect. Std-lib `http.ServeMux` with Go 1.22+ pattern routing — no
+  chi.
+- `cmd/server/main.go` replaces the hello-world stub: parses
+  `NIMBUSFAB_LISTEN_ADDR`, `NIMBUSFAB_DB_DSN`, `NIMBUSFAB_ORG_ID`,
+  opens SQLite, runs migrations, mounts the handler.
+- 1.5KB hand-authored CSS: system fonts, simple table, status badges
+  (ok/fail/warn), kv grid for detail pages. No web fonts, no
+  Tailwind, no SPA framework.
+- 12 unit tests across `pages_test.go` + `router_test.go`. Smoke-
+  tested end-to-end against a real SQLite file: `/healthz` → "ok",
+  `/readyz` → "ready", `/ui/projects` → empty-state HTML.
+
+### Design notes
+
+- **Disabled auth.** UI Phase 1 ships with `OrgID: "default"` baked
+  in; OIDC + cookie sessions land in Auth Phase 1. Production
+  deployments should not expose this binary publicly until then.
+- **SQLite only.** Postgres branch lands with Inventory Phase 2.
+- **No live updates / no mutations.** SSE log streaming and
+  Apply/Destroy/Drift buttons land in HTTP Phase 2 / UI Phase 2.
+- **Pages render straight from `inventory.Repo`** — no HTTP API
+  round-trip. The REST API is for programmatic clients (CLI talking
+  to web-api, scripts using PATs) — server-rendered HTML reads
+  directly.
+
+### Out of scope (deferred)
+
+- Mutating endpoints (HTTP Phase 2).
+- SSE live log streaming (UI Phase 2).
+- OIDC / cookie sessions / PATs (Auth Phase 1).
+- Cost dashboard / parity overview / drift overview (Dashboards
+  Phase 1, Drift Phase 1).
+- Audit log writes (no mutations yet).
+- Pagination (load all rows; v1 volume is small).
+
+## Earlier — Secrets Phase 1 (Env + File Backends)
 
 ### Added
 

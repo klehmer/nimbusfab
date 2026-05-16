@@ -1,0 +1,15 @@
+{{define "title"}}Run {{shortID .Run.ID}}{{end}}
+{{define "content"}}
+<h1>Run <code>{{shortID .Run.ID}}</code></h1>
+<dl class="kv">
+  <dt>Run ID</dt><dd>{{.Run.ID}}</dd>
+  <dt>Kind</dt><dd><code>{{.Run.Kind}}</code></dd>
+  <dt>Status</dt><dd><span class="badge {{statusBadge .Run.Status}}">{{humanStatus .Run.Status}}</span></dd>
+  <dt>Exit code</dt><dd><code>{{.Run.ExitCode}}</code></dd>
+  <dt>Deployment target</dt><dd><code>{{.Run.DeploymentTargetID}}</code></dd>
+  <dt>Started</dt><dd>{{.Run.StartedAt.Format "2006-01-02 15:04:05 UTC"}}</dd>
+  <dt>Finished</dt><dd>{{if .Run.FinishedAt}}{{.Run.FinishedAt.Format "2006-01-02 15:04:05 UTC"}}{{else}}<span class="muted">running</span>{{end}}</dd>
+</dl>
+
+<p class="muted">Live log streaming and plan-diff visualization land in UI Phase 2.</p>
+{{end}}

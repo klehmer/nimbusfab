@@ -1,0 +1,64 @@
+{{define "title"}}{{.Project.Name}}{{end}}
+{{define "content"}}
+<h1>{{.Project.Name}}</h1>
+<dl class="kv">
+  <dt>Project ID</dt><dd>{{.Project.ID}}</dd>
+  <dt>Org ID</dt><dd>{{.Project.OrgID}}</dd>
+  <dt>Created</dt><dd>{{.Project.CreatedAt.Format "2006-01-02 15:04 UTC"}}</dd>
+</dl>
+
+<h2>Stacks</h2>
+{{if .Stacks}}
+<table>
+  <thead><tr><th>Name</th><th>State backend</th><th>Stack ID</th></tr></thead>
+  <tbody>
+  {{range .Stacks}}
+  <tr>
+    <td>{{.Name}}</td>
+    <td><code>{{defaultStr .StateBackendKind "local"}}</code></td>
+    <td><code>{{shortID .ID}}</code></td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="muted">No stacks recorded.</p>
+{{end}}
+
+<h2>Components</h2>
+{{if .Components}}
+<table>
+  <thead><tr><th>Name</th><th>Type</th><th>Updated</th></tr></thead>
+  <tbody>
+  {{range .Components}}
+  <tr>
+    <td>{{.Name}}</td>
+    <td><span class="badge">{{.Type}}</span></td>
+    <td>{{.UpdatedAt.Format "2006-01-02 15:04 UTC"}}</td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="muted">No components declared yet.</p>
+{{end}}
+
+<h2>Recent deployments</h2>
+{{if .Deployments}}
+<table>
+  <thead><tr><th>Deployment</th><th>Status</th><th>Started</th><th>Finished</th></tr></thead>
+  <tbody>
+  {{range .Deployments}}
+  <tr>
+    <td><a href="/ui/deployments/{{.ID}}"><code>{{shortID .ID}}</code></a></td>
+    <td><span class="badge {{statusBadge .Status}}">{{humanStatus .Status}}</span></td>
+    <td>{{.StartedAt.Format "2006-01-02 15:04 UTC"}}</td>
+    <td>{{if .FinishedAt}}{{.FinishedAt.Format "2006-01-02 15:04 UTC"}}{{else}}<span class="muted">—</span>{{end}}</td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="muted">No deployments yet. Run <code>nimbusfab apply</code> with inventory enabled.</p>
+{{end}}
+{{end}}
