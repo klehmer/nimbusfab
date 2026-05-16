@@ -12,7 +12,7 @@ import (
 // Per-type Emit wrappers. Stubbed bodies are replaced by Tasks 2-5.
 
 func (*Adapter) emitNetwork(ctx context.Context, target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.ResourcePrimitive, error) {
-	return nil, fmt.Errorf("gcp: network emit not yet implemented")
+	return emitNetworkImpl(target, refs)
 }
 
 func (*Adapter) emitCompute(ctx context.Context, target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.ResourcePrimitive, error) {
