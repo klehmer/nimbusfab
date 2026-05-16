@@ -1,6 +1,42 @@
 # Changelog
 
-## Unreleased
+## Unreleased — Provisioner Phase 2
+
+### Added
+
+- `nimbusfab apply --stack <stack>` — validates, plans, then applies with
+  `--partial-failure {leave|rollback|retry-failed}` policy.
+- `nimbusfab destroy --stack <stack>` — reverse-order tear-down.
+- `nimbusfab drift --stack <stack>` — `tofu plan -refresh-only` per target.
+- `pkg/provisioner` — `Apply`, `Destroy`, `DetectDrift` implementations
+  feeding the new CLI surface.
+- `pkg/provisioner/orchestrator.go` — component DAG topo sort with parallel
+  target fan-out and three-semaphore caps (global / per-cloud / per-credential).
+- Partial-failure policies: `leave` (default), `rollback` (destroys succeeded
+  targets when any failed), `retry-failed` (re-runs failed targets up to
+  `MaxRetries` times).
+- `internal/state/bridge` — parses `tofu show -json` into a typed Snapshot
+  with deterministic per-resource attribute hash; Apply embeds the snapshot
+  in `TargetApplyResult`.
+- `pkg/provisioner.RunEvent` — typed per-target event stream (consumed
+  by CLI; web SSE wires in a later phase).
+- Cross-component refs: `data.terraform_remote_state` block auto-injected
+  into dependent workspaces when a component declares `refs:`.
+
+### Changed
+
+- `tofu.Runner.Plan` accepts `PlanOpts.RefreshOnly` for drift detection.
+- `tofu.FakeRunner` gains a `DriftPlan` field that scripts the response to
+  refresh-only plan calls.
+- `pkg/engine` adds `ApplyWithPlan`, `DestroyWithPlan`,
+  `DetectDriftWithPlan` to the `Engine` interface (Phase-2 surface; pass the
+  PlanResult directly since inventory persistence is pending).
+  `Engine.DetectDrift(deploymentID)` and `Engine.Apply(planID)` still return
+  `ErrNotImplementedYet`.
+- `pkg/engine` aliases `DriftReport`/`TargetDriftReport`/`DriftedResource`
+  to the provisioner shapes; the Phase-0 placeholder types are removed.
+
+## DSL/IR + Provisioner Phase 1 (merged 2026-05-15)
 
 ### Added — Provisioner Phase 1
 

@@ -23,6 +23,11 @@ type WorkspaceLayout struct {
 	Backend ir.StateBackend
 
 	Primitives []ir.ResourcePrimitive
+
+	// UpstreamRefs, if non-empty, become a `data "terraform_remote_state"`
+	// block in main.tf.json so the dependent's resources can interpolate the
+	// upstream's outputs at Tofu time.
+	UpstreamRefs []UpstreamStateRef
 }
 
 // WriteWorkspace materializes the four canonical workspace files atomically
@@ -33,11 +38,31 @@ func WriteWorkspace(layout WorkspaceLayout) error {
 		return fmt.Errorf("workspace mkdir: %w", err)
 	}
 
+	mainBlock := buildMain(layout.Primitives)
+	if len(layout.UpstreamRefs) > 0 {
+		data := map[string]any{}
+		for _, ref := range layout.UpstreamRefs {
+			backend := ref.Backend
+			if backend.Kind == "" {
+				backend.Kind = "local"
+			}
+			cfg := backend.Config
+			if cfg == nil {
+				cfg = map[string]any{}
+			}
+			data[tofuIdentForComponent(ref.Component)] = map[string]any{
+				"backend": backend.Kind,
+				"config":  cfg,
+			}
+		}
+		mainBlock["data"] = map[string]any{"terraform_remote_state": data}
+	}
+
 	files := map[string]any{
 		"versions.tf.json": buildVersions(layout),
 		"provider.tf.json": map[string]any{"provider": layout.ProviderConfig},
 		"backend.tf.json":  buildBackend(layout.Backend),
-		"main.tf.json":     buildMain(layout.Primitives),
+		"main.tf.json":     mainBlock,
 	}
 
 	for name, content := range files {

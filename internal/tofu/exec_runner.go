@@ -84,6 +84,9 @@ func (e *ExecRunner) Plan(ctx context.Context, ws Workspace, opts PlanOpts) (*Pl
 	if opts.Refresh {
 		args = append(args, "-refresh=true")
 	}
+	if opts.RefreshOnly {
+		args = append(args, "-refresh-only")
+	}
 	if err := e.run(ctx, ws, args...); err != nil {
 		return nil, err
 	}

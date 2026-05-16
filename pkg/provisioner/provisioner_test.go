@@ -30,7 +30,10 @@ func TestNew_RequiresRunner(t *testing.T) {
 	}
 }
 
-func TestRuntimeProvisioner_ApplyAndDestroyNotImplemented(t *testing.T) {
+func TestRuntimeProvisioner_RequiresPlanResult(t *testing.T) {
+	// Phase 2 implements Apply/Destroy/DetectDrift, but all three need a
+	// PlanResult since inventory lookup isn't wired yet. Verify they reject
+	// missing input cleanly rather than panicking.
 	p, err := New(Config{
 		WorkRoot: t.TempDir(),
 		Adapters: cloud.NewRegistry(),
@@ -40,10 +43,14 @@ func TestRuntimeProvisioner_ApplyAndDestroyNotImplemented(t *testing.T) {
 		t.Fatalf("New: %v", err)
 	}
 	ctx := context.Background()
-	if _, err := p.Apply(ctx, ApplyInput{}); !errors.Is(err, ErrNotImplementedYet) {
-		t.Errorf("Apply: want ErrNotImplementedYet, got %v", err)
+	if _, err := p.Apply(ctx, ApplyInput{}); err == nil {
+		t.Error("Apply with no PlanResult: nil err, want non-nil")
 	}
-	if _, err := p.Destroy(ctx, DestroyInput{}); !errors.Is(err, ErrNotImplementedYet) {
-		t.Errorf("Destroy: want ErrNotImplementedYet, got %v", err)
+	if _, err := p.Destroy(ctx, DestroyInput{}); err == nil {
+		t.Error("Destroy with no PlanResult: nil err, want non-nil")
 	}
+	if _, err := p.DetectDrift(ctx, DriftInput{}); err == nil {
+		t.Error("DetectDrift with no PlanResult: nil err, want non-nil")
+	}
+	_ = errors.New // keep import even if unused after edit
 }

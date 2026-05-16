@@ -32,6 +32,22 @@ const (
 	PartialFailureRetryFailed = provisioner.PartialFailureRetryFailed
 )
 
+// ApplyResult mirrors provisioner.ApplyResult.
+type ApplyResult = provisioner.ApplyResult
+
+// TargetApplyResult mirrors provisioner.TargetApplyResult.
+type TargetApplyResult = provisioner.TargetApplyResult
+
+// ApplyStatus mirrors provisioner.ApplyStatus.
+type ApplyStatus = provisioner.ApplyStatus
+
+const (
+	ApplySucceeded      = provisioner.ApplySucceeded
+	ApplyPartialFailure = provisioner.ApplyPartialFailure
+	ApplyFailed         = provisioner.ApplyFailed
+	ApplyRollbackFailed = provisioner.ApplyRollbackFailed
+)
+
 // Engine is the only interface a frontend should depend on.
 type Engine interface {
 	LoadProject(ctx context.Context, path string) (*ir.Project, error)
@@ -45,6 +61,13 @@ type Engine interface {
 	EstimateCost(ctx context.Context, plan *PlanResult) (*CostEstimate, error)
 	GetCostActuals(ctx context.Context, query CostQuery) (*CostReport, error)
 	DetectDrift(ctx context.Context, deploymentID string) (*DriftReport, error)
+
+	// Phase-2 surface: pass the PlanResult directly since inventory
+	// persistence isn't wired yet. These become the no-arg Apply/Destroy/
+	// DetectDrift entry points once Apply(planID) resolves through inventory.
+	ApplyWithPlan(ctx context.Context, plan *PlanResult, opts ApplyOpts) (*ApplyResult, error)
+	DestroyWithPlan(ctx context.Context, plan *PlanResult, opts DestroyOpts) (*ApplyResult, error)
+	DetectDriftWithPlan(ctx context.Context, plan *PlanResult) (*DriftReport, error)
 }
 
 // ValidationReport collects all schema and semantic diagnostics for a Project.
@@ -222,26 +245,8 @@ type CostRow struct {
 	Amount float64
 }
 
-// DriftReport summarizes detected drift for a deployment.
-type DriftReport struct {
-	DeploymentID string
-	DetectedAt   time.Time
-	Targets      []TargetDrift
-}
-
-// TargetDrift is per-target drift detail.
-type TargetDrift struct {
-	DeploymentTargetID string
-	Cloud              string
-	HasDrift           bool
-	Primitives         []PrimitiveDrift
-}
-
-// PrimitiveDrift is the smallest drift unit: the IR thinks it should look
-// like X, the cloud actually has Y.
-type PrimitiveDrift struct {
-	PrimitiveID string
-	Field       string
-	Expected    any
-	Actual      any
-}
+// DriftReport / TargetDriftReport / DriftedResource alias the provisioner
+// shapes so the engine and provisioner stay in lockstep.
+type DriftReport = provisioner.DriftReport
+type TargetDriftReport = provisioner.TargetDriftReport
+type DriftedResource = provisioner.DriftedResource

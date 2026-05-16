@@ -10,45 +10,15 @@ import (
 )
 
 // ErrNotImplementedYet is returned by Provisioner methods that have not yet
-// been wired up. Phase 1 implements Plan only.
+// been wired up.
 var ErrNotImplementedYet = errors.New("provisioner: not implemented yet")
 
-// Provisioner orchestrates plan/apply/destroy across DeploymentTargets.
+// Provisioner orchestrates plan/apply/destroy/drift across DeploymentTargets.
 type Provisioner interface {
 	Plan(ctx context.Context, in PlanInput) (*PlanResult, error)
-
 	Apply(ctx context.Context, in ApplyInput) (*ApplyResult, error)
 	Destroy(ctx context.Context, in DestroyInput) (*ApplyResult, error)
-}
-
-// ApplyInput / ApplyResult / DestroyInput are reserved-shape stubs so that
-// Phase 2 lands without a public-API churn commit.
-type ApplyInput struct {
-	PlanResult            *PlanResult
-	OrgID                 string
-	PartialFailure        PartialFailurePolicy
-	AutoApprove           bool
-	AllowParityViolations bool
-}
-
-type ApplyResult struct {
-	DeploymentID  string
-	TargetResults []TargetApplyResult
-	Status        string
-}
-
-type TargetApplyResult struct {
-	DeploymentTargetID string
-	RunID              string
-	Status             string
-	Outputs            map[string]any
-	Error              error
-}
-
-type DestroyInput struct {
-	DeploymentID   string
-	PartialFailure PartialFailurePolicy
-	AutoApprove    bool
+	DetectDrift(ctx context.Context, in DriftInput) (*DriftReport, error)
 }
 
 // Config carries the dependencies a real Provisioner needs.
@@ -76,10 +46,5 @@ type runtimeProvisioner struct {
 	cfg Config
 }
 
-// Apply and Destroy still return ErrNotImplementedYet.
-func (*runtimeProvisioner) Apply(ctx context.Context, in ApplyInput) (*ApplyResult, error) {
-	return nil, ErrNotImplementedYet
-}
-func (*runtimeProvisioner) Destroy(ctx context.Context, in DestroyInput) (*ApplyResult, error) {
-	return nil, ErrNotImplementedYet
-}
+// Apply / Destroy / DetectDrift are implemented in apply.go / destroy.go /
+// drift.go respectively.
