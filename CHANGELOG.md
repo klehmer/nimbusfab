@@ -1,6 +1,62 @@
 # Changelog
 
-## Unreleased — Azure Adapter Phase 4
+## Unreleased — GCP Adapter Phase 5
+
+### Added
+
+- `internal/cloud/gcp` — full `cloud.Adapter` implementation mirroring
+  AWS Phase 3 and Azure Phase 4 structure: per-type emit files
+  (network / compute / database / storage), dispatch on
+  `target.Spec["__type"]`, `PricingKey()` + `Profile()` real
+  implementations, `DefaultStateBackend()` (gcs backend),
+  `ProviderBlock()` (google provider with region + optional project).
+- Per-type emissions:
+  - network = VPC (custom-subnetwork mode) + N regional Subnetworks
+    + two Firewalls (allow-internal, deny-external)
+  - compute = egress Firewall + N Compute Engine instances distributed
+    across zones a/b/c; default image Ubuntu 22.04 LTS
+    (ubuntu-os-cloud project)
+  - database = Cloud SQL instance (PG/MySQL) + default database;
+    MariaDB rejected with explicit error (Cloud SQL doesn't offer it)
+  - storage = single GCS bucket (no container sub-resource)
+- T-shirt size mappings — compute: e2-small / e2-medium / e2-standard-2
+  / n2-standard-4 (E2 burstable + N2 general-purpose families);
+  database: db-f1-micro / db-g1-small / db-custom-2-7680 /
+  db-custom-4-15360.
+- GCP pricing snapshot (`pkg/cost/pricing/snapshot/gcp.json`) covering
+  the Phase-5 Compute Engine / Cloud SQL / Cloud Storage SKUs across
+  `{us-central1, us-east1, europe-west1}`.
+- `pkg/cost/estimator.UnitsFor` extended to recognize GCP Tofu types
+  (google_compute_instance, google_sql_database_instance,
+  google_storage_bucket).
+- `pkg/plugin/contract.RunProvisionerScenarios` passes for GCP adapter.
+- `cmd/cli/clouds.go` — `defaultCloudRegistry()` registers GCP
+  alongside AWS + Azure (one-line extension; the helper's centralization
+  paid off).
+- Full-stack fixture (`cmd/cli/testdata/full-stack-project/`) now
+  targets all three clouds for every component: 4 components × 3 clouds
+  = 12 deployment targets. `nimbusfab parity` reports 3-way weighted
+  scores (Azure outlier patterns surface clearly); `nimbusfab cost
+  estimate` shows three per-cloud subtotals (AWS / Azure / GCP).
+- Region naming: GCP adapter validates against
+  `^[a-z]+-[a-z]+[0-9]$` regex, rejecting AWS (`us-east-1`) and Azure
+  (`eastus`) formats.
+- Bucket naming: GCS buckets share a global namespace; the adapter
+  derives `<project>-<component>-<region>-<sha6>` with a deterministic
+  hash suffix to reduce collision risk.
+
+### Out of scope (deferred)
+
+- `google-beta` provider resources (Confidential VMs, GKE Autopilot
+  features, etc.). v2.
+- Service Account / IAM role management (provider-level auth only).
+- BigQuery, Spanner, Firestore, Bigtable, GKE, Cloud Run, App Engine.
+- VPC peering, Cloud Interconnect, Cloud VPN, Cloud Load Balancing.
+- Committed / Sustained Use Discounts, Spot VMs.
+- Cloud KMS, Secret Manager (web app + secrets phases).
+- Tier-1 `<cloud>: gcp:` escape hatch schemas.
+
+## Earlier — Azure Adapter Phase 4
 
 ### Added
 
