@@ -24,7 +24,7 @@ func TestEngine_EstimateCost_OneInstance(t *testing.T) {
 		Stacks: map[string]ir.Stack{"dev": {Name: "dev", StateBackend: ir.StateBackend{Kind: "local"}}},
 		Components: []ir.Component{{
 			Name: "web", Type: "compute",
-			Spec: map[string]any{"size": "small"},
+			Spec:    map[string]any{"size": "small"},
 			Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1"}},
 		}},
 	}

@@ -1,6 +1,51 @@
 # Changelog
 
-## Unreleased — Parity Engine Phase 1
+## Unreleased — Cost Estimator Phase 1
+
+### Added
+
+- `pkg/cost/pricing.NewCache` — bundled-snapshot pricing cache backed
+  by embedded JSON files (`pkg/cost/pricing/snapshot/*.json`).
+- AWS price snapshot covering Phase-3 EC2 (t3.* + m6i.* across 3 regions),
+  RDS (db.t3.* + db.m6i.* × postgres/mysql/mariadb × Single-AZ/Multi-AZ),
+  and S3 Standard. Curated from AWS public pricing pages; refresh process
+  documented in `pkg/cost/pricing/snapshot/README.md`.
+- `pkg/cost/pricing.CanonicalKey` — deterministic flattening of
+  `Adapter.PricingKey()` maps to cache-friendly strings.
+- `pkg/cost/pricing.AsPricingProvider` — adapter from `Cache` to
+  estimator's `PricingProvider` interface.
+- `pkg/cost/pricing.SnapshotAge` — staleness helper for "snapshot is N
+  days old" CLI warnings.
+- `pkg/cost/pricing.Cache.Refresh` returns `ErrNotImplementedYet`; live
+  AWS Pricing API integration is Cost Phase 2.
+- `pkg/cost/estimator.New` — runtime Estimator: walks plan targets,
+  calls `adapter.PricingKey`, queries pricing provider, multiplies by
+  per-primitive usage assumptions, aggregates per-target / overall.
+- `pkg/cost/estimator.UnitsFor` — usage assumptions table: 730 hr/month
+  for compute / db; 100 GB-Mo default for storage. User overrides via
+  `spec.usage.hoursPerMonth` and `spec.usage.storageGB`.
+- `engine.EstimateCost(plan)` wires the cost path through the registry.
+- `pkg/provisioner.TargetPlan.RawPrimitives` — keeps the adapter's emit
+  output verbatim so the cost path can call `PricingKey` without
+  re-emitting.
+- `nimbusfab plan` now prints a Cost summary alongside the Parity
+  summary (and also fixes the Parity-summary gap from the prior phase's
+  commit message that wasn't actually applied).
+- `nimbusfab cost estimate --stack <stack>` — detailed per-primitive
+  monthly breakdown with target subtotals + warnings.
+
+### Out of scope (deferred)
+
+- Live AWS Pricing API integration. Cost Phase 2.
+- Azure / GCP pricing snapshots. Ship with those adapters.
+- Cost actuals collection from billing APIs. Separate Cost Collector spec.
+- Inventory writes of estimates to `cost_estimates` table. Inventory Phase 2.
+- Reserved instances, savings plans, spot pricing. v2.
+- Data transfer / egress costs. v2.
+- Multi-currency. v2.
+- Cost optimization recommendations. v2.
+
+## Parity Engine Phase 1
 
 ### Added
 

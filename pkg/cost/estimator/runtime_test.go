@@ -32,10 +32,10 @@ func (f *fakeProvider) Price(ctx context.Context, cloudName string, key map[stri
 // Returns the primitive's "fake-pricing-key" attribute as the key.
 type fakeAdapter struct{}
 
-func (fakeAdapter) Name() string                                     { return "aws" }
-func (fakeAdapter) SupportedAPIVersions() []string                   { return []string{ir.APIVersionV1Alpha1} }
-func (fakeAdapter) SupportedComponentTypes() []string                { return []string{"network"} }
-func (fakeAdapter) TierOneSchema() []byte                            { return nil }
+func (fakeAdapter) Name() string                                             { return "aws" }
+func (fakeAdapter) SupportedAPIVersions() []string                           { return []string{ir.APIVersionV1Alpha1} }
+func (fakeAdapter) SupportedComponentTypes() []string                        { return []string{"network"} }
+func (fakeAdapter) TierOneSchema() []byte                                    { return nil }
 func (fakeAdapter) Validate(context.Context, ir.DeploymentTarget) []ir.Issue { return nil }
 func (fakeAdapter) Emit(context.Context, ir.DeploymentTarget, cloud.ResolvedRefs) ([]ir.ResourcePrimitive, error) {
 	return nil, nil
