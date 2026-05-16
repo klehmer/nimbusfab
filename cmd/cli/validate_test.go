@@ -184,3 +184,171 @@ targets:
 		t.Errorf("output missing field name 'subnetCount': %s", combined)
 	}
 }
+
+// Phase 5 fixtures: multi-component projects exercising ref-graph errors.
+
+func writePhase5Project(t *testing.T, root string, components map[string]string) {
+	t.Helper()
+	mustWrite(t, filepath.Join(root, "project.yaml"), []byte(`
+apiVersion: infra.dev/v1alpha1
+name: orders
+stacks:
+  dev: {}
+`))
+	if err := os.MkdirAll(filepath.Join(root, "components"), 0o755); err != nil {
+		t.Fatalf("mkdir components: %v", err)
+	}
+	for name, yaml := range components {
+		mustWrite(t, filepath.Join(root, "components", name+".yaml"), []byte(yaml))
+	}
+}
+
+func TestValidate_Phase5_UnknownComponent(t *testing.T) {
+	root := t.TempDir()
+	writePhase5Project(t, root, map[string]string{
+		"web-net": `
+apiVersion: infra.dev/v1alpha1
+name: web-net
+type: network
+spec:
+  cidr: 10.0.0.0/16
+targets:
+  - cloud: aws
+    region: us-east-1
+`,
+		"web-app": `
+apiVersion: infra.dev/v1alpha1
+name: web-app
+type: compute
+spec:
+  size: small
+targets:
+  - cloud: aws
+    region: us-east-1
+refs:
+  - component: webnetwork
+    output: vpc_id
+    as: vpcId
+`,
+	})
+	var stdout, stderr bytes.Buffer
+	if exit := runValidate(&stdout, &stderr, []string{root}); exit == 0 {
+		t.Fatal("expected non-zero exit for unknown-component ref")
+	}
+	combined := stdout.String() + stderr.String()
+	if !strings.Contains(combined, "ErrValidatorRefUnknownComponent") {
+		t.Errorf("output missing ErrValidatorRefUnknownComponent: %s", combined)
+	}
+}
+
+func TestValidate_Phase5_UnknownOutput(t *testing.T) {
+	root := t.TempDir()
+	writePhase5Project(t, root, map[string]string{
+		"web-app": `
+apiVersion: infra.dev/v1alpha1
+name: web-app
+type: compute
+spec:
+  size: small
+targets:
+  - cloud: aws
+    region: us-east-1
+`,
+		"orders-db": `
+apiVersion: infra.dev/v1alpha1
+name: orders-db
+type: database
+spec:
+  engine: postgres
+  size: small
+targets:
+  - cloud: aws
+    region: us-east-1
+refs:
+  - component: web-app
+    output: subnet_ids
+    as: subnetIds
+`,
+	})
+	var stdout, stderr bytes.Buffer
+	if exit := runValidate(&stdout, &stderr, []string{root}); exit == 0 {
+		t.Fatal("expected non-zero exit for unknown-output ref")
+	}
+	combined := stdout.String() + stderr.String()
+	if !strings.Contains(combined, "ErrValidatorRefUnknownOutput") {
+		t.Errorf("output missing ErrValidatorRefUnknownOutput: %s", combined)
+	}
+	if !strings.Contains(combined, "instance_ids") {
+		t.Errorf("output should list compute's actual outputs: %s", combined)
+	}
+}
+
+func TestValidate_Phase5_SelfRef(t *testing.T) {
+	root := t.TempDir()
+	writePhase5Project(t, root, map[string]string{
+		"web-app": `
+apiVersion: infra.dev/v1alpha1
+name: web-app
+type: compute
+spec:
+  size: small
+targets:
+  - cloud: aws
+    region: us-east-1
+refs:
+  - component: web-app
+    output: instance_ids
+    as: selfIds
+`,
+	})
+	var stdout, stderr bytes.Buffer
+	if exit := runValidate(&stdout, &stderr, []string{root}); exit == 0 {
+		t.Fatal("expected non-zero exit for self-ref")
+	}
+	combined := stdout.String() + stderr.String()
+	if !strings.Contains(combined, "ErrValidatorRefSelf") {
+		t.Errorf("output missing ErrValidatorRefSelf: %s", combined)
+	}
+}
+
+func TestValidate_Phase5_Cycle(t *testing.T) {
+	root := t.TempDir()
+	writePhase5Project(t, root, map[string]string{
+		"a": `
+apiVersion: infra.dev/v1alpha1
+name: a
+type: compute
+spec:
+  size: small
+targets:
+  - cloud: aws
+    region: us-east-1
+refs:
+  - component: b
+    output: instance_ids
+    as: bIds
+`,
+		"b": `
+apiVersion: infra.dev/v1alpha1
+name: b
+type: compute
+spec:
+  size: small
+targets:
+  - cloud: aws
+    region: us-east-1
+refs:
+  - component: a
+    output: instance_ids
+    as: aIds
+`,
+	})
+	var stdout, stderr bytes.Buffer
+	if exit := runValidate(&stdout, &stderr, []string{root}); exit == 0 {
+		t.Fatal("expected non-zero exit for ref cycle")
+	}
+	combined := stdout.String() + stderr.String()
+	if !strings.Contains(combined, "ErrValidatorRefCycle") {
+		t.Errorf("output missing ErrValidatorRefCycle: %s", combined)
+	}
+}
