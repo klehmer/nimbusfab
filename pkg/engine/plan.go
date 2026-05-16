@@ -87,7 +87,68 @@ func (e *runtimeEngine) GetCostActuals(ctx context.Context, query CostQuery) (*C
 }
 
 func (e *runtimeEngine) DetectDrift(ctx context.Context, deploymentID string) (*DriftReport, error) {
+	// Phase 2: inventory-resolved deployments are not yet wired. Callers
+	// use DetectDriftWithPlan instead. The inventory phase replaces this stub.
 	return nil, errNotImplemented
+}
+
+// newProvisioner constructs a provisioner with the engine's deps. Local helper.
+func (e *runtimeEngine) newProvisioner() (provisioner.Provisioner, error) {
+	runner := e.cfg.TofuRunner
+	if runner == nil {
+		runner = tofu.NewExecRunner()
+	}
+	workRoot := e.cfg.WorkRoot
+	if workRoot == "" {
+		workRoot = e.cfg.WorkDir
+	}
+	if workRoot == "" {
+		workRoot = filepath.Join(os.TempDir(), "nimbusfab")
+	}
+	return provisioner.New(provisioner.Config{
+		WorkRoot: workRoot, Adapters: e.cfg.CloudAdapters, Runner: runner,
+	})
+}
+
+// ApplyWithPlan is the Phase-2 surface: caller passes the PlanResult directly
+// since inventory persistence isn't wired. Becomes Apply(planID) in the
+// inventory phase.
+func (e *runtimeEngine) ApplyWithPlan(ctx context.Context, plan *PlanResult, opts ApplyOpts) (*ApplyResult, error) {
+	p, err := e.newProvisioner()
+	if err != nil {
+		return nil, err
+	}
+	return p.Apply(ctx, provisioner.ApplyInput{
+		PlanResult:     plan,
+		OrgID:          e.orgID(),
+		PartialFailure: opts.PartialFailure,
+		AutoApprove:    opts.AutoApprove,
+	})
+}
+
+// DestroyWithPlan mirrors ApplyWithPlan for destroys.
+func (e *runtimeEngine) DestroyWithPlan(ctx context.Context, plan *PlanResult, opts DestroyOpts) (*ApplyResult, error) {
+	p, err := e.newProvisioner()
+	if err != nil {
+		return nil, err
+	}
+	return p.Destroy(ctx, provisioner.DestroyInput{
+		PlanResult:  plan,
+		OrgID:       e.orgID(),
+		AutoApprove: opts.AutoApprove,
+	})
+}
+
+// DetectDriftWithPlan runs drift detection against an in-memory plan.
+func (e *runtimeEngine) DetectDriftWithPlan(ctx context.Context, plan *PlanResult) (*DriftReport, error) {
+	p, err := e.newProvisioner()
+	if err != nil {
+		return nil, err
+	}
+	return p.DetectDrift(ctx, provisioner.DriftInput{
+		PlanResult: plan,
+		OrgID:      e.orgID(),
+	})
 }
 
 // orgID returns the OrgID this engine is scoped to. v1 returns "local" in
