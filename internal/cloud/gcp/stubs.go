@@ -29,7 +29,7 @@ func (*Adapter) emitStorage(ctx context.Context, target ir.DeploymentTarget, ref
 // Profile + PricingKey stubs (replaced by Tasks 6-7).
 
 func (*Adapter) Profile(ctx context.Context, p ir.ResourcePrimitive) (parity.ResourceProfile, error) {
-	return parity.ResourceProfile{}, cloud.ErrProfileUnavailable
+	return profileImpl(p)
 }
 
 func (*Adapter) PricingKey(ctx context.Context, p ir.ResourcePrimitive) (map[string]any, error) {
