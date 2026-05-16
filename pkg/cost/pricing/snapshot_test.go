@@ -23,6 +23,23 @@ func TestLoadSnapshots_AWSPresent(t *testing.T) {
 	}
 }
 
+func TestLoadSnapshots_GCPPresent(t *testing.T) {
+	snaps, err := pricing.LoadSnapshots()
+	if err != nil {
+		t.Fatalf("LoadSnapshots: %v", err)
+	}
+	gcp, ok := snaps["gcp"]
+	if !ok {
+		t.Fatal("gcp snapshot missing")
+	}
+	if len(gcp.Entries) == 0 {
+		t.Error("gcp snapshot has 0 entries")
+	}
+	if gcp.Currency != "USD" {
+		t.Errorf("currency = %q", gcp.Currency)
+	}
+}
+
 func TestCanonicalKey_Deterministic(t *testing.T) {
 	a := pricing.CanonicalKey(map[string]any{"region": "us-east-1", "service": "AmazonEC2"})
 	b := pricing.CanonicalKey(map[string]any{"service": "AmazonEC2", "region": "us-east-1"})

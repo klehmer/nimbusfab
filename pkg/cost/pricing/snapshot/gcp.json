@@ -1,0 +1,115 @@
+{
+  "$schema": "https://nimbusfab.dev/schema/pricing/snapshot/v1alpha1.json",
+  "cloud": "gcp",
+  "currency": "USD",
+  "fetchedAt": "2026-05-16T00:00:00Z",
+  "source": "manual-curation-phase-5",
+  "entries": [
+    {
+      "key": { "service": "Compute Engine", "resourceFamily": "Compute", "resourceGroup": "E2", "usageType": "OnDemand", "machineType": "e2-small", "region": "us-central1" },
+      "unitPrice": 0.01675,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "Compute Engine", "resourceFamily": "Compute", "resourceGroup": "E2", "usageType": "OnDemand", "machineType": "e2-medium", "region": "us-central1" },
+      "unitPrice": 0.0335,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "Compute Engine", "resourceFamily": "Compute", "resourceGroup": "E2", "usageType": "OnDemand", "machineType": "e2-standard-2", "region": "us-central1" },
+      "unitPrice": 0.067,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "Compute Engine", "resourceFamily": "Compute", "resourceGroup": "N2", "usageType": "OnDemand", "machineType": "n2-standard-4", "region": "us-central1" },
+      "unitPrice": 0.1942,
+      "unitOfMeasure": "Hrs"
+    },
+
+    {
+      "key": { "service": "Compute Engine", "resourceFamily": "Compute", "resourceGroup": "E2", "usageType": "OnDemand", "machineType": "e2-small", "region": "us-east1" },
+      "unitPrice": 0.01675,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "Compute Engine", "resourceFamily": "Compute", "resourceGroup": "E2", "usageType": "OnDemand", "machineType": "e2-medium", "region": "us-east1" },
+      "unitPrice": 0.0335,
+      "unitOfMeasure": "Hrs"
+    },
+
+    {
+      "key": { "service": "Compute Engine", "resourceFamily": "Compute", "resourceGroup": "E2", "usageType": "OnDemand", "machineType": "e2-small", "region": "europe-west1" },
+      "unitPrice": 0.01843,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "Compute Engine", "resourceFamily": "Compute", "resourceGroup": "E2", "usageType": "OnDemand", "machineType": "e2-medium", "region": "europe-west1" },
+      "unitPrice": 0.03686,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "Compute Engine", "resourceFamily": "Compute", "resourceGroup": "N2", "usageType": "OnDemand", "machineType": "n2-standard-4", "region": "europe-west1" },
+      "unitPrice": 0.2136,
+      "unitOfMeasure": "Hrs"
+    },
+
+    {
+      "key": { "service": "Cloud SQL", "resourceFamily": "ApplicationServices", "resourceGroup": "SQLGen2InstancesF1Micro", "usageType": "OnDemand", "tier": "db-f1-micro", "region": "us-central1", "engine": "POSTGRES" },
+      "unitPrice": 0.0150,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "Cloud SQL", "resourceFamily": "ApplicationServices", "resourceGroup": "SQLGen2InstancesG1Small", "usageType": "OnDemand", "tier": "db-g1-small", "region": "us-central1", "engine": "POSTGRES" },
+      "unitPrice": 0.0500,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "Cloud SQL", "resourceFamily": "ApplicationServices", "resourceGroup": "SQLGen2InstancesCustom", "usageType": "OnDemand", "tier": "db-custom-2-7680", "region": "us-central1", "engine": "POSTGRES" },
+      "unitPrice": 0.1018,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "Cloud SQL", "resourceFamily": "ApplicationServices", "resourceGroup": "SQLGen2InstancesCustom", "usageType": "OnDemand", "tier": "db-custom-4-15360", "region": "us-central1", "engine": "POSTGRES" },
+      "unitPrice": 0.2036,
+      "unitOfMeasure": "Hrs"
+    },
+
+    {
+      "key": { "service": "Cloud SQL", "resourceFamily": "ApplicationServices", "resourceGroup": "SQLGen2InstancesF1Micro", "usageType": "OnDemand", "tier": "db-f1-micro", "region": "us-central1", "engine": "MYSQL" },
+      "unitPrice": 0.0150,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "Cloud SQL", "resourceFamily": "ApplicationServices", "resourceGroup": "SQLGen2InstancesCustom", "usageType": "OnDemand", "tier": "db-custom-2-7680", "region": "us-central1", "engine": "MYSQL" },
+      "unitPrice": 0.1018,
+      "unitOfMeasure": "Hrs"
+    },
+
+    {
+      "key": { "service": "Cloud SQL", "resourceFamily": "ApplicationServices", "resourceGroup": "SQLGen2InstancesF1Micro", "usageType": "OnDemand", "tier": "db-f1-micro", "region": "us-east1", "engine": "POSTGRES" },
+      "unitPrice": 0.0150,
+      "unitOfMeasure": "Hrs"
+    },
+    {
+      "key": { "service": "Cloud SQL", "resourceFamily": "ApplicationServices", "resourceGroup": "SQLGen2InstancesCustom", "usageType": "OnDemand", "tier": "db-custom-2-7680", "region": "europe-west1", "engine": "POSTGRES" },
+      "unitPrice": 0.1121,
+      "unitOfMeasure": "Hrs"
+    },
+
+    {
+      "key": { "service": "Cloud Storage", "resourceFamily": "Storage", "resourceGroup": "StandardStorage", "usageType": "OnDemand", "storageClass": "STANDARD", "region": "us-central1" },
+      "unitPrice": 0.020,
+      "unitOfMeasure": "GB-Mo"
+    },
+    {
+      "key": { "service": "Cloud Storage", "resourceFamily": "Storage", "resourceGroup": "StandardStorage", "usageType": "OnDemand", "storageClass": "STANDARD", "region": "us-east1" },
+      "unitPrice": 0.020,
+      "unitOfMeasure": "GB-Mo"
+    },
+    {
+      "key": { "service": "Cloud Storage", "resourceFamily": "Storage", "resourceGroup": "StandardStorage", "usageType": "OnDemand", "storageClass": "STANDARD", "region": "europe-west1" },
+      "unitPrice": 0.020,
+      "unitOfMeasure": "GB-Mo"
+    }
+  ]
+}
