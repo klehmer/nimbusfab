@@ -8,8 +8,8 @@ import (
 	"github.com/klehmer/nimbusfab/pkg/parity"
 )
 
-// Phase-4 per-type emit stubs — replaced by network.go / compute.go /
-// database.go / storage.go as those tasks land.
+// Per-type Emit wrappers. Implementations live in the per-type files
+// (network.go / compute.go / database.go / storage.go).
 
 func (*Adapter) emitCompute(ctx context.Context, target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.ResourcePrimitive, error) {
 	return emitComputeImpl(target, refs)
@@ -23,12 +23,12 @@ func (*Adapter) emitStorage(ctx context.Context, target ir.DeploymentTarget, ref
 	return emitStorageImpl(target, refs)
 }
 
-// Profile + PricingKey stubs — replaced by profile.go / pricing.go in Tasks 6-7.
+// Profile + PricingKey delegate to the implementations in profile.go / pricing.go.
 
 func (*Adapter) Profile(ctx context.Context, p ir.ResourcePrimitive) (parity.ResourceProfile, error) {
-	return parity.ResourceProfile{}, cloud.ErrProfileUnavailable
+	return profileImpl(p)
 }
 
 func (*Adapter) PricingKey(ctx context.Context, p ir.ResourcePrimitive) (map[string]any, error) {
-	return nil, nil
+	return pricingKeyImpl(p)
 }
