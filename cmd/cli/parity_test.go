@@ -6,15 +6,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/klehmer/nimbusfab/internal/cloud/aws"
 	"github.com/klehmer/nimbusfab/internal/tofu"
-	"github.com/klehmer/nimbusfab/pkg/cloud"
 	"github.com/klehmer/nimbusfab/pkg/inventory"
 )
 
 func TestParityCommand_FullStackFixture(t *testing.T) {
-	reg := cloud.NewRegistry()
-	_ = reg.Register(aws.New())
+	reg, err := defaultCloudRegistry()
+	if err != nil {
+		t.Fatalf("registry: %v", err)
+	}
 	var stdout, stderr bytes.Buffer
 	code := runParity(context.Background(), parityArgs{
 		ProjectPath: "testdata/full-stack-project",

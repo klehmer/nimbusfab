@@ -8,7 +8,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/klehmer/nimbusfab/internal/cloud/aws"
 	"github.com/klehmer/nimbusfab/internal/dsl/loader"
 	"github.com/klehmer/nimbusfab/internal/dsl/validator"
 	"github.com/klehmer/nimbusfab/internal/tofu"
@@ -40,8 +39,8 @@ func newParityCommand() *cobra.Command {
 			if len(args) == 1 {
 				projectPath = args[0]
 			}
-			reg := cloud.NewRegistry()
-			if err := reg.Register(aws.New()); err != nil {
+			reg, err := defaultCloudRegistry()
+			if err != nil {
 				return err
 			}
 			repo, err := openInventory(cmd.Context(), flagInventoryDSN, flagNoInventory)

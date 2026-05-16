@@ -15,12 +15,16 @@ const DefaultStorageGB = 100.0
 // estimator skips these with a warning).
 func UnitsFor(tofuType string, usage map[string]any) float64 {
 	switch tofuType {
-	case "aws_instance", "aws_db_instance":
+	case "aws_instance", "aws_db_instance",
+		"azurerm_linux_virtual_machine",
+		"azurerm_postgresql_flexible_server",
+		"azurerm_mysql_flexible_server",
+		"azurerm_mariadb_server":
 		if hr, ok := numberFrom(usage["hoursPerMonth"]); ok {
 			return hr
 		}
 		return HoursPerMonth
-	case "aws_s3_bucket":
+	case "aws_s3_bucket", "azurerm_storage_account":
 		if gb, ok := numberFrom(usage["storageGB"]); ok {
 			return gb
 		}
