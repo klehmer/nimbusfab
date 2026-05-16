@@ -9,6 +9,7 @@ import (
 	"github.com/klehmer/nimbusfab/internal/cloud/aws"
 	"github.com/klehmer/nimbusfab/internal/tofu"
 	"github.com/klehmer/nimbusfab/pkg/cloud"
+	"github.com/klehmer/nimbusfab/pkg/inventory"
 )
 
 func TestApplyCommand_HappyPath(t *testing.T) {
@@ -19,10 +20,10 @@ func TestApplyCommand_HappyPath(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 	code := runApply(context.Background(), applyArgs{
-		ProjectPath: "testdata/network-only-project",
-		Stack:       "dev",
-		AutoApprove: true,
-		Adapters:    reg, Runner: runner, WorkRoot: t.TempDir(),
+		PositionalArg: "testdata/network-only-project",
+		Stack:         "dev",
+		AutoApprove:   true,
+		Adapters:      reg, Runner: runner, Inventory: inventory.NewNullRepo(), WorkRoot: t.TempDir(),
 		Stdout: &stdout, Stderr: &stderr,
 	})
 	if code != 0 {
@@ -38,10 +39,10 @@ func TestDestroyCommand_HappyPath(t *testing.T) {
 	_ = reg.Register(aws.New())
 	var stdout, stderr bytes.Buffer
 	code := runDestroy(context.Background(), destroyArgs{
-		ProjectPath: "testdata/network-only-project",
-		Stack:       "dev",
-		AutoApprove: true,
-		Adapters:    reg, Runner: tofu.NewFakeRunner(), WorkRoot: t.TempDir(),
+		PositionalArg: "testdata/network-only-project",
+		Stack:         "dev",
+		AutoApprove:   true,
+		Adapters:      reg, Runner: tofu.NewFakeRunner(), Inventory: inventory.NewNullRepo(), WorkRoot: t.TempDir(),
 		Stdout: &stdout, Stderr: &stderr,
 	})
 	if code != 0 {
@@ -56,9 +57,9 @@ func TestDriftCommand_NoDrift(t *testing.T) {
 	runner.DriftPlan = &tofu.PlanArtifact{JSONPlan: []byte(`{"resource_changes":[]}`), HasChanges: false}
 	var stdout, stderr bytes.Buffer
 	code := runDrift(context.Background(), driftArgs{
-		ProjectPath: "testdata/network-only-project",
-		Stack:       "dev",
-		Adapters:    reg, Runner: runner, WorkRoot: t.TempDir(),
+		PositionalArg: "testdata/network-only-project",
+		Stack:         "dev",
+		Adapters:      reg, Runner: runner, Inventory: inventory.NewNullRepo(), WorkRoot: t.TempDir(),
 		Stdout: &stdout, Stderr: &stderr,
 	})
 	if code != 0 {

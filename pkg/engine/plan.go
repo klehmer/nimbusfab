@@ -2,14 +2,17 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/klehmer/nimbusfab/internal/tofu"
+	"github.com/klehmer/nimbusfab/pkg/inventory"
 	"github.com/klehmer/nimbusfab/pkg/ir"
 	"github.com/klehmer/nimbusfab/pkg/provisioner"
 )
@@ -28,26 +31,11 @@ func (e *runtimeEngine) Validate(ctx context.Context, project *ir.Project) (*Val
 }
 
 func (e *runtimeEngine) Plan(ctx context.Context, project *ir.Project, stack string, opts PlanOpts) (*PlanResult, error) {
-	runner := e.cfg.TofuRunner
-	if runner == nil {
-		runner = tofu.NewExecRunner()
-	}
-	workRoot := e.cfg.WorkRoot
-	if workRoot == "" {
-		workRoot = e.cfg.WorkDir
-	}
-	if workRoot == "" {
-		workRoot = filepath.Join(os.TempDir(), "nimbusfab")
-	}
-	p, err := provisioner.New(provisioner.Config{
-		WorkRoot: workRoot,
-		Adapters: e.cfg.CloudAdapters,
-		Runner:   runner,
-	})
+	p, err := e.newProvisioner()
 	if err != nil {
 		return nil, fmt.Errorf("engine.Plan: %w", err)
 	}
-	return p.Plan(ctx, provisioner.PlanInput{
+	res, err := p.Plan(ctx, provisioner.PlanInput{
 		Project:        project,
 		Stack:          stack,
 		OrgID:          e.orgID(),
@@ -56,14 +44,70 @@ func (e *runtimeEngine) Plan(ctx context.Context, project *ir.Project, stack str
 		Refresh:        opts.RefreshState,
 		Targets:        opts.Targets,
 	})
+	if err != nil {
+		return nil, err
+	}
+	if err := e.persistPlan(ctx, project, stack, opts, res); err != nil {
+		return nil, fmt.Errorf("engine.Plan: persist: %w", err)
+	}
+	return res, nil
 }
 
 func (e *runtimeEngine) Apply(ctx context.Context, planID string, opts ApplyOpts) (string, error) {
-	return "", errNotImplemented
+	if inventory.IsNullRepo(e.cfg.InventoryRepo) {
+		return "", inventory.ErrInventoryRequired
+	}
+	plan, d, err := e.reconstitutePlan(ctx, planID)
+	if err != nil {
+		return "", err
+	}
+	if d.Status != "planned" {
+		return "", errDeploymentNotApplyable(d)
+	}
+	res, err := e.ApplyWithPlan(ctx, plan, opts)
+	if err != nil {
+		return "", err
+	}
+	finished := time.Now().UTC()
+	_ = e.cfg.InventoryRepo.Deployments().UpdateStatus(ctx, e.orgID(), planID, string(res.Status), &finished)
+	for _, tr := range res.TargetResults {
+		ft := tr.FinishedAt
+		_ = e.cfg.InventoryRepo.DeploymentTargets().UpdateStatus(ctx, e.orgID(), tr.DeploymentTargetID, string(tr.Status), &ft)
+		_ = e.cfg.InventoryRepo.Runs().Create(ctx, inventory.Run{
+			ID: "run-" + uuid.NewString(), OrgID: e.orgID(), DeploymentTargetID: tr.DeploymentTargetID,
+			Kind: "apply", Status: string(tr.Status), StartedAt: tr.StartedAt, FinishedAt: &ft,
+		})
+	}
+	return planID, nil
 }
 
 func (e *runtimeEngine) Destroy(ctx context.Context, deploymentID string, opts DestroyOpts) (string, error) {
-	return "", errNotImplemented
+	if inventory.IsNullRepo(e.cfg.InventoryRepo) {
+		return "", inventory.ErrInventoryRequired
+	}
+	plan, _, err := e.reconstitutePlan(ctx, deploymentID)
+	if err != nil {
+		return "", err
+	}
+	res, err := e.DestroyWithPlan(ctx, plan, opts)
+	if err != nil {
+		return "", err
+	}
+	finished := time.Now().UTC()
+	_ = e.cfg.InventoryRepo.Deployments().UpdateStatus(ctx, e.orgID(), deploymentID, "destroyed", &finished)
+	for _, tr := range res.TargetResults {
+		finalStatus := "destroyed"
+		if tr.Status == provisioner.RunStatusFailed {
+			finalStatus = "failed"
+		}
+		ft := tr.FinishedAt
+		_ = e.cfg.InventoryRepo.DeploymentTargets().UpdateStatus(ctx, e.orgID(), tr.DeploymentTargetID, finalStatus, &ft)
+		_ = e.cfg.InventoryRepo.Runs().Create(ctx, inventory.Run{
+			ID: "run-" + uuid.NewString(), OrgID: e.orgID(), DeploymentTargetID: tr.DeploymentTargetID,
+			Kind: "destroy", Status: string(tr.Status), StartedAt: tr.StartedAt, FinishedAt: &ft,
+		})
+	}
+	return deploymentID, nil
 }
 
 func (e *runtimeEngine) Import(ctx context.Context, project *ir.Project, mapping ImportMap) (*ImportResult, error) {
@@ -87,9 +131,26 @@ func (e *runtimeEngine) GetCostActuals(ctx context.Context, query CostQuery) (*C
 }
 
 func (e *runtimeEngine) DetectDrift(ctx context.Context, deploymentID string) (*DriftReport, error) {
-	// Phase 2: inventory-resolved deployments are not yet wired. Callers
-	// use DetectDriftWithPlan instead. The inventory phase replaces this stub.
-	return nil, errNotImplemented
+	if inventory.IsNullRepo(e.cfg.InventoryRepo) {
+		return nil, inventory.ErrInventoryRequired
+	}
+	plan, _, err := e.reconstitutePlan(ctx, deploymentID)
+	if err != nil {
+		return nil, err
+	}
+	rep, err := e.DetectDriftWithPlan(ctx, plan)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC()
+	for _, tr := range rep.TargetReports {
+		summary, _ := json.Marshal(tr)
+		_ = e.cfg.InventoryRepo.DriftStatus().Upsert(ctx, inventory.DriftRecord{
+			DeploymentTargetID: tr.DeploymentTargetID, OrgID: e.orgID(),
+			DetectedAt: now, HasDrift: tr.HasDrift, SummaryJSON: summary,
+		})
+	}
+	return rep, nil
 }
 
 // newProvisioner constructs a provisioner with the engine's deps. Local helper.

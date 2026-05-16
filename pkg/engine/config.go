@@ -32,9 +32,13 @@ type Config struct {
 }
 
 // New constructs an Engine wired against the supplied dependencies.
+// A nil InventoryRepo activates no-inventory mode (NewNullRepo).
 func New(ctx context.Context, cfg Config) (Engine, error) {
 	if cfg.CloudAdapters == nil {
 		return nil, errors.New("engine.New: CloudAdapters registry is required")
+	}
+	if cfg.InventoryRepo == nil {
+		cfg.InventoryRepo = inventory.NewNullRepo()
 	}
 	return &runtimeEngine{cfg: cfg}, nil
 }

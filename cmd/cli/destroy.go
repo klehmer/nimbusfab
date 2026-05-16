@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/klehmer/nimbusfab/internal/tofu"
 	"github.com/klehmer/nimbusfab/pkg/cloud"
 	"github.com/klehmer/nimbusfab/pkg/engine"
+	"github.com/klehmer/nimbusfab/pkg/inventory"
 	"github.com/klehmer/nimbusfab/pkg/provisioner"
 )
 
@@ -21,22 +23,29 @@ func newDestroyCommand() *cobra.Command {
 	var stack string
 	var autoApprove bool
 	cmd := &cobra.Command{
-		Use:   "destroy [path]",
-		Short: "Tear down a stack via tofu destroy",
+		Use:   "destroy [deployment-id | path]",
+		Short: "Destroy by deployment ID (preferred), or validate-plan-destroy against a stack",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			projectPath := "."
+			arg := ""
 			if len(args) == 1 {
-				projectPath = args[0]
+				arg = args[0]
 			}
 			reg := cloud.NewRegistry()
 			if err := reg.Register(aws.New()); err != nil {
 				return err
 			}
+			repo, err := openInventory(cmd.Context(), flagInventoryDSN, flagNoInventory)
+			if err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "inventory: %v\n", err)
+				os.Exit(1)
+			}
+			defer repo.Close()
 			code := runDestroy(cmd.Context(), destroyArgs{
-				ProjectPath: projectPath, Stack: stack, AutoApprove: autoApprove,
+				PositionalArg: arg, Stack: stack, AutoApprove: autoApprove,
 				Adapters: reg, Runner: tofu.NewExecRunner(),
-				Stdout: cmd.OutOrStdout(), Stderr: cmd.ErrOrStderr(),
+				Inventory: repo,
+				Stdout:    cmd.OutOrStdout(), Stderr: cmd.ErrOrStderr(),
 			})
 			if code != 0 {
 				os.Exit(code)
@@ -45,30 +54,54 @@ func newDestroyCommand() *cobra.Command {
 		},
 		SilenceUsage: true, SilenceErrors: true,
 	}
-	cmd.Flags().StringVar(&stack, "stack", "", "stack (required)")
+	cmd.Flags().StringVar(&stack, "stack", "", "stack to plan + destroy (only when no deployment ID given)")
 	cmd.Flags().BoolVar(&autoApprove, "auto-approve", false, "skip interactive confirmation")
-	_ = cmd.MarkFlagRequired("stack")
 	return cmd
 }
 
 type destroyArgs struct {
-	ProjectPath, Stack string
-	AutoApprove        bool
-	Adapters           cloud.Registry
-	Runner             tofu.Runner
-	WorkRoot           string
-	Stdout, Stderr     io.Writer
+	PositionalArg, Stack string
+	AutoApprove          bool
+	Adapters             cloud.Registry
+	Runner               tofu.Runner
+	Inventory            inventory.Repo
+	WorkRoot             string
+	Stdout, Stderr       io.Writer
 }
 
 func runDestroy(ctx context.Context, in destroyArgs) int {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	isDeploymentID := strings.HasPrefix(in.PositionalArg, "dep-") && !strings.Contains(in.PositionalArg, "/")
+
+	eng, err := engine.New(ctx, engine.Config{
+		CloudAdapters: in.Adapters, TofuRunner: in.Runner, WorkRoot: in.WorkRoot, InventoryRepo: in.Inventory,
+	})
+	if err != nil {
+		fmt.Fprintf(in.Stderr, "engine: %v\n", err)
+		return 1
+	}
+
+	if isDeploymentID {
+		_, err := eng.Destroy(ctx, in.PositionalArg, engine.DestroyOpts{AutoApprove: true})
+		if err != nil {
+			fmt.Fprintf(in.Stderr, "destroy: %v\n", err)
+			return 1
+		}
+		fmt.Fprintf(in.Stdout, "Destroyed deployment %s\n", in.PositionalArg)
+		return 0
+	}
+
 	if in.Stack == "" {
-		fmt.Fprintln(in.Stderr, "error: --stack is required")
+		fmt.Fprintln(in.Stderr, "error: --stack required when no deployment ID given")
 		return 2
 	}
-	project, err := loader.New().Load(ctx, in.ProjectPath)
+	projectPath := in.PositionalArg
+	if projectPath == "" {
+		projectPath = "."
+	}
+	project, err := loader.New().Load(ctx, projectPath)
 	if err != nil {
 		fmt.Fprintf(in.Stderr, "load: %v\n", err)
 		return 1
@@ -82,11 +115,6 @@ func runDestroy(ctx context.Context, in destroyArgs) int {
 		for _, i := range rep.Issues {
 			fmt.Fprintln(in.Stderr, i.String())
 		}
-		return 1
-	}
-	eng, err := engine.New(ctx, engine.Config{CloudAdapters: in.Adapters, TofuRunner: in.Runner, WorkRoot: in.WorkRoot})
-	if err != nil {
-		fmt.Fprintf(in.Stderr, "engine: %v\n", err)
 		return 1
 	}
 	plan, err := eng.Plan(ctx, project, in.Stack, engine.PlanOpts{})

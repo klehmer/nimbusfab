@@ -2,7 +2,7 @@
 
 Multi-cloud Infrastructure-as-Code framework. Users declare infrastructure components (network, database, compute, storage, etc.) in YAML, target one or more clouds (AWS / Azure / GCP), and the framework generates and runs OpenTofu under the hood. Includes cost estimation and an actual-cost dashboard pulling from cloud billing APIs.
 
-**Status:** pre-alpha. Architecture spec landed; DSL/IR Phase 1, Provisioner Phase 1, and Provisioner Phase 2 merged. `validate` / `plan` / `apply` / `destroy` / `drift` work in-process against the FakeRunner and via the real `tofu` binary; inventory persistence is the next phase.
+**Status:** pre-alpha. Architecture spec landed; DSL/IR Phase 1, Provisioner Phases 1–2, and Inventory Persistence Phase 1 merged. `plan` persists a Deployment ID to a SQLite inventory; `apply <deployment-id>` / `destroy <deployment-id>` / `drift <deployment-id>` look up by ID and operate across process boundaries. `--no-inventory` keeps the in-process flow for CI.
 
 ## Design
 
@@ -64,21 +64,36 @@ into a per-target directory under `$TMPDIR/nimbusfab/<deployment-id>/`, runs
 `aws_vpc` per target). Other clouds and component types arrive in subsequent
 phases.
 
-### `nimbusfab apply --stack <stack> [path]`
+### `nimbusfab apply [deployment-id | path]`
 
-Validates, plans, then applies. Phase 2 supports partial-failure policies via
-`--partial-failure {leave|rollback|retry-failed}`. Apply still works
-in-process (no inventory persistence yet); a future phase wires Apply against
-a stored Plan ID.
+With a deployment ID: looks the plan up in the inventory and applies it.
+Without: requires `--stack`, plans+applies in one shot. Partial-failure
+policies via `--partial-failure {leave|rollback|retry-failed}`.
 
-### `nimbusfab destroy --stack <stack> [path]`
+### `nimbusfab destroy [deployment-id | path]`
 
-Tears down a stack by running `tofu destroy` per target in reverse order of
-the components.
+Same shape as apply. With a deployment ID, tears down the recorded
+deployment; without, plans+destroys against `--stack`.
 
-### `nimbusfab drift --stack <stack> [path]`
+### `nimbusfab drift [deployment-id | path]`
 
-Runs `tofu plan -refresh-only` per target and reports per-resource drift.
+Same shape. With a deployment ID, runs `tofu plan -refresh-only` against
+the recorded workspaces and upserts `drift_status` rows.
+
+## Inventory
+
+Inventory Phase 1 ships a SQLite-backed inventory that persists every
+Plan / Apply / Destroy / Drift across processes. By default
+`~/.config/nimbusfab/inventory.db` is used; override with
+`--inventory-dsn sqlite:///path/to/inventory.db`, or disable entirely with
+`--no-inventory` (useful in CI).
+
+In inventory mode, `nimbusfab plan` returns a Deployment ID. The deployment
++ per-target + per-target plan-run rows are committed before the command
+returns. `apply <deployment-id>` (possibly from a different shell, days
+later) deploys it; `destroy <deployment-id>` tears it down; `drift
+<deployment-id>` reports drift. Postgres support is a future phase; the
+contract is shared.
 
 ## License
 

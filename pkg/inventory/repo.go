@@ -172,6 +172,7 @@ type DeploymentTarget struct {
 	Region        string
 	CredentialRef string
 	WorkspacePath string
+	PlanFile      string // path to saved tofu plan binary; used by Apply-by-ID
 	StateBackend  []byte // JSON
 	Status        string
 	StartedAt     time.Time

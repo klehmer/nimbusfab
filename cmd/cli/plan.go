@@ -14,6 +14,7 @@ import (
 	"github.com/klehmer/nimbusfab/internal/tofu"
 	"github.com/klehmer/nimbusfab/pkg/cloud"
 	"github.com/klehmer/nimbusfab/pkg/engine"
+	"github.com/klehmer/nimbusfab/pkg/inventory"
 )
 
 type planArgs struct {
@@ -21,6 +22,7 @@ type planArgs struct {
 	Stack       string
 	Adapters    cloud.Registry
 	Runner      tofu.Runner
+	Inventory   inventory.Repo
 	WorkRoot    string
 	Stdout      io.Writer
 	Stderr      io.Writer
@@ -41,11 +43,18 @@ func newPlanCommand() *cobra.Command {
 			if err := reg.Register(aws.New()); err != nil {
 				return err
 			}
+			repo, err := openInventory(cmd.Context(), flagInventoryDSN, flagNoInventory)
+			if err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "inventory: %v\n", err)
+				os.Exit(1)
+			}
+			defer repo.Close()
 			code := runPlan(cmd.Context(), planArgs{
 				ProjectPath: projectPath,
 				Stack:       stack,
 				Adapters:    reg,
 				Runner:      tofu.NewExecRunner(),
+				Inventory:   repo,
 				Stdout:      cmd.OutOrStdout(),
 				Stderr:      cmd.ErrOrStderr(),
 			})
@@ -91,6 +100,7 @@ func runPlan(ctx context.Context, in planArgs) int {
 		CloudAdapters: in.Adapters,
 		TofuRunner:    in.Runner,
 		WorkRoot:      in.WorkRoot,
+		InventoryRepo: in.Inventory,
 	})
 	if err != nil {
 		fmt.Fprintf(in.Stderr, "engine: %v\n", err)
@@ -109,9 +119,13 @@ func runPlan(ctx context.Context, in planArgs) int {
 			tp.Component, tp.Cloud, tp.Region, tp.Adds, tp.Changes, tp.Destroys, tp.WorkspaceDir)
 	}
 	if result.HasChanges {
-		fmt.Fprintln(in.Stdout, "\nPlan has changes. Run `nimbusfab apply` to deploy.")
+		fmt.Fprintln(in.Stdout, "\nPlan has changes.")
 	} else {
 		fmt.Fprintln(in.Stdout, "\nPlan has no changes.")
+	}
+	if result.DeploymentID != "" && in.Inventory != nil && !inventory.IsNullRepo(in.Inventory) {
+		fmt.Fprintf(in.Stdout, "Deployment ID: %s\n", result.DeploymentID)
+		fmt.Fprintf(in.Stdout, "  (run `nimbusfab apply %s` to deploy)\n", result.DeploymentID)
 	}
 	return 0
 }
