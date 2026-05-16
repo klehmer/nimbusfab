@@ -1,6 +1,46 @@
 # Changelog
 
-## Unreleased — Provisioner Phase 2
+## Unreleased — Inventory Persistence Phase 1
+
+### Added
+
+- SQLite inventory backend (`internal/inventory/sqlite`) built on
+  modernc.org/sqlite (CGo-free). Implements Org / Project / Stack /
+  Component / Deployment / DeploymentTarget / Run / DriftStatus repos;
+  the remaining sub-repos return `ErrNotImplementedYet` until their
+  owning phases.
+- Embedded migration runner (`pkg/inventory/migrations.go`) that picks
+  flavor-specific SQL files via `//go:embed` and tracks applied versions
+  in `schema_migrations`. Postgres flavor of the migration ships
+  unchanged; SQLite flavor adapts types (UUID/JSONB/TIMESTAMPTZ → TEXT).
+- `pkg/inventory.NewNullRepo()` for `--no-inventory` mode: writes no-op,
+  reads return `inventory.ErrInventoryRequired`.
+  `inventory.IsNullRepo()` lets callers branch on inventory presence.
+- `nimbusfab plan` now returns a Deployment ID when an inventory is
+  configured. Project / stack / components / deployment / per-target
+  rows + a per-target `kind=plan` run are persisted in one go.
+- `nimbusfab apply <deployment-id>` / `destroy <deployment-id>` /
+  `drift <deployment-id>` reconstitute the plan from inventory rows,
+  delegate to the provisioner, and update terminal status / drift_status
+  / per-target apply (or destroy) run rows.
+- CLI flags: `--inventory-dsn` (default `sqlite://~/.config/nimbusfab/inventory.db`)
+  and `--no-inventory`.
+- `plan_file` column added to `deployment_targets` so Apply-by-ID can
+  locate the saved tofu plan binary.
+
+### Out of scope (deferred)
+
+- Postgres backend (future phase; same contract).
+- Web auth / api_tokens / OIDC / users (web app phase).
+- Run log persistence (server phase; `RunLogs` repo returns
+  `ErrNotImplementedYet`).
+- Cost write paths (cost specs; `CostEstimates` / `CostActuals` repos
+  return `ErrNotImplementedYet`).
+- `nimbusfab runs status` / `deployments list` CLI commands.
+- Idempotent plan IDs derived from `(project, stack, plan-content-hash)`
+  — Phase 1 always creates a fresh deployment.
+
+## Provisioner Phase 2
 
 ### Added
 
