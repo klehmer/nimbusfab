@@ -1,20 +1,24 @@
 // Package webapi composes the HTTP surface of nimbusfab-server. UI Phase 1
 // mounts a read-only HTML UI at /ui/* plus /assets/*, /healthz, /readyz,
-// and a / → /ui/projects redirect.
+// and a / → /ui/projects redirect. HTTP Phase 1 adds JSON GETs under
+// /api/v1/* with optional bearer-token auth.
 package webapi
 
 import (
 	"fmt"
 	"net/http"
 
+	"github.com/klehmer/nimbusfab/internal/webapi/api"
+	"github.com/klehmer/nimbusfab/internal/webapi/middleware"
 	"github.com/klehmer/nimbusfab/internal/webapi/ui"
 	"github.com/klehmer/nimbusfab/pkg/inventory"
 )
 
 // Config carries the dependencies the router wires together.
 type Config struct {
-	Repo  inventory.Repo
-	OrgID string // until Auth Phase 1; "default" in disabled-auth mode
+	Repo     inventory.Repo
+	OrgID    string // until Auth Phase 1; "default" in disabled-auth mode
+	APIToken string // optional; empty = no auth on /api/v1/* (dev mode)
 }
 
 // New returns an http.Handler mounting all UI Phase 1 routes.
@@ -59,6 +63,18 @@ func New(cfg Config) (http.Handler, error) {
 	mux.HandleFunc("GET /ui/projects/{id}", renderer.ProjectDetail)
 	mux.HandleFunc("GET /ui/deployments/{id}", renderer.DeploymentDetail)
 	mux.HandleFunc("GET /ui/runs/{id}", renderer.RunDetail)
+
+	// /api/v1/* JSON endpoints. Registered individually so the GET-method
+	// patterns don't conflict with the root "GET /" redirect (Go's
+	// ServeMux refuses ambiguous overlaps between path-only and
+	// method-specific patterns). Bearer-token middleware wraps each
+	// handler so UI routes stay unauthenticated in Phase 1.
+	apiHandlers := &api.Handlers{Repo: cfg.Repo, OrgID: cfg.OrgID}
+	apiAuth := middleware.BearerToken(cfg.APIToken)
+	mux.Handle("GET /api/v1/projects", apiAuth(http.HandlerFunc(apiHandlers.ListProjects)))
+	mux.Handle("GET /api/v1/projects/{id}", apiAuth(http.HandlerFunc(apiHandlers.GetProject)))
+	mux.Handle("GET /api/v1/deployments/{id}", apiAuth(http.HandlerFunc(apiHandlers.GetDeployment)))
+	mux.Handle("GET /api/v1/runs/{id}", apiAuth(http.HandlerFunc(apiHandlers.GetRun)))
 
 	return mux, nil
 }
