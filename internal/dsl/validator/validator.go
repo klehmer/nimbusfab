@@ -55,6 +55,9 @@ func (v *fsValidator) Validate(ctx context.Context, proj *ir.Project) (*ir.Valid
 	if err := phase4TypeSpec(proj, v.registry, report); err != nil {
 		return nil, err
 	}
+	if err := phase5Refs(proj, v.registry, report); err != nil {
+		return nil, err
+	}
 	_ = ctx
 	return report, nil
 }
@@ -68,4 +71,7 @@ func phase3Schema(proj *ir.Project, report *ir.ValidationReport) error {
 }
 func phase4TypeSpec(proj *ir.Project, reg components.Registry, report *ir.ValidationReport) error {
 	return phase4TypeSpecImpl(proj, reg, report)
+}
+func phase5Refs(proj *ir.Project, reg components.Registry, report *ir.ValidationReport) error {
+	return phase5RefsImpl(proj, reg, report)
 }
