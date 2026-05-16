@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nimbusfab.dev/schema/components/v1alpha1/storage.json",
+  "title": "StorageSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string", "description": "Bucket name; defaults to <project>-<component>-<random>." },
+    "versioning": { "type": "boolean", "default": true },
+    "encryption": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": { "type": "string", "enum": ["AES256", "aws:kms"], "default": "AES256" },
+        "kmsKeyArn": { "type": "string" }
+      }
+    },
+    "publicAccess": { "type": "string", "enum": ["blocked", "allowed"], "default": "blocked" }
+  }
+}

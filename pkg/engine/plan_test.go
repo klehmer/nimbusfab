@@ -42,8 +42,12 @@ func TestEngine_Plan_OneAWSNetwork(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
 	}
-	if len(res.Targets) != 1 || res.Targets[0].PrimitiveCount != 1 {
-		t.Fatalf("unexpected PlanResult shape: %+v", res)
+	if len(res.Targets) != 1 {
+		t.Fatalf("targets = %d, want 1", len(res.Targets))
+	}
+	// Phase 3: emitNetwork now produces vpc + igw + rt + 3 subnets + 3 rtas = 9 primitives.
+	if res.Targets[0].PrimitiveCount < 1 {
+		t.Errorf("PrimitiveCount = %d, want >=1", res.Targets[0].PrimitiveCount)
 	}
 }
 

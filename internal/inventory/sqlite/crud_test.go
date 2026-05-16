@@ -83,8 +83,8 @@ func TestDeploymentRunLifecycle(t *testing.T) {
 		ID: "t-1", OrgID: "org-1", DeploymentID: "d-1",
 		ComponentName: "web", Cloud: "aws", Region: "us-east-1", CredentialRef: "aws-dev",
 		WorkspacePath: "/tmp/ws", PlanFile: "/tmp/plan.bin",
-		StateBackend:  []byte(`{"kind":"local"}`),
-		Status:        "planned", StartedAt: time.Now().UTC(),
+		StateBackend: []byte(`{"kind":"local"}`),
+		Status:       "planned", StartedAt: time.Now().UTC(),
 	}
 	if err := r.DeploymentTargets().Create(ctx, tgt); err != nil {
 		t.Fatalf("tgt create: %v", err)

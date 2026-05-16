@@ -39,9 +39,22 @@ type Type interface {
 	// SupportedClouds returns the clouds this type can deploy to.
 	SupportedClouds() []string
 
+	// Outputs declares what reference targets this type publishes. Consumed
+	// by the validator's ref-resolution phase and by the web app's type
+	// browser. Keys are output names (e.g. "vpc_id"); values describe the
+	// expected shape.
+	Outputs() map[string]OutputType
+
 	// Emit dispatches to the right cloud adapter and returns primitives. The
 	// registry passes through the adapter that was looked up by target.Cloud.
 	Emit(ctx context.Context, target ir.DeploymentTarget, adapter cloud.Adapter, refs cloud.ResolvedRefs) ([]ir.ResourcePrimitive, error)
+}
+
+// OutputType describes one declared output of a component type. The Kind is
+// one of: "string", "integer", "boolean", "list<string>", "map<string,string>".
+type OutputType struct {
+	Kind        string
+	Description string
 }
 
 // NewInMemoryRegistry returns an empty Registry suitable for testing and for

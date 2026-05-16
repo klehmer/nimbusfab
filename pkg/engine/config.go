@@ -40,6 +40,9 @@ func New(ctx context.Context, cfg Config) (Engine, error) {
 	if cfg.InventoryRepo == nil {
 		cfg.InventoryRepo = inventory.NewNullRepo()
 	}
+	if cfg.ComponentTypes == nil {
+		cfg.ComponentTypes = components.DefaultRegistry()
+	}
 	return &runtimeEngine{cfg: cfg}, nil
 }
 

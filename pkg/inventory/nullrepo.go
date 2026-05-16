@@ -171,7 +171,7 @@ func (nullSecrets) Get(ctx context.Context, orgID, name string) (*SecretsRef, er
 func (nullSecrets) List(ctx context.Context, orgID string) ([]SecretsRef, error) {
 	return nil, ErrInventoryRequired
 }
-func (nullSecrets) Upsert(ctx context.Context, r SecretsRef) error { return nil }
+func (nullSecrets) Upsert(ctx context.Context, r SecretsRef) error       { return nil }
 func (nullSecrets) Delete(ctx context.Context, orgID, name string) error { return nil }
 
 type nullAudit struct{}

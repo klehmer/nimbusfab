@@ -1,0 +1,9 @@
+apiVersion: infra.dev/v1alpha1
+name: uploads
+type: storage
+spec:
+  versioning: true
+targets:
+  - cloud: aws
+    region: us-east-1
+    credentialRef: aws-dev

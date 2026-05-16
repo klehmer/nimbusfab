@@ -18,8 +18,12 @@ func TestAdapter_NameAndSupport(t *testing.T) {
 		t.Errorf("SupportedAPIVersions() = %v, want [%s]", got, ir.APIVersionV1Alpha1)
 	}
 	types := a.SupportedComponentTypes()
-	if len(types) != 1 || types[0] != "network" {
-		t.Errorf("SupportedComponentTypes() = %v, want [\"network\"]", types)
+	want := map[string]bool{"network": true, "compute": true, "database": true, "storage": true}
+	for _, n := range types {
+		delete(want, n)
+	}
+	if len(want) != 0 {
+		t.Errorf("SupportedComponentTypes() missing: %v", want)
 	}
 }
 
