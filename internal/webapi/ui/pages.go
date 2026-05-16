@@ -33,13 +33,18 @@ func AssetsFS() (fs.FS, error) {
 type Renderer struct {
 	Repo  inventory.Repo
 	OrgID string
+	// APIToken, if non-empty, is rendered into the deployment-detail page's
+	// <script data-api-token="..."> attribute so the JS can authenticate
+	// /api/v1/* mutating calls. Empty in dev mode. Auth Phase 1 replaces
+	// this with cookie sessions that the browser sends automatically.
+	APIToken string
 
 	pages map[string]*template.Template
 }
 
 // NewRenderer parses each page template alongside layout.html into its
 // own Template instance.
-func NewRenderer(repo inventory.Repo, orgID string) (*Renderer, error) {
+func NewRenderer(repo inventory.Repo, orgID, apiToken string) (*Renderer, error) {
 	entries, err := templatesFS.ReadDir("templates")
 	if err != nil {
 		return nil, fmt.Errorf("ui: read templates dir: %w", err)
@@ -55,7 +60,7 @@ func NewRenderer(repo inventory.Repo, orgID string) (*Renderer, error) {
 		}
 		pages[e.Name()] = t
 	}
-	return &Renderer{Repo: repo, OrgID: orgID, pages: pages}, nil
+	return &Renderer{Repo: repo, OrgID: orgID, APIToken: apiToken, pages: pages}, nil
 }
 
 // render writes one page by executing its "layout" entry point.
@@ -115,6 +120,7 @@ func (r *Renderer) DeploymentDetail(w http.ResponseWriter, req *http.Request) {
 	r.render(w, "deployment_detail.html", map[string]any{
 		"Deployment": d,
 		"Targets":    enriched,
+		"APIToken":   r.APIToken,
 	})
 }
 

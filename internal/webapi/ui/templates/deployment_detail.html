@@ -11,6 +11,19 @@
   <dt>Finished</dt><dd>{{if .Deployment.FinishedAt}}{{.Deployment.FinishedAt.Format "2006-01-02 15:04:05 UTC"}}{{else}}<span class="muted">—</span>{{end}}</dd>
 </dl>
 
+<h2>Actions</h2>
+<div class="actions">
+  <button type="button" data-action="applies">Deploy</button>
+  <button type="button" data-action="destroys" class="destructive">Destroy</button>
+  <button type="button" data-action="drifts">Detect drift</button>
+</div>
+
+<h2>Live events</h2>
+<div id="event-log" class="log-pane"></div>
+
+<script src="/assets/app.js"{{if .APIToken}} data-api-token="{{.APIToken}}"{{end}}></script>
+<script>nimbusfab.attachDeploymentActions({{.Deployment.ID}});</script>
+
 <h2>Targets</h2>
 {{if .Targets}}
 <table>

@@ -1,6 +1,61 @@
 # Changelog
 
-## Unreleased — Web App HTTP Phase 2 (Mutating Endpoints + SSE)
+## Unreleased — Web App UI Phase 2 (Buttons + Live Updates)
+
+### Added
+
+- `internal/webapi/ui/assets/app.js` — vanilla JS (~100 LOC, no
+  framework, no build step). `window.nimbusfab.attachDeploymentActions`
+  wires the deployment-detail page:
+  - Hijacks the 3 buttons (Deploy / Destroy / Drift); confirm() prompt
+    on destructive Destroy
+  - POSTs to `/api/v1/deployments/{id}/{applies,destroys,drifts}`
+  - Opens `EventSource` on `/api/v1/deployments/{id}/events`
+  - Listens for the provisioner's RunEvent kinds (start/log/progress/
+    success/failure/diagnostic/skip/terminal) plus the handler-emitted
+    "complete" event
+  - Renders each event as one `<div class="log-line">` with timestamped
+    ts/target/kind/msg spans; auto-scrolls
+  - Disables buttons during operation; re-enables and full-page-reloads
+    after "complete" so target statuses re-read from inventory
+  - Reads Bearer token from `<script data-api-token=...>` attribute
+    when set (server-rendered when `NIMBUSFAB_API_TOKEN` is configured)
+  - `escapeHtml` on all user-data before innerHTML to avoid injection
+- CSS additions (~50 lines) for `.actions` button bar + `.log-pane`
+  scrollable monospace log with per-kind line styling.
+- `ui.Renderer` gains `APIToken` field; `NewRenderer` signature now
+  `(repo, orgID, apiToken)`. Plumbed through `webapi.Config.APIToken`.
+- `deployment_detail.html` gains the action bar + `event-log` div +
+  two `<script>` tags (asset + inline init).
+- 4 new tests: app.js embedded with expected exports; style.css has
+  the new classes; deployment-detail page renders the buttons +
+  script tag; API token wires into the script tag (with vs without).
+- 2 router-level smoke tests for the script tag rendering + app.js
+  serving from `/assets/app.js` with `javascript` Content-Type.
+
+### Design notes
+
+- **JS-required for interactivity.** Pages still render readable HTML
+  without JS (UI Phase 1 read-only views work); buttons just do
+  nothing without JS. No plain-form-POST fallback — would require
+  server-side redirect after action, which adds surface area for
+  marginal gain.
+- **APIToken in script tag (not cookie).** Phase 2 stub. Auth Phase 1
+  will replace with cookie sessions that browsers send automatically;
+  the JS won't need a baked-in token then.
+- **Full-page reload after complete.** Simpler than diffing the
+  Targets table in JS. The page is small; the reload is imperceptible
+  in practice.
+
+### Out of scope (deferred)
+
+- Plan trigger (CLI plans; web app applies/destroys/drifts).
+- Auth Phase 1 (OIDC + cookies + real PATs).
+- Confirmation modals (browser `confirm()` is sufficient).
+- Log filtering / search / persistence (Polish Phase 1).
+- Reconnect after SSE disconnect (needs RunLogs replay).
+
+## Earlier — Web App HTTP Phase 2 (Mutating Endpoints + SSE)
 
 ### Added
 
