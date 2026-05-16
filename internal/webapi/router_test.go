@@ -241,3 +241,36 @@ func post(t *testing.T, srv *httptest.Server, path, body string) (*http.Response
 	_ = resp.Body.Close()
 	return resp, string(respBody)
 }
+
+// --- UI Phase 2: deployment detail page renders script tag ---
+
+func TestRouter_DeploymentDetailHasScriptTag(t *testing.T) {
+	srv, _ := newServer(t, func(ctx context.Context, r *sqlite.Repo) {
+		_ = r.Projects().Create(ctx, inventory.Project{ID: "p-1", OrgID: "default", Name: "demo", CreatedAt: time.Now().UTC()})
+		_ = r.Stacks().Upsert(ctx, inventory.Stack{ID: "s-1", OrgID: "default", ProjectID: "p-1", Name: "dev"})
+		_ = r.Deployments().Create(ctx, inventory.Deployment{ID: "d-1", OrgID: "default", ProjectID: "p-1", StackID: "s-1", Status: "succeeded", StartedAt: time.Now().UTC()})
+	})
+	resp, body := get(t, srv, "/ui/deployments/d-1")
+	if resp.StatusCode != 200 {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+	for _, want := range []string{`src="/assets/app.js"`, `nimbusfab.attachDeploymentActions`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("body missing %q", want)
+		}
+	}
+}
+
+func TestRouter_AppJSServedFromAssets(t *testing.T) {
+	srv, _ := newServer(t, nil)
+	resp, body := get(t, srv, "/assets/app.js")
+	if resp.StatusCode != 200 {
+		t.Fatalf("status = %d", resp.StatusCode)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.Contains(ct, "javascript") {
+		t.Errorf("Content-Type = %q, want javascript", ct)
+	}
+	if !strings.Contains(body, "attachDeploymentActions") {
+		t.Errorf("app.js body missing expected function")
+	}
+}
