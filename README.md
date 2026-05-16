@@ -2,7 +2,7 @@
 
 Multi-cloud Infrastructure-as-Code framework. Users declare infrastructure components (network, database, compute, storage, etc.) in YAML, target one or more clouds (AWS / Azure / GCP), and the framework generates and runs OpenTofu under the hood. Includes cost estimation and an actual-cost dashboard pulling from cloud billing APIs.
 
-**Status:** pre-alpha. Architecture spec landed; DSL/IR Phase 1, Provisioner Phases 1–2, Inventory Persistence Phase 1, AWS Expansion Phase 3, and Parity Engine Phase 1 merged. Every plan now emits per-component parity reports; `nimbusfab parity --stack <stack>` surfaces detail. Cost-estimator + parity-engine `Profile()` and `PricingKey()` data populated end-to-end.
+**Status:** pre-alpha. Architecture spec landed; DSL/IR Phase 1, Provisioner Phases 1–2, Inventory Persistence Phase 1, AWS Expansion Phase 3, Parity Engine Phase 1, and Cost Estimator Phase 1 merged. `nimbusfab plan` now emits parity + monthly cost summaries; `nimbusfab cost estimate --stack <stack>` produces detailed per-primitive breakdowns from a bundled AWS price snapshot.
 
 ## Design
 
@@ -104,6 +104,15 @@ Single-cloud reports score 1.0 trivially; once Azure / GCP land, real
 divergence surfaces here. Contract floors in
 `pkg/parity/contracts/*.yaml` validate that adapter choices satisfy
 T-shirt minimums.
+
+### `nimbusfab cost estimate --stack <stack> [path]`
+
+Computes per-primitive monthly cost estimates from the bundled AWS price
+snapshot (`pkg/cost/pricing/snapshot/aws.json`). Output: target totals
++ per-primitive line items (`$0.0416 × 730 Hrs = $30.37` for a t3.medium).
+Compute / database default to 730 hr/month; storage defaults to 100 GB-Mo
+(override via `spec.usage.hoursPerMonth` / `spec.usage.storageGB`).
+Live AWS Pricing API integration lands in Cost Phase 2.
 
 ## Inventory
 

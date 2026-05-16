@@ -123,7 +123,7 @@ func (e *runtimeEngine) StreamRun(ctx context.Context, runID string) (<-chan Run
 }
 
 func (e *runtimeEngine) EstimateCost(ctx context.Context, plan *PlanResult) (*CostEstimate, error) {
-	return nil, errNotImplemented
+	return e.estimateCost(ctx, plan)
 }
 
 func (e *runtimeEngine) GetCostActuals(ctx context.Context, query CostQuery) (*CostReport, error) {
