@@ -127,5 +127,35 @@ func runPlan(ctx context.Context, in planArgs) int {
 		fmt.Fprintf(in.Stdout, "Deployment ID: %s\n", result.DeploymentID)
 		fmt.Fprintf(in.Stdout, "  (run `nimbusfab apply %s` to deploy)\n", result.DeploymentID)
 	}
+	if len(result.ParityReports) > 0 {
+		fmt.Fprintln(in.Stdout)
+		fmt.Fprintln(in.Stdout, "Parity:")
+		for _, rep := range result.ParityReports {
+			marker := "OK"
+			if rep.Score < 0.7 {
+				marker = "DIVERGENT"
+			} else if rep.Score < 0.95 {
+				marker = "MINOR"
+			}
+			fmt.Fprintf(in.Stdout, "  [%s] %s  score=%.2f\n", marker, rep.Component, rep.Score)
+			for _, w := range rep.Warnings {
+				fmt.Fprintf(in.Stdout, "      ! %s\n", w)
+			}
+		}
+	}
+	if est, err := eng.EstimateCost(ctx, result); err == nil && est != nil && est.Total > 0 {
+		fmt.Fprintln(in.Stdout)
+		fmt.Fprintln(in.Stdout, "Cost:")
+		fmt.Fprintf(in.Stdout, "  Total estimated: $%.2f/%s\n", est.Total, est.Period)
+		for _, t := range est.Targets {
+			if t.Subtotal == 0 {
+				continue
+			}
+			fmt.Fprintf(in.Stdout, "    %s/%s  $%.2f/%s\n", t.Cloud, t.Region, t.Subtotal, est.Period)
+		}
+		for _, w := range est.Warnings {
+			fmt.Fprintf(in.Stdout, "  warning: %s\n", w)
+		}
+	}
 	return 0
 }
