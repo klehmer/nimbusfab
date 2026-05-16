@@ -1,0 +1,39 @@
+{{define "title"}}Deployment {{shortID .Deployment.ID}}{{end}}
+{{define "content"}}
+<h1>Deployment <code>{{shortID .Deployment.ID}}</code></h1>
+<dl class="kv">
+  <dt>Deployment ID</dt><dd>{{.Deployment.ID}}</dd>
+  <dt>Project</dt><dd><a href="/ui/projects/{{.Deployment.ProjectID}}"><code>{{shortID .Deployment.ProjectID}}</code></a></dd>
+  <dt>Stack</dt><dd><code>{{shortID .Deployment.StackID}}</code></dd>
+  <dt>Status</dt><dd><span class="badge {{statusBadge .Deployment.Status}}">{{humanStatus .Deployment.Status}}</span></dd>
+  <dt>Partial-failure policy</dt><dd><code>{{defaultStr .Deployment.PartialFailurePolicy "leave"}}</code></dd>
+  <dt>Started</dt><dd>{{.Deployment.StartedAt.Format "2006-01-02 15:04:05 UTC"}}</dd>
+  <dt>Finished</dt><dd>{{if .Deployment.FinishedAt}}{{.Deployment.FinishedAt.Format "2006-01-02 15:04:05 UTC"}}{{else}}<span class="muted">—</span>{{end}}</dd>
+</dl>
+
+<h2>Targets</h2>
+{{if .Targets}}
+<table>
+  <thead><tr><th>Component</th><th>Cloud</th><th>Region</th><th>Status</th><th>Runs</th></tr></thead>
+  <tbody>
+  {{range .Targets}}
+  <tr>
+    <td>{{.T.ComponentName}}</td>
+    <td><span class="badge">{{.T.Cloud}}</span></td>
+    <td><code>{{.T.Region}}</code></td>
+    <td><span class="badge {{statusBadge .T.Status}}">{{humanStatus .T.Status}}</span></td>
+    <td>
+      {{if .Runs}}
+        {{range .Runs}}<a href="/ui/runs/{{.ID}}"><code>{{.Kind}}</code></a>&nbsp;{{end}}
+      {{else}}
+        <span class="muted">—</span>
+      {{end}}
+    </td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="muted">No targets recorded for this deployment.</p>
+{{end}}
+{{end}}

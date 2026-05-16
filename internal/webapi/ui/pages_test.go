@@ -126,3 +126,76 @@ func TestProjectDetail_NotFound(t *testing.T) {
 		t.Errorf("body missing 404 message; got: %s", rec.Body.String())
 	}
 }
+
+func TestDeploymentDetail_Renders(t *testing.T) {
+	r := seededRepo(t, func(ctx context.Context, r *sqlite.Repo) {
+		_ = r.Projects().Create(ctx, inventory.Project{ID: "p-1", OrgID: "default", Name: "demo", CreatedAt: time.Now().UTC()})
+		_ = r.Stacks().Upsert(ctx, inventory.Stack{ID: "s-1", OrgID: "default", ProjectID: "p-1", Name: "dev"})
+		_ = r.Deployments().Create(ctx, inventory.Deployment{ID: "d-1", OrgID: "default", ProjectID: "p-1", StackID: "s-1", Status: "succeeded", StartedAt: time.Now().UTC()})
+		_ = r.DeploymentTargets().Create(ctx, inventory.DeploymentTarget{ID: "t-aws", OrgID: "default", DeploymentID: "d-1", ComponentName: "web-net", Cloud: "aws", Region: "us-east-1", Status: "succeeded", StartedAt: time.Now().UTC()})
+		_ = r.DeploymentTargets().Create(ctx, inventory.DeploymentTarget{ID: "t-azure", OrgID: "default", DeploymentID: "d-1", ComponentName: "web-net", Cloud: "azure", Region: "eastus", Status: "succeeded", StartedAt: time.Now().UTC()})
+		_ = r.Runs().Create(ctx, inventory.Run{ID: "r-1", OrgID: "default", DeploymentTargetID: "t-aws", Kind: "apply", Status: "succeeded", StartedAt: time.Now().UTC()})
+	})
+	rend, _ := ui.NewRenderer(r, "default")
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/ui/deployments/d-1", nil)
+	req.SetPathValue("id", "d-1")
+	rend.DeploymentDetail(rec, req)
+	if rec.Code != 200 {
+		t.Fatalf("status = %d (body=%s)", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"web-net", "aws", "azure", "us-east-1", "eastus", `href="/ui/runs/r-1"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("body missing %q; got: %s", want, body)
+		}
+	}
+}
+
+func TestDeploymentDetail_NotFound(t *testing.T) {
+	r := seededRepo(t, nil)
+	rend, _ := ui.NewRenderer(r, "default")
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/ui/deployments/missing", nil)
+	req.SetPathValue("id", "missing")
+	rend.DeploymentDetail(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", rec.Code)
+	}
+}
+
+func TestRunDetail_Renders(t *testing.T) {
+	r := seededRepo(t, func(ctx context.Context, r *sqlite.Repo) {
+		_ = r.Projects().Create(ctx, inventory.Project{ID: "p-1", OrgID: "default", Name: "demo", CreatedAt: time.Now().UTC()})
+		_ = r.Stacks().Upsert(ctx, inventory.Stack{ID: "s-1", OrgID: "default", ProjectID: "p-1", Name: "dev"})
+		_ = r.Deployments().Create(ctx, inventory.Deployment{ID: "d-1", OrgID: "default", ProjectID: "p-1", StackID: "s-1", Status: "succeeded", StartedAt: time.Now().UTC()})
+		_ = r.DeploymentTargets().Create(ctx, inventory.DeploymentTarget{ID: "t-aws", OrgID: "default", DeploymentID: "d-1", ComponentName: "web-net", Cloud: "aws", Region: "us-east-1", Status: "succeeded", StartedAt: time.Now().UTC()})
+		_ = r.Runs().Create(ctx, inventory.Run{ID: "r-1", OrgID: "default", DeploymentTargetID: "t-aws", Kind: "apply", Status: "succeeded", ExitCode: 0, StartedAt: time.Now().UTC()})
+	})
+	rend, _ := ui.NewRenderer(r, "default")
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/ui/runs/r-1", nil)
+	req.SetPathValue("id", "r-1")
+	rend.RunDetail(rec, req)
+	if rec.Code != 200 {
+		t.Fatalf("status = %d (body=%s)", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"r-1", "apply", "succeeded"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("body missing %q; got: %s", want, body)
+		}
+	}
+}
+
+func TestRunDetail_NotFound(t *testing.T) {
+	r := seededRepo(t, nil)
+	rend, _ := ui.NewRenderer(r, "default")
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/ui/runs/missing", nil)
+	req.SetPathValue("id", "missing")
+	rend.RunDetail(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", rec.Code)
+	}
+}

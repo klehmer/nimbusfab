@@ -90,6 +90,48 @@ func (r *Renderer) ListProjects(w http.ResponseWriter, req *http.Request) {
 	r.render(w, "projects.html", map[string]any{"Projects": projects})
 }
 
+// TargetWithRuns bundles a deployment target with its run history for the
+// deployment_detail template.
+type TargetWithRuns struct {
+	T    inventory.DeploymentTarget
+	Runs []inventory.Run
+}
+
+// DeploymentDetail renders one deployment plus its per-target rows + runs.
+func (r *Renderer) DeploymentDetail(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	id := req.PathValue("id")
+	d, err := r.Repo.Deployments().Get(ctx, r.OrgID, id)
+	if err != nil || d == nil {
+		r.renderError(w, http.StatusNotFound, "deployment not found: "+id)
+		return
+	}
+	targets, _ := r.Repo.DeploymentTargets().ListByDeployment(ctx, r.OrgID, id)
+	enriched := make([]TargetWithRuns, 0, len(targets))
+	for _, t := range targets {
+		runs, _ := r.Repo.Runs().ListByDeploymentTarget(ctx, r.OrgID, t.ID)
+		enriched = append(enriched, TargetWithRuns{T: t, Runs: runs})
+	}
+	r.render(w, "deployment_detail.html", map[string]any{
+		"Deployment": d,
+		"Targets":    enriched,
+	})
+}
+
+// RunDetail renders one tofu run.
+func (r *Renderer) RunDetail(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	id := req.PathValue("id")
+	run, err := r.Repo.Runs().Get(ctx, r.OrgID, id)
+	if err != nil || run == nil {
+		r.renderError(w, http.StatusNotFound, "run not found: "+id)
+		return
+	}
+	r.render(w, "run_detail.html", map[string]any{
+		"Run": run,
+	})
+}
+
 // ProjectDetail renders the per-project page: stacks, components, recent deployments.
 func (r *Renderer) ProjectDetail(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
