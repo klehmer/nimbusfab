@@ -25,7 +25,16 @@ func (rp *runtimeProvisioner) DetectDrift(ctx context.Context, in DriftInput) (*
 	work := func(ctx context.Context, comp ir.Component, t ir.DeploymentTarget) TargetApplyResult {
 		idx := findPlanIndex(plan, comp.Name, t.Cloud, t.Region)
 		tp := plan.Targets[idx]
-		ws := tofu.Workspace{Dir: tp.WorkspaceDir}
+		env, envErr := resolveEnvFor(ctx, rp.cfg.SecretsBackend, tp.CredentialRef)
+		if envErr != nil {
+			slots[idx] = TargetDriftReport{
+				DeploymentTargetID: tp.DeploymentTargetID,
+				Component:          comp.Name, Cloud: t.Cloud, Region: t.Region,
+				Error: envErr,
+			}
+			return TargetApplyResult{}
+		}
+		ws := tofu.Workspace{Dir: tp.WorkspaceDir, Environment: env}
 		driftFile := filepath.Join(tp.WorkspaceDir, "drift.bin")
 		artifact, err := rp.cfg.Runner.Plan(ctx, ws, tofu.PlanOpts{
 			OutFile:     driftFile,

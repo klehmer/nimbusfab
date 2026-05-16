@@ -36,7 +36,19 @@ func (rp *runtimeProvisioner) Destroy(ctx context.Context, in DestroyInput) (*Ap
 				FinishedAt: time.Now().UTC(),
 			}
 		}
-		ws := tofu.Workspace{Dir: tp.WorkspaceDir}
+		env, envErr := resolveEnvFor(ctx, rp.cfg.SecretsBackend, tp.CredentialRef)
+		if envErr != nil {
+			return TargetApplyResult{
+				DeploymentTargetID: tp.DeploymentTargetID,
+				Component:          comp.Name, Cloud: t.Cloud, Region: t.Region,
+				RunID:      "run-" + uuid.NewString(),
+				Status:     RunStatusFailed,
+				Error:      envErr,
+				StartedAt:  startedAt,
+				FinishedAt: time.Now().UTC(),
+			}
+		}
+		ws := tofu.Workspace{Dir: tp.WorkspaceDir, Environment: env}
 		emit(in.EventSink, RunEvent{
 			Timestamp:          time.Now().UTC(),
 			DeploymentTargetID: tp.DeploymentTargetID,

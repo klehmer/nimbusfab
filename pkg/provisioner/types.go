@@ -64,6 +64,7 @@ type TargetPlan struct {
 	Component          string
 	Cloud              string
 	Region             string
+	CredentialRef      string // for secrets-backed env resolution at apply/destroy/drift time
 	WorkspaceDir       string
 	PrimitiveCount     int
 	PlanFile           string

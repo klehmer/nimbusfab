@@ -91,7 +91,13 @@ func (rp *runtimeProvisioner) rollback(ctx context.Context, in ApplyInput, resul
 		if tp == nil {
 			continue
 		}
-		ws := tofu.Workspace{Dir: tp.WorkspaceDir}
+		env, envErr := resolveEnvFor(ctx, rp.cfg.SecretsBackend, tp.CredentialRef)
+		if envErr != nil {
+			results[i].Status = RunStatusFailed
+			results[i].Error = fmt.Errorf("rollback destroy: %w (original status: succeeded)", envErr)
+			continue
+		}
+		ws := tofu.Workspace{Dir: tp.WorkspaceDir, Environment: env}
 		if err := rp.cfg.Runner.Destroy(ctx, ws, tofu.DestroyOpts{AutoApprove: true}); err != nil {
 			results[i].Status = RunStatusFailed
 			results[i].Error = fmt.Errorf("rollback destroy failed: %w (original status: succeeded)", err)
@@ -123,7 +129,24 @@ func (rp *runtimeProvisioner) applyWorker(in ApplyInput) targetWorker {
 			Component:          comp.Name, Cloud: t.Cloud, Region: t.Region,
 			Kind: RunEventStart, Message: "apply starting",
 		})
-		ws := tofu.Workspace{Dir: tp.WorkspaceDir}
+		env, envErr := resolveEnvFor(ctx, rp.cfg.SecretsBackend, tp.CredentialRef)
+		if envErr != nil {
+			emit(in.EventSink, RunEvent{
+				Timestamp: time.Now().UTC(), DeploymentTargetID: tp.DeploymentTargetID,
+				Component: comp.Name, Cloud: t.Cloud, Region: t.Region,
+				Kind: RunEventFailure, Message: envErr.Error(),
+			})
+			return TargetApplyResult{
+				DeploymentTargetID: tp.DeploymentTargetID,
+				Component:          comp.Name, Cloud: t.Cloud, Region: t.Region,
+				RunID:      "run-" + uuid.NewString(),
+				Status:     RunStatusFailed,
+				Error:      envErr,
+				StartedAt:  startedAt,
+				FinishedAt: time.Now().UTC(),
+			}
+		}
+		ws := tofu.Workspace{Dir: tp.WorkspaceDir, Environment: env}
 		if err := rp.cfg.Runner.Apply(ctx, ws, tp.PlanFile, tofu.ApplyOpts{AutoApprove: in.AutoApprove}); err != nil {
 			emit(in.EventSink, RunEvent{
 				Timestamp: time.Now().UTC(), DeploymentTargetID: tp.DeploymentTargetID,
