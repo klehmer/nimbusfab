@@ -1,0 +1,25 @@
+{
+  "format_version": "1.0",
+  "terraform_version": "1.7.0",
+  "serial": 4,
+  "values": {
+    "outputs": {
+      "vpc_id": { "value": "vpc-0abc123", "type": "string" },
+      "subnet_ids": { "value": ["subnet-1", "subnet-2"], "type": ["list", "string"] }
+    },
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_vpc.web",
+          "type": "aws_vpc",
+          "name": "web",
+          "values": {
+            "id": "vpc-0abc123",
+            "arn": "arn:aws:ec2:us-east-1:111:vpc/vpc-0abc123",
+            "cidr_block": "10.0.0.0/16"
+          }
+        }
+      ]
+    }
+  }
+}
