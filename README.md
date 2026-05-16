@@ -2,7 +2,7 @@
 
 Multi-cloud Infrastructure-as-Code framework. Users declare infrastructure components (network, database, compute, storage, etc.) in YAML, target one or more clouds (AWS / Azure / GCP), and the framework generates and runs OpenTofu under the hood. Includes cost estimation and an actual-cost dashboard pulling from cloud billing APIs.
 
-**Status:** pre-alpha. Architecture spec landed; DSL/IR Phase 1, Provisioner Phases 1–2, and Inventory Persistence Phase 1 merged. `plan` persists a Deployment ID to a SQLite inventory; `apply <deployment-id>` / `destroy <deployment-id>` / `drift <deployment-id>` look up by ID and operate across process boundaries. `--no-inventory` keeps the in-process flow for CI.
+**Status:** pre-alpha. Architecture spec landed; DSL/IR Phase 1, Provisioner Phases 1–2, Inventory Persistence Phase 1, and AWS Expansion Phase 3 merged. AWS adapter now emits realistic primitives for all four v1 component types (network / compute / database / storage) with `PricingKey` + `Profile` data populated for cost / parity consumption.
 
 ## Design
 
@@ -79,6 +79,22 @@ deployment; without, plans+destroys against `--stack`.
 
 Same shape. With a deployment ID, runs `tofu plan -refresh-only` against
 the recorded workspaces and upserts `drift_status` rows.
+
+## Component types
+
+Phase 3 ships four v1 types, registered automatically via
+`components.DefaultRegistry()`:
+
+| Type | AWS primitives | Outputs |
+|---|---|---|
+| `network` | VPC + IGW + RT + N subnets + RT associations | `vpc_id`, `subnet_ids`, `route_table_ids` |
+| `compute` | Security group + N EC2 instances (T-shirt sized) | `instance_ids`, `private_ips`, `security_group_id` |
+| `database` | DB subnet group + RDS instance (T-shirt sized; postgres/mysql/mariadb) | `endpoint`, `port`, `db_name` |
+| `storage` | S3 bucket + versioning + public-access-block + SSE | `bucket_name`, `bucket_arn`, `bucket_url` |
+
+See `docs/superpowers/specs/2026-05-16-aws-expansion-design.md` for
+per-type spec schemas, T-shirt size resolution, and the `PricingKey` /
+`Profile` shapes the cost estimator + parity engine will consume.
 
 ## Inventory
 

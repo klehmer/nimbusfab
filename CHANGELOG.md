@@ -1,6 +1,50 @@
 # Changelog
 
-## Unreleased — Inventory Persistence Phase 1
+## Unreleased — AWS Adapter Expansion Phase 3
+
+### Added
+
+- Four concrete `components.Type` implementations: `network`, `compute`,
+  `database`, `storage`. Each ships an embedded JSON Schema (under
+  `pkg/components/schema/v1alpha1/`) and declares its output names + types.
+- `components.DefaultRegistry()` returns all four registered;
+  `engine.New` defaults `Config.ComponentTypes` to it.
+- `Type.Outputs()` added to the `components.Type` interface, plus
+  `components.OutputType` struct.
+- AWS adapter dispatches `Emit()` on `target.Spec["__type"]` (a new
+  field the provisioner stuffs alongside `__component`).
+- `internal/cloud/aws/network.go` — VPC + IGW + RT + N subnets +
+  RT associations with deterministic /24 slicing and per-region AZ trios.
+- `internal/cloud/aws/compute.go` — security group + N EC2 instances
+  with T-shirt size → instance type resolution and per-region default
+  Amazon Linux 2023 AMIs.
+- `internal/cloud/aws/database.go` — DB subnet group + RDS instance
+  with T-shirt size → instance class + storage resolution for
+  postgres / mysql / mariadb.
+- `internal/cloud/aws/storage.go` — S3 bucket + versioning +
+  public-access-block + server-side encryption with secure defaults
+  and deterministic bucket-name derivation.
+- `internal/cloud/aws/pricing.go` — `PricingKey()` real implementation
+  with structured maps for AmazonEC2, AmazonRDS, AmazonS3 (free
+  primitives return `nil, nil`).
+- `internal/cloud/aws/profile.go` — `Profile()` real implementation
+  populating `parity.ResourceProfile` per resource class.
+- AWS adapter `SupportedComponentTypes()` returns all four type names.
+- Full-stack CLI fixture under `cmd/cli/testdata/full-stack-project/`
+  exercising all four types in one project.
+
+### Out of scope (deferred)
+
+- Validator Phase 4 (per-type `SpecSchema` validation in the validator
+  pipeline). Type schemas ship; wiring is its own phase.
+- Cost estimator / parity engine consumption of the new data.
+- Tier-1 `<cloud>:` escape-hatch schemas for AWS per-type fields.
+- Tier-2 `raw:` block merging.
+- Azure / GCP adapters.
+- LocalStack integration tests.
+- Auto-scaling groups, NAT gateways, RDS read replicas, S3 lifecycle.
+
+## Inventory Persistence Phase 1
 
 ### Added
 
