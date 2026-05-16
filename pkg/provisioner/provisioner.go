@@ -7,6 +7,7 @@ import (
 
 	"github.com/klehmer/nimbusfab/internal/tofu"
 	"github.com/klehmer/nimbusfab/pkg/cloud"
+	"github.com/klehmer/nimbusfab/pkg/secrets"
 )
 
 // ErrNotImplementedYet is returned by Provisioner methods that have not yet
@@ -23,9 +24,10 @@ type Provisioner interface {
 
 // Config carries the dependencies a real Provisioner needs.
 type Config struct {
-	WorkRoot string
-	Adapters cloud.Registry
-	Runner   tofu.Runner
+	WorkRoot       string
+	Adapters       cloud.Registry
+	Runner         tofu.Runner
+	SecretsBackend secrets.Backend // optional; nil = pass empty env to runner
 }
 
 // New returns a runtime Provisioner wired against the supplied dependencies.

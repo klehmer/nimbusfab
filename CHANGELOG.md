@@ -1,6 +1,62 @@
 # Changelog
 
-## Unreleased — Validator Phase 5 (Cross-Component Refs)
+## Unreleased — Secrets Phase 1 (Env + File Backends)
+
+### Added
+
+- `pkg/secrets/env.go` — `EnvBackend` reads
+  `NIMBUSFAB_SECRET_<UPPER_REF>` env vars (uppercase + hyphen→underscore).
+  Value must be a JSON object. Missing env var returns (nil, nil) so
+  the backend can be chained.
+- `pkg/secrets/file.go` — `FileBackend` reads `<Dir>/<ref>.json`;
+  default `~/.nimbusfab/secrets/`. Missing files return (nil, nil).
+- `pkg/secrets/default.go` — `DefaultBackend()` returns
+  `Chain(EnvBackend, FileBackend)`. Env-first means dev workflows
+  that export `NIMBUSFAB_SECRET_*` take precedence over committed
+  files.
+- `pkg/provisioner/secrets.go` — `resolveEnvFor` helper translates a
+  `credentialRef` + `SecretsBackend` into a `map[string]string` env
+  var map. Nil backend or empty ref → empty map (preserves
+  pre-Phase-1 behavior of relying on process env). Non-resolvable
+  refs → `ErrSecretsRefUnresolved`, failing the target fast before
+  any tofu invocation.
+- `provisioner.Config.SecretsBackend` field; wired into
+  `apply.go`, `destroy.go`, `drift.go` at every `tofu.Workspace`
+  construction site (4 callsites total).
+- `TargetPlan.CredentialRef` so apply/destroy/drift can resolve
+  per-target credentials without re-walking the project.
+- `cmd/cli/secrets.go` — `defaultSecretsBackend()` returns
+  `secrets.DefaultBackend()`. All 6 CLI command files wire it via
+  `engine.Config.SecretsBackend`.
+- End-to-end test asserts the resolved env var arrives in
+  `runner.ApplyCalls[0].Workspace.Environment`.
+
+### Design notes
+
+- **Payload-is-envvars.** The backend's resolved map keys ARE the
+  env var names the cloud provider expects
+  (`AWS_ACCESS_KEY_ID`, `ARM_CLIENT_SECRET`,
+  `GOOGLE_APPLICATION_CREDENTIALS`, etc.). Keeps engine code
+  cloud-agnostic at the cost of pushing env-var-naming knowledge to
+  whoever manages the secret material.
+- **Operation-time resolution.** Apply / destroy / drift resolve
+  credentials immediately before invoking the runner. Plan does NOT
+  resolve secrets (out of scope per spec; would block plans in dev
+  environments without configured creds).
+- **No process-env mutation.** Per-command `cmd.Env` only; concurrent
+  target operations stay isolated.
+
+### Out of scope (deferred)
+
+- Vault / cloud-KMS / OIDC / Workload Identity Federation backends.
+- Adapter-side env-var translation (cloud-neutral payload shape).
+- Secret payload schema validation per cloud.
+- Credential rotation / expiry detection.
+- Encryption at rest for the file backend (dev-only as documented).
+- Audit-log persistence (Inventory Phase 2 owns the AuditLog repo;
+  resolutions currently log to the engine's logger only).
+
+## Earlier — Validator Phase 5 (Cross-Component Refs)
 
 ### Added
 

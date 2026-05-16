@@ -218,6 +218,7 @@ func (rp *runtimeProvisioner) planOne(ctx context.Context, in PlanInput, stack i
 		Component:          comp.Name,
 		Cloud:              target.Cloud,
 		Region:             target.Region,
+		CredentialRef:      target.CredentialRef,
 		WorkspaceDir:       workspaceDir,
 		PrimitiveCount:     len(primitives),
 		PlanFile:           planFile,
