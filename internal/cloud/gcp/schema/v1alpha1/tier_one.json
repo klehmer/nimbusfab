@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nimbusfab.dev/schema/cloud/gcp/v1alpha1/tier_one.json",
+  "title": "GCPTargetSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "project": {
+      "type": "string",
+      "description": "GCP project ID for this target. Falls back to GOOGLE_PROJECT env var at runtime if absent."
+    },
+    "tags": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Per-target additional resource labels."
+    }
+  }
+}
