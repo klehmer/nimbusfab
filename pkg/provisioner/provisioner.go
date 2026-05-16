@@ -46,13 +46,8 @@ type runtimeProvisioner struct {
 	cfg Config
 }
 
-// Phase-2 stubs — Apply lives in apply.go (Task 5+), Destroy in destroy.go
-// (Task 7), DetectDrift in drift.go (Task 8). Destroy/Drift stubs stay here
-// until those tasks land.
+// Phase-2 stubs — DetectDrift lands in drift.go (Task 8); stays here until.
 
-func (*runtimeProvisioner) Destroy(ctx context.Context, in DestroyInput) (*ApplyResult, error) {
-	return nil, ErrNotImplementedYet
-}
 func (*runtimeProvisioner) DetectDrift(ctx context.Context, in DriftInput) (*DriftReport, error) {
 	return nil, ErrNotImplementedYet
 }
