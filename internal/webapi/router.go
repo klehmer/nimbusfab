@@ -35,7 +35,7 @@ func New(cfg Config) (http.Handler, error) {
 	if cfg.OrgID == "" {
 		cfg.OrgID = "default"
 	}
-	renderer, err := ui.NewRenderer(cfg.Repo, cfg.OrgID)
+	renderer, err := ui.NewRenderer(cfg.Repo, cfg.OrgID, cfg.APIToken)
 	if err != nil {
 		return nil, err
 	}
