@@ -227,6 +227,7 @@ func (rp *runtimeProvisioner) planOne(ctx context.Context, in PlanInput, stack i
 		Destroys:           destroys,
 		Tags:               frameworkTags(comp.Name, in.DeploymentID, in.OrgID),
 		PrimitiveProfiles:  profiles,
+		RawPrimitives:      primitives,
 	}, nil
 }
 

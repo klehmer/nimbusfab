@@ -77,6 +77,10 @@ type TargetPlan struct {
 	// per emitted primitive that has a meaningful profile. Adapters that
 	// return ErrProfileUnavailable for a primitive get nothing here.
 	PrimitiveProfiles []parity.TargetProfile
+	// RawPrimitives keeps the adapter's emit output verbatim (after
+	// framework-tag injection) so downstream subsystems (cost estimator)
+	// can call adapter.PricingKey on each one without re-emitting.
+	RawPrimitives []ir.ResourcePrimitive
 }
 
 // Diagnostic is a non-fatal note attached to a PlanResult. Errors are
