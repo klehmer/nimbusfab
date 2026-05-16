@@ -92,6 +92,7 @@ func runParity(ctx context.Context, in parityArgs) int {
 	}
 	eng, err := engine.New(ctx, engine.Config{
 		CloudAdapters: in.Adapters, TofuRunner: in.Runner, WorkRoot: in.WorkRoot, InventoryRepo: in.Inventory,
+		SecretsBackend: defaultSecretsBackend(),
 	})
 	if err != nil {
 		fmt.Fprintf(in.Stderr, "engine: %v\n", err)

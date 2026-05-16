@@ -167,7 +167,10 @@ func (e *runtimeEngine) newProvisioner() (provisioner.Provisioner, error) {
 		workRoot = filepath.Join(os.TempDir(), "nimbusfab")
 	}
 	return provisioner.New(provisioner.Config{
-		WorkRoot: workRoot, Adapters: e.cfg.CloudAdapters, Runner: runner,
+		WorkRoot:       workRoot,
+		Adapters:       e.cfg.CloudAdapters,
+		Runner:         runner,
+		SecretsBackend: e.cfg.SecretsBackend,
 	})
 }
 

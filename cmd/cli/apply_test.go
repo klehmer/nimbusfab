@@ -13,6 +13,10 @@ import (
 )
 
 func TestApplyCommand_HappyPath(t *testing.T) {
+	// Phase 1 secrets backend is wired into the CLI default; satisfy the
+	// fixture's credentialRef so resolution succeeds.
+	t.Setenv("NIMBUSFAB_SECRET_AWS_DEV", `{"AWS_ACCESS_KEY_ID":"test","AWS_SECRET_ACCESS_KEY":"test"}`)
+
 	reg := cloud.NewRegistry()
 	_ = reg.Register(aws.New())
 	runner := tofu.NewFakeRunner()
@@ -32,9 +36,21 @@ func TestApplyCommand_HappyPath(t *testing.T) {
 	if !strings.Contains(stdout.String(), "Apply succeeded") {
 		t.Errorf("stdout missing summary: %s", stdout.String())
 	}
+	// Phase 1: confirm credentialRef resolved into the runner's Workspace.Environment.
+	if len(runner.ApplyCalls) == 0 {
+		t.Fatalf("no apply calls recorded")
+	}
+	gotEnv := runner.ApplyCalls[0].Workspace.Environment
+	if gotEnv["AWS_ACCESS_KEY_ID"] != "test" {
+		t.Errorf("AWS_ACCESS_KEY_ID not propagated; env=%v", gotEnv)
+	}
 }
 
 func TestDestroyCommand_HappyPath(t *testing.T) {
+	// Phase 1 secrets backend is wired into the CLI default; satisfy the
+	// fixture's credentialRef so resolution succeeds.
+	t.Setenv("NIMBUSFAB_SECRET_AWS_DEV", `{"AWS_ACCESS_KEY_ID":"test","AWS_SECRET_ACCESS_KEY":"test"}`)
+
 	reg := cloud.NewRegistry()
 	_ = reg.Register(aws.New())
 	var stdout, stderr bytes.Buffer
