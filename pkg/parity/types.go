@@ -113,6 +113,6 @@ type ComponentRules struct {
 
 // AttributePolicy is one per-attribute rule.
 type AttributePolicy struct {
-	Policy   string  // "exact" | "maxRatio" | "requireAll"
+	Policy   string // "exact" | "maxRatio" | "requireAll"
 	MaxRatio float64
 }

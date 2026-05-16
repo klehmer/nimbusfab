@@ -2,7 +2,7 @@
 
 Multi-cloud Infrastructure-as-Code framework. Users declare infrastructure components (network, database, compute, storage, etc.) in YAML, target one or more clouds (AWS / Azure / GCP), and the framework generates and runs OpenTofu under the hood. Includes cost estimation and an actual-cost dashboard pulling from cloud billing APIs.
 
-**Status:** pre-alpha. Architecture spec landed; DSL/IR Phase 1, Provisioner Phases 1–2, Inventory Persistence Phase 1, and AWS Expansion Phase 3 merged. AWS adapter now emits realistic primitives for all four v1 component types (network / compute / database / storage) with `PricingKey` + `Profile` data populated for cost / parity consumption.
+**Status:** pre-alpha. Architecture spec landed; DSL/IR Phase 1, Provisioner Phases 1–2, Inventory Persistence Phase 1, AWS Expansion Phase 3, and Parity Engine Phase 1 merged. Every plan now emits per-component parity reports; `nimbusfab parity --stack <stack>` surfaces detail. Cost-estimator + parity-engine `Profile()` and `PricingKey()` data populated end-to-end.
 
 ## Design
 
@@ -94,7 +94,16 @@ Phase 3 ships four v1 types, registered automatically via
 
 See `docs/superpowers/specs/2026-05-16-aws-expansion-design.md` for
 per-type spec schemas, T-shirt size resolution, and the `PricingKey` /
-`Profile` shapes the cost estimator + parity engine will consume.
+`Profile` shapes the cost estimator + parity engine consume.
+
+### `nimbusfab parity --stack <stack> [path]`
+
+Renders a parity report per component: contract floor, per-cloud values,
+weighted parity score, rule-violation summary (parity.yaml when present).
+Single-cloud reports score 1.0 trivially; once Azure / GCP land, real
+divergence surfaces here. Contract floors in
+`pkg/parity/contracts/*.yaml` validate that adapter choices satisfy
+T-shirt minimums.
 
 ## Inventory
 

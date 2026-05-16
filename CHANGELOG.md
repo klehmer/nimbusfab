@@ -1,6 +1,39 @@
 # Changelog
 
-## Unreleased — AWS Adapter Expansion Phase 3
+## Unreleased — Parity Engine Phase 1
+
+### Added
+
+- `pkg/parity.NewEngine` — public parity surface: `Compare()` builds
+  per-component reports; `EvaluateRules()` applies parity.yaml policies.
+- Embedded contract-floor catalog (`pkg/parity/contracts/*.yaml`) for
+  the four v1 types (database / compute / storage / network).
+- Score function: per-attribute numeric / exact / boolean comparisons
+  with weighted mean and feature-group averaging. Weights documented
+  in `pkg/parity/score.go`; not user-tunable in v1.
+- Rule evaluator: per-component `minScore` + per-attribute `exact` /
+  `maxRatio` / `requireAll` policies; per-component `warn` / `block` /
+  `off` modes.
+- `parity.LoadRulesFromFile` for `parity.yaml`; missing file = the
+  parity-default "informative-only" mode.
+- `parity.RenderText` + `RenderViolations` terminal reporters.
+- Provisioner integration: every `Plan()` collects `Profile()` per
+  primitive into `TargetPlan.PrimitiveProfiles` and aggregates
+  `ParityReport`s per component into `PlanResult.ParityReports`.
+- CLI: `nimbusfab plan` prints a per-component parity summary; new
+  `nimbusfab parity --stack <stack>` command surfaces detailed reports
+  with optional `--component <name>` filter.
+
+### Out of scope (deferred)
+
+- REST API endpoints — web app phase.
+- Inventory persistence of parity reports — inventory Phase 2 / web app.
+- Auto-balancing (adapter actively upgrading SKUs to maximize parity) — v2.
+- Per-attribute weight tuning by users — v2.
+- Cross-region equivalence mapping — v2.
+- Historical parity tracking — v2.
+
+## AWS Adapter Expansion Phase 3
 
 ### Added
 
