@@ -18,6 +18,9 @@ func main() {
 	}
 	root.AddCommand(newValidateCommand())
 	root.AddCommand(newPlanCommand())
+	root.AddCommand(newApplyCommand())
+	root.AddCommand(newDestroyCommand())
+	root.AddCommand(newDriftCommand())
 
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
