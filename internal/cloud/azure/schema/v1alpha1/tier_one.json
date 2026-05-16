@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nimbusfab.dev/schema/cloud/azure/v1alpha1/tier_one.json",
+  "title": "AzureTargetSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "tags": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Per-target additional resource tags."
+    }
+  }
+}
