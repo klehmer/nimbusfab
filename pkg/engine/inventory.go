@@ -87,6 +87,12 @@ func (e *runtimeEngine) persistPlan(ctx context.Context, project *ir.Project, st
 	}
 	plan.DeploymentID = deploymentID
 	now := time.Now().UTC()
+
+	// Per-target plan-run IDs are retained so cost estimates can attach to
+	// the right run. The Dashboards Phase 1 view reads them via
+	// CostEstimates.ListByDeployment which JOINs runs→targets.
+	planRuns := make([]planRunRef, 0, len(plan.Targets))
+
 	for i := range plan.Targets {
 		tp := &plan.Targets[i]
 		targetID := "tgt-" + uuid.NewString()
@@ -102,14 +108,41 @@ func (e *runtimeEngine) persistPlan(ctx context.Context, project *ir.Project, st
 			return fmt.Errorf("target create: %w", err)
 		}
 		runFinished := now
+		runID := "run-" + uuid.NewString()
 		if err := e.cfg.InventoryRepo.Runs().Create(ctx, inventory.Run{
-			ID: "run-" + uuid.NewString(), OrgID: orgID, DeploymentTargetID: targetID,
+			ID: runID, OrgID: orgID, DeploymentTargetID: targetID,
 			Kind: "plan", Status: "succeeded", StartedAt: now, FinishedAt: &runFinished,
 		}); err != nil {
 			return fmt.Errorf("plan run create: %w", err)
 		}
+		planRuns = append(planRuns, planRunRef{
+			RunID:      runID,
+			TargetID:   targetID,
+			Cloud:      tp.Cloud,
+			Region:     tp.Region,
+			Primitives: tp.RawPrimitives,
+		})
+	}
+
+	// Persist cost estimates. Failure here is non-fatal: planning succeeded;
+	// the deployment is usable; only the dashboard view is impacted. Log via
+	// the engine's logger when one is configured.
+	if err := e.persistCostEstimates(ctx, orgID, planRuns); err != nil {
+		if e.cfg.Logger != nil {
+			e.cfg.Logger.Warn("cost estimate persistence failed", "deployment", deploymentID, "err", err)
+		}
 	}
 	return nil
+}
+
+// planRunRef bundles what persistCostEstimates needs to map estimator
+// output back to inventory rows.
+type planRunRef struct {
+	RunID      string
+	TargetID   string
+	Cloud      string
+	Region     string
+	Primitives []ir.ResourcePrimitive
 }
 
 // reconstitutePlan rebuilds a PlanResult from inventory rows for

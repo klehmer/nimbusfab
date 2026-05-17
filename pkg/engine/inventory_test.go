@@ -94,3 +94,48 @@ func TestEngine_NoInventory_ApplyByIDRejected(t *testing.T) {
 		t.Fatal("expected ErrInventoryRequired")
 	}
 }
+
+func TestEngine_Plan_PersistsCostEstimates(t *testing.T) {
+	repo, _ := sqlite.Open("sqlite::memory:")
+	defer repo.Close()
+	if err := repo.Migrate(context.Background()); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	reg := cloud.NewRegistry()
+	_ = reg.Register(aws.New())
+	eng, _ := engine.New(context.Background(), engine.Config{
+		CloudAdapters: reg, TofuRunner: tofu.NewFakeRunner(), WorkRoot: t.TempDir(),
+		InventoryRepo: repo,
+	})
+	// Compute components have priced primitives (EC2 instances), so the
+	// estimator should emit at least one CostEstimate row per target.
+	project := &ir.Project{
+		APIVersion: ir.APIVersionV1Alpha1, Name: "cost-demo",
+		Stacks: map[string]ir.Stack{"dev": {Name: "dev", StateBackend: ir.StateBackend{Kind: "local"}}},
+		Components: []ir.Component{{
+			Name: "web-app", Type: "compute",
+			Spec:    map[string]any{"size": "small"},
+			Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1"}},
+		}},
+	}
+	plan, err := eng.Plan(context.Background(), project, "dev", engine.PlanOpts{})
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	rows, err := repo.CostEstimates().ListByDeployment(context.Background(), "local", plan.DeploymentID)
+	if err != nil {
+		t.Fatalf("ListByDeployment: %v", err)
+	}
+	if len(rows) == 0 {
+		t.Fatalf("expected at least one cost-estimate row after Plan of a compute target")
+	}
+	hadEC2 := false
+	for _, r := range rows {
+		if r.Subtotal > 0 && r.UnitOfMeasure == "Hrs" {
+			hadEC2 = true
+		}
+	}
+	if !hadEC2 {
+		t.Errorf("expected at least one priced EC2-style row (Hrs unit) in %v", rows)
+	}
+}

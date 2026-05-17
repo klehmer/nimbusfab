@@ -81,6 +81,7 @@ func New(cfg Config) (http.Handler, error) {
 	mux.Handle("GET /api/v1/projects/{id}", apiAuth(http.HandlerFunc(apiHandlers.GetProject)))
 	mux.Handle("GET /api/v1/deployments/{id}", apiAuth(http.HandlerFunc(apiHandlers.GetDeployment)))
 	mux.Handle("GET /api/v1/runs/{id}", apiAuth(http.HandlerFunc(apiHandlers.GetRun)))
+	mux.Handle("GET /api/v1/deployments/{id}/costs", apiAuth(http.HandlerFunc(apiHandlers.GetDeploymentCosts)))
 
 	// HTTP Phase 2: mutating endpoints + SSE. Mounted only when an Engine
 	// is configured so test setups without an engine still work.

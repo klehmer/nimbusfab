@@ -257,6 +257,10 @@ type CostEstimate struct {
 type CostEstimateRepo interface {
 	BulkInsert(ctx context.Context, items []CostEstimate) error
 	ListByRun(ctx context.Context, orgID, runID string) ([]CostEstimate, error)
+	// ListByDeployment returns every estimate attached to any run of any
+	// target of the given deployment — JOINs runs → deployment_targets to
+	// filter. Used by the per-deployment cost view.
+	ListByDeployment(ctx context.Context, orgID, deploymentID string) ([]CostEstimate, error)
 }
 
 // CostActual is one normalized actual-cost row.

@@ -262,3 +262,53 @@ func TestSQLite_AuditLog_DefaultsTimestampToNow(t *testing.T) {
 		t.Errorf("timestamp not auto-assigned: %v", got[0].Timestamp)
 	}
 }
+
+func TestSQLite_CostEstimates_ListByDeployment(t *testing.T) {
+	r := openMemory(t)
+	ctx := context.Background()
+
+	// Set up two targets under one deployment, each with one plan run + estimates.
+	_ = r.Orgs().Create(ctx, inventory.Org{ID: "o", Name: "o"})
+	_ = r.Projects().Create(ctx, inventory.Project{ID: "p", OrgID: "o", Name: "x"})
+	_ = r.Stacks().Upsert(ctx, inventory.Stack{ID: "s", OrgID: "o", ProjectID: "p", Name: "dev"})
+	_ = r.Deployments().Create(ctx, inventory.Deployment{ID: "d", OrgID: "o", ProjectID: "p", StackID: "s", Status: "planned", StartedAt: time.Now()})
+
+	for _, target := range []struct{ id, cloud string }{{"t-aws", "aws"}, {"t-azure", "azure"}} {
+		_ = r.DeploymentTargets().Create(ctx, inventory.DeploymentTarget{
+			ID: target.id, OrgID: "o", DeploymentID: "d",
+			ComponentName: "web", Cloud: target.cloud, Region: "r", CredentialRef: "x",
+			Status: "planned", StartedAt: time.Now(),
+		})
+		runID := "run-" + target.id
+		_ = r.Runs().Create(ctx, inventory.Run{
+			ID: runID, OrgID: "o", DeploymentTargetID: target.id,
+			Kind: "plan", Status: "succeeded", StartedAt: time.Now(),
+		})
+		_ = r.CostEstimates().BulkInsert(ctx, []inventory.CostEstimate{
+			{RunID: runID, OrgID: "o", PrimitiveID: target.cloud + "-vm", Currency: "USD",
+				UnitPrice: 0.05, Units: 730, UnitOfMeasure: "Hrs", Subtotal: 36.5,
+				PricingKeyJSON: []byte(`{"sku":"x"}`)},
+		})
+	}
+
+	got, err := r.CostEstimates().ListByDeployment(ctx, "o", "d")
+	if err != nil {
+		t.Fatalf("ListByDeployment: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2", len(got))
+	}
+	// Both target subtotals should be present.
+	sum := 0.0
+	for _, e := range got {
+		sum += e.Subtotal
+	}
+	if sum < 72.9 || sum > 73.1 {
+		t.Errorf("sum = %.2f, want ~73.00", sum)
+	}
+
+	// Wrong org isolation.
+	if other, _ := r.CostEstimates().ListByDeployment(ctx, "other", "d"); len(other) != 0 {
+		t.Errorf("wrong-org returned %d rows", len(other))
+	}
+}

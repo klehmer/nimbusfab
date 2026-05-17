@@ -180,6 +180,9 @@ func TestPostgres_CRUDRoundTrip(t *testing.T) {
 	if list, _ := r.CostEstimates().ListByRun(ctx, orgID, runID); len(list) != 2 {
 		t.Errorf("CostEstimates.ListByRun = %d, want 2", len(list))
 	}
+	if list, _ := r.CostEstimates().ListByDeployment(ctx, orgID, depID); len(list) != 2 {
+		t.Errorf("CostEstimates.ListByDeployment = %d, want 2", len(list))
+	}
 	if err := r.CostEstimates().BulkInsert(ctx, nil); err != nil {
 		t.Errorf("empty BulkInsert should no-op: %v", err)
 	}

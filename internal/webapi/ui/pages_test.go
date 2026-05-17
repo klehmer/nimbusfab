@@ -266,3 +266,57 @@ func TestRunDetail_NotFound(t *testing.T) {
 		t.Errorf("status = %d, want 404", rec.Code)
 	}
 }
+
+func TestDeploymentDetail_RendersCostSection_WithData(t *testing.T) {
+	r := seededRepo(t, func(ctx context.Context, r *sqlite.Repo) {
+		_ = r.Projects().Create(ctx, inventory.Project{ID: "p-1", OrgID: "default", Name: "demo", CreatedAt: time.Now().UTC()})
+		_ = r.Stacks().Upsert(ctx, inventory.Stack{ID: "s-1", OrgID: "default", ProjectID: "p-1", Name: "dev"})
+		_ = r.Deployments().Create(ctx, inventory.Deployment{ID: "d-1", OrgID: "default", ProjectID: "p-1", StackID: "s-1", Status: "planned", StartedAt: time.Now()})
+		_ = r.DeploymentTargets().Create(ctx, inventory.DeploymentTarget{
+			ID: "t-1", OrgID: "default", DeploymentID: "d-1",
+			ComponentName: "web-app", Cloud: "aws", Region: "us-east-1",
+			CredentialRef: "x", Status: "planned", StartedAt: time.Now(),
+		})
+		_ = r.Runs().Create(ctx, inventory.Run{
+			ID: "run-1", OrgID: "default", DeploymentTargetID: "t-1",
+			Kind: "plan", Status: "succeeded", StartedAt: time.Now(),
+		})
+		_ = r.CostEstimates().BulkInsert(ctx, []inventory.CostEstimate{
+			{RunID: "run-1", OrgID: "default", PrimitiveID: "ec2", Currency: "USD",
+				UnitPrice: 0.0416, Units: 730, UnitOfMeasure: "Hrs", Subtotal: 30.37,
+				PricingKeyJSON: []byte(`{}`)},
+		})
+	})
+	rend, _ := ui.NewRenderer(r, "default", "")
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/ui/deployments/d-1", nil)
+	req.SetPathValue("id", "d-1")
+	rend.DeploymentDetail(rec, req)
+	body := rec.Body.String()
+	for _, want := range []string{
+		"Cost estimate",
+		"$30.37 USD/month", // per-target subtotal
+		"web-app",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("body missing %q in cost section", want)
+		}
+	}
+}
+
+func TestDeploymentDetail_RendersCostSection_NoData(t *testing.T) {
+	r := seededRepo(t, func(ctx context.Context, r *sqlite.Repo) {
+		_ = r.Projects().Create(ctx, inventory.Project{ID: "p-1", OrgID: "default", Name: "demo", CreatedAt: time.Now().UTC()})
+		_ = r.Stacks().Upsert(ctx, inventory.Stack{ID: "s-1", OrgID: "default", ProjectID: "p-1", Name: "dev"})
+		_ = r.Deployments().Create(ctx, inventory.Deployment{ID: "d-1", OrgID: "default", ProjectID: "p-1", StackID: "s-1", Status: "planned", StartedAt: time.Now()})
+	})
+	rend, _ := ui.NewRenderer(r, "default", "")
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/ui/deployments/d-1", nil)
+	req.SetPathValue("id", "d-1")
+	rend.DeploymentDetail(rec, req)
+	body := rec.Body.String()
+	if !strings.Contains(body, "No cost estimate recorded yet") {
+		t.Errorf("body should show empty-state copy when no cost data: %s", body)
+	}
+}
