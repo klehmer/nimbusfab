@@ -59,13 +59,13 @@ func TestOpen_DispatchesByScheme(t *testing.T) {
 
 func TestSchemeOf(t *testing.T) {
 	cases := map[string]string{
-		"sqlite::memory:":                         "sqlite",
-		"sqlite:./foo.db":                         "sqlite",
-		"sqlite:///abs/path":                      "sqlite",
-		"postgres://user:pass@host:5432/db":       "postgres",
+		"sqlite::memory:":                           "sqlite",
+		"sqlite:./foo.db":                           "sqlite",
+		"sqlite:///abs/path":                        "sqlite",
+		"postgres://user:pass@host:5432/db":         "postgres",
 		"postgresql://user@host/db?sslmode=disable": "postgres",
-		"":                                        "",
-		"noscheme":                                "",
+		"":         "",
+		"noscheme": "",
 	}
 	for in, want := range cases {
 		if got := schemeOf(in); got != want {

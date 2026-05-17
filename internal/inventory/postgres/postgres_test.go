@@ -16,7 +16,8 @@ import (
 // Postgres + local dev without docker run pass cleanly.
 //
 // Local: docker run --rm -d -e POSTGRES_PASSWORD=test -p 5432:5432 postgres:16
-//        NIMBUSFAB_TEST_PG_DSN='postgres://postgres:test@localhost:5432/postgres?sslmode=disable' go test ./...
+//
+//	NIMBUSFAB_TEST_PG_DSN='postgres://postgres:test@localhost:5432/postgres?sslmode=disable' go test ./...
 func pgDSN(t *testing.T) string {
 	t.Helper()
 	dsn := os.Getenv("NIMBUSFAB_TEST_PG_DSN")
