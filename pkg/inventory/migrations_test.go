@@ -30,8 +30,18 @@ func TestRunMigrations_FreshDB(t *testing.T) {
 	if n < 1 {
 		t.Errorf("schema_migrations count = %d, want >= 1", n)
 	}
-	if _, err := db.Exec("SELECT * FROM deployments LIMIT 0"); err != nil {
-		t.Errorf("deployments table missing: %v", err)
+	// Every table both backends expose should exist after a fresh migration.
+	for _, tbl := range []string{
+		"orgs", "users", "api_tokens",
+		"projects", "stacks", "components", "compositions",
+		"deployments", "deployment_targets", "runs",
+		"run_logs", "drift_status",
+		"cost_estimates", "cost_actuals",
+		"secrets_refs", "audit_log",
+	} {
+		if _, err := db.Exec("SELECT * FROM " + tbl + " LIMIT 0"); err != nil {
+			t.Errorf("table %q missing after migration: %v", tbl, err)
+		}
 	}
 }
 
