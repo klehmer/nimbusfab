@@ -61,11 +61,10 @@ func (r *auditRepo) Query(ctx context.Context, orgID string, since, until time.T
 }
 
 // nullableStr returns nil for empty strings so the column stores NULL rather
-// than '' (matters for COALESCE reads and indexing semantics).
+// than ” (matters for COALESCE reads and indexing semantics).
 func nullableStr(s string) any {
 	if s == "" {
 		return nil
 	}
 	return s
 }
-

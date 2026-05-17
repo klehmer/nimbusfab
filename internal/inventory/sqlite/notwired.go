@@ -62,4 +62,3 @@ func (errSecrets) Upsert(ctx context.Context, r inventory.SecretsRef) error {
 func (errSecrets) Delete(ctx context.Context, orgID, name string) error {
 	return inventory.ErrNotImplementedYet
 }
-

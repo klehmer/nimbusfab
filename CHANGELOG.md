@@ -1,6 +1,48 @@
 # Changelog
 
-## Unreleased — Inventory Phase 2 (Postgres Backend)
+## Unreleased — Inventory Persistence (Cost + Audit)
+
+### Added
+
+- SQLite migration `0001_init.sqlite.sql` reaches parity with the
+  Postgres migration: adds `api_tokens`, `run_logs`, `cost_estimates`,
+  `cost_actuals`, `secrets_refs`, `audit_log` tables plus the
+  matching indices (`idx_cost_actuals_period`, `idx_audit_log_ts`).
+  Type mapping: UUID→TEXT, JSONB→TEXT, NUMERIC→REAL,
+  BIGSERIAL→INTEGER AUTOINCREMENT, BYTEA→BLOB.
+- `CostEstimateRepo` wired for both backends:
+  - `BulkInsert(items)` writes all rows in one transaction with a
+    prepared statement; empty input is a defensive no-op; fresh
+    `cest-` UUID per row.
+  - `ListByRun(orgID, runID)` returns rows in insertion order, scoped.
+- `AuditLogRepo` wired for both backends:
+  - `Append(entry)` auto-defaults `Timestamp` to `time.Now().UTC()`
+    when caller supplies the zero value; auto-increment id assigned
+    by the DB; empty `actor_user_id` / `target` / `payload_json`
+    stored as NULL (Postgres UUID column rejects '').
+  - `Query(orgID, since, until, limit)` orders newest-first
+    `(timestamp DESC, id DESC)` for deterministic pagination;
+    `limit ≤ 0` defaults to 100.
+- 6 new tests across both backends: round-trips, time-window
+  narrowing, limit capping, wrong-org isolation, empty-input
+  no-op, timestamp default-to-now. SQLite tests run on every
+  invocation; Postgres tests gated on `NIMBUSFAB_TEST_PG_DSN`.
+- `TestRunMigrations_FreshDB` extended to assert every table both
+  backends expose actually exists post-migration — fresh-migrate
+  regression check.
+
+### Out of scope (deferred)
+
+- Consumer wiring — `engine.Plan` calling `CostEstimates.BulkInsert`
+  with estimator output lands with Dashboards Phase 1 (which surfaces
+  the data). Audit-log writes from the web app's mutating-endpoint
+  middleware land with Auth Phase 1.
+- `RunLogs`, `CostActuals`, `SecretsRefs`, `ApiTokens` repos remain
+  `ErrNotImplementedYet` stubs in both backends. The SQLite migration
+  now has the tables, so wiring them is purely repo-layer work when
+  their owning consumers ship.
+
+## Earlier — Inventory Phase 2 (Postgres Backend)
 
 ### Added
 

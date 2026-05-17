@@ -13,7 +13,7 @@ type auditRepo struct{ db *sql.DB }
 
 // Append writes one audit entry. The BIGSERIAL id is assigned by Postgres;
 // timestamp defaults to now() when caller supplies the zero value.
-// actor_user_id and target use NULLIF($N, '') so Postgres' UUID column
+// actor_user_id and target use NULLIF($N, ”) so Postgres' UUID column
 // rejects the empty string in favor of NULL.
 func (r *auditRepo) Append(ctx context.Context, e inventory.AuditEntry) error {
 	ts := e.Timestamp
