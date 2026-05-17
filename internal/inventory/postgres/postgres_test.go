@@ -159,6 +159,9 @@ func TestPostgres_CRUDRoundTrip(t *testing.T) {
 	if got, _ := r.DriftStatus().Get(ctx, orgID, tgtID); got == nil || !got.HasDrift {
 		t.Errorf("DriftStatus.Get returned %+v after second upsert", got)
 	}
+	if list, _ := r.DriftStatus().ListByOrg(ctx, orgID); len(list) != 1 {
+		t.Errorf("DriftStatus.ListByOrg = %d, want 1", len(list))
+	}
 
 	// UpdateStatus on deployment + target
 	finished := time.Now().UTC()

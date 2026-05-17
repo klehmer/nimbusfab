@@ -28,6 +28,29 @@ func (r *driftRepo) Get(ctx context.Context, orgID, dtID string) (*inventory.Dri
 	return &d, nil
 }
 
+func (r *driftRepo) ListByOrg(ctx context.Context, orgID string) ([]inventory.DriftRecord, error) {
+	rows, err := r.db.QueryContext(ctx, `
+        SELECT deployment_target_id, org_id, detected_at, has_drift, COALESCE(summary_json::text,'')
+        FROM drift_status WHERE org_id = $1
+        ORDER BY detected_at DESC
+    `, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("drift.ListByOrg: %w", err)
+	}
+	defer rows.Close()
+	var out []inventory.DriftRecord
+	for rows.Next() {
+		var d inventory.DriftRecord
+		var summary string
+		if err := rows.Scan(&d.DeploymentTargetID, &d.OrgID, &d.DetectedAt, &d.HasDrift, &summary); err != nil {
+			return nil, err
+		}
+		d.SummaryJSON = []byte(summary)
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
 func (r *driftRepo) Upsert(ctx context.Context, d inventory.DriftRecord) error {
 	_, err := r.db.ExecContext(ctx, `
         INSERT INTO drift_status (deployment_target_id, org_id, detected_at, has_drift, summary_json)

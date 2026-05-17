@@ -289,3 +289,25 @@ func TestRouter_APIDeploymentCostsEmpty(t *testing.T) {
 		t.Errorf("body: %s", body)
 	}
 }
+
+func TestRouter_DriftAPI(t *testing.T) {
+	srv, _ := newServer(t, nil)
+	resp, body := get(t, srv, "/api/v1/drift")
+	if resp.StatusCode != 200 {
+		t.Errorf("status = %d", resp.StatusCode)
+	}
+	if !strings.Contains(body, `"records":[]`) || !strings.Contains(body, `"total":0`) {
+		t.Errorf("body: %s", body)
+	}
+}
+
+func TestRouter_DriftUI(t *testing.T) {
+	srv, _ := newServer(t, nil)
+	resp, body := get(t, srv, "/ui/drift")
+	if resp.StatusCode != 200 {
+		t.Errorf("status = %d", resp.StatusCode)
+	}
+	if !strings.Contains(body, "Drift overview") {
+		t.Errorf("body missing 'Drift overview': %s", body)
+	}
+}

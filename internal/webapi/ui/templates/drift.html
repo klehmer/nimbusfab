@@ -1,0 +1,29 @@
+{{define "title"}}Drift overview{{end}}
+{{define "content"}}
+<h1>Drift overview</h1>
+
+{{if .HasData}}
+<p>
+  <strong>{{.Summary.Total}}</strong> targets monitored —
+  <span class="badge fail">{{.Summary.Drifted}} drifted</span>
+  <span class="badge ok">{{.Summary.Clean}} clean</span>
+</p>
+<table>
+  <thead><tr><th>Status</th><th>Component</th><th>Cloud</th><th>Region</th><th>Detected</th><th>Deployment</th></tr></thead>
+  <tbody>
+  {{range .Records}}
+  <tr>
+    <td>{{if .HasDrift}}<span class="badge fail">drifted</span>{{else}}<span class="badge ok">clean</span>{{end}}</td>
+    <td>{{.ComponentName}}</td>
+    <td><span class="badge">{{.Cloud}}</span></td>
+    <td><code>{{.Region}}</code></td>
+    <td>{{.DetectedAt.Format "2006-01-02 15:04:05 UTC"}}</td>
+    <td><a href="/ui/deployments/{{.DeploymentID}}"><code>{{shortID .DeploymentID}}</code></a></td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="muted">No drift checks recorded yet. Run <code>nimbusfab drift</code> against a deployment, or click "Detect drift" on a deployment detail page.</p>
+{{end}}
+{{end}}

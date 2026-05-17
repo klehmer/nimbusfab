@@ -69,6 +69,7 @@ func New(cfg Config) (http.Handler, error) {
 	mux.HandleFunc("GET /ui/projects/{id}", renderer.ProjectDetail)
 	mux.HandleFunc("GET /ui/deployments/{id}", renderer.DeploymentDetail)
 	mux.HandleFunc("GET /ui/runs/{id}", renderer.RunDetail)
+	mux.HandleFunc("GET /ui/drift", renderer.Drift)
 
 	// /api/v1/* JSON endpoints. Registered individually so the GET-method
 	// patterns don't conflict with the root "GET /" redirect (Go's
@@ -82,6 +83,7 @@ func New(cfg Config) (http.Handler, error) {
 	mux.Handle("GET /api/v1/deployments/{id}", apiAuth(http.HandlerFunc(apiHandlers.GetDeployment)))
 	mux.Handle("GET /api/v1/runs/{id}", apiAuth(http.HandlerFunc(apiHandlers.GetRun)))
 	mux.Handle("GET /api/v1/deployments/{id}/costs", apiAuth(http.HandlerFunc(apiHandlers.GetDeploymentCosts)))
+	mux.Handle("GET /api/v1/drift", apiAuth(http.HandlerFunc(apiHandlers.GetDrift)))
 
 	// HTTP Phase 2: mutating endpoints + SSE. Mounted only when an Engine
 	// is configured so test setups without an engine still work.

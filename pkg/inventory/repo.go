@@ -238,6 +238,9 @@ type DriftRecord struct {
 type DriftStatusRepo interface {
 	Get(ctx context.Context, orgID, dtID string) (*DriftRecord, error)
 	Upsert(ctx context.Context, d DriftRecord) error
+	// ListByOrg returns every drift record for the org, newest detected
+	// first. Used by the drift overview UI / API.
+	ListByOrg(ctx context.Context, orgID string) ([]DriftRecord, error)
 }
 
 // CostEstimate is one estimated line item.

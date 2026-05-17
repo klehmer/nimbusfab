@@ -312,3 +312,44 @@ func TestSQLite_CostEstimates_ListByDeployment(t *testing.T) {
 		t.Errorf("wrong-org returned %d rows", len(other))
 	}
 }
+
+func TestSQLite_DriftStatus_ListByOrg(t *testing.T) {
+	r := openMemory(t)
+	ctx := context.Background()
+	_ = r.Orgs().Create(ctx, inventory.Org{ID: "o", Name: "o"})
+	_ = r.Orgs().Create(ctx, inventory.Org{ID: "other", Name: "other"})
+	_ = r.Projects().Create(ctx, inventory.Project{ID: "p", OrgID: "o", Name: "x"})
+	_ = r.Stacks().Upsert(ctx, inventory.Stack{ID: "s", OrgID: "o", ProjectID: "p", Name: "dev"})
+	_ = r.Deployments().Create(ctx, inventory.Deployment{ID: "d", OrgID: "o", ProjectID: "p", StackID: "s", Status: "planned", StartedAt: time.Now()})
+
+	base := time.Now().UTC().Truncate(time.Second)
+	for i, target := range []struct{ id string }{{"t1"}, {"t2"}, {"t3"}} {
+		_ = r.DeploymentTargets().Create(ctx, inventory.DeploymentTarget{
+			ID: target.id, OrgID: "o", DeploymentID: "d",
+			ComponentName: "web", Cloud: "aws", Region: "us-east-1", CredentialRef: "x",
+			Status: "planned", StartedAt: time.Now(),
+		})
+		_ = r.DriftStatus().Upsert(ctx, inventory.DriftRecord{
+			DeploymentTargetID: target.id, OrgID: "o",
+			DetectedAt:  base.Add(time.Duration(i) * time.Minute),
+			HasDrift:    i == 1,
+			SummaryJSON: []byte(`{"i":` + string(rune('0'+i)) + `}`),
+		})
+	}
+
+	got, err := r.DriftStatus().ListByOrg(ctx, "o")
+	if err != nil {
+		t.Fatalf("ListByOrg: %v", err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("len = %d, want 3", len(got))
+	}
+	// DESC by detected_at: t3 (latest) first.
+	if got[0].DeploymentTargetID != "t3" {
+		t.Errorf("first record should be t3 (newest); got %q", got[0].DeploymentTargetID)
+	}
+	// Wrong-org isolation.
+	if other, _ := r.DriftStatus().ListByOrg(ctx, "other"); len(other) != 0 {
+		t.Errorf("wrong-org returned %d rows", len(other))
+	}
+}
