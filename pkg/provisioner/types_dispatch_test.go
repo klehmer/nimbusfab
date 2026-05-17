@@ -15,11 +15,13 @@ import (
 // captureAdapter wraps a FakeAdapter and records the target it sees.
 type captureAdapter struct {
 	*cloud.FakeAdapter
-	captured ir.DeploymentTarget
+	captured     ir.DeploymentTarget
+	capturedRefs cloud.ResolvedRefs
 }
 
 func (c *captureAdapter) Emit(ctx context.Context, target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.ResourcePrimitive, error) {
 	c.captured = target
+	c.capturedRefs = refs
 	return c.FakeAdapter.Emit(ctx, target, refs)
 }
 

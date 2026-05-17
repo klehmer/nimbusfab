@@ -132,7 +132,7 @@ func (rp *runtimeProvisioner) planOne(ctx context.Context, in PlanInput, stack i
 	target.Spec["__component"] = comp.Name
 	target.Spec["__type"] = comp.Type
 
-	primitives, err := adapter.Emit(ctx, target, cloud.ResolvedRefs{})
+	primitives, err := adapter.Emit(ctx, target, buildResolvedRefs(comp.Refs))
 	if err != nil {
 		return TargetPlan{}, fmt.Errorf("adapter Emit: %w", err)
 	}
