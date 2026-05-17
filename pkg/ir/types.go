@@ -107,6 +107,11 @@ type ResourcePrimitive struct {
 	Attributes map[string]any    `json:"attributes"` // raw tofu JSON body
 	DependsOn  []string          `json:"dependsOn,omitempty"`
 	Tags       map[string]string `json:"tags,omitempty"`
+	// NoTags marks resources whose tofu schema does not accept a `tags`
+	// attribute (e.g. aws_route, aws_route_table_association). The
+	// provisioner skips framework-tag injection for these so tofu doesn't
+	// reject the workspace with "no argument or block type is named 'tags'".
+	NoTags bool `json:"noTags,omitempty"`
 }
 
 // Composition is a user-defined component type. At validation time, every
