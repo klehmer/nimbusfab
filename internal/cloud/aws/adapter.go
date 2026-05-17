@@ -53,9 +53,17 @@ func (*Adapter) DefaultStateBackend(ctx context.Context, target ir.DeploymentTar
 }
 
 func (*Adapter) ProviderBlock(ctx context.Context, target ir.DeploymentTarget, _ cloud.Credentials) (map[string]any, error) {
+	// skip_credentials_validation / skip_requesting_account_id avoid the
+	// AWS provider's STS GetCallerIdentity preflight, which makes `tofu plan`
+	// usable in dev/CI with placeholder credentials (LocalStack flow, or
+	// users running `nimbusfab plan` without real AWS access just to validate
+	// the workspace). Real apply still needs real credentials — these flags
+	// only suppress the pre-flight check, not actual resource API calls.
 	return map[string]any{
 		"aws": map[string]any{
-			"region": target.Region,
+			"region":                      target.Region,
+			"skip_credentials_validation": true,
+			"skip_requesting_account_id":  true,
 		},
 	}, nil
 }

@@ -42,3 +42,20 @@ func tofuIdentifier(s string) string {
 	}
 	return s
 }
+
+var awsResourceNameRe = regexp.MustCompile(`[^a-z0-9-]`)
+
+// awsResourceName turns a DSL identifier into a hyphen-only lowercase name
+// suitable for AWS API-facing attributes (e.g. aws_db_instance.identifier,
+// aws_db_subnet_group.name) which reject underscores. Distinct from
+// tofuIdentifier, which uses underscores for Tofu local-name compatibility.
+func awsResourceName(s string) string {
+	s = strings.ToLower(s)
+	s = strings.ReplaceAll(s, "_", "-")
+	s = awsResourceNameRe.ReplaceAllString(s, "-")
+	s = strings.Trim(s, "-")
+	if s == "" {
+		return "n"
+	}
+	return s
+}
