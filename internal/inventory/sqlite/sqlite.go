@@ -86,7 +86,8 @@ func (r *Repo) Close() error { return r.db.Close() }
 var _ inventory.Repo = (*Repo)(nil)
 
 func (r *Repo) Orgs() inventory.OrgRepo                           { return &orgRepo{db: r.db} }
-func (r *Repo) Users() inventory.UserRepo                         { return errUsers{} }
+func (r *Repo) Users() inventory.UserRepo                         { return &userRepo{db: r.db} }
+func (r *Repo) ApiTokens() inventory.ApiTokenRepo                 { return &apiTokenRepo{db: r.db} }
 func (r *Repo) Projects() inventory.ProjectRepo                   { return &projectRepo{db: r.db} }
 func (r *Repo) Stacks() inventory.StackRepo                       { return &stackRepo{db: r.db} }
 func (r *Repo) Components() inventory.ComponentRepo               { return &componentRepo{db: r.db} }

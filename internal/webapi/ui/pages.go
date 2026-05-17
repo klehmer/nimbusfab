@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/klehmer/nimbusfab/internal/webapi/middleware"
 	"github.com/klehmer/nimbusfab/pkg/inventory"
 )
 
@@ -78,6 +79,16 @@ func (r *Renderer) render(w http.ResponseWriter, page string, data any) {
 	}
 }
 
+// withUser augments the data map with CurrentUser pulled from the request
+// context (attached by the Auth middleware). Handlers that want the nav
+// to show "logged in as ..." pass through this helper before render().
+func (r *Renderer) withUser(req *http.Request, data map[string]any) map[string]any {
+	if u := middleware.UserFromContext(req.Context()); u != nil {
+		data["CurrentUser"] = u
+	}
+	return data
+}
+
 func (r *Renderer) renderError(w http.ResponseWriter, status int, msg string) {
 	w.WriteHeader(status)
 	r.render(w, "error.html", map[string]any{
@@ -94,7 +105,7 @@ func (r *Renderer) ListProjects(w http.ResponseWriter, req *http.Request) {
 		r.renderError(w, http.StatusInternalServerError, "list projects: "+err.Error())
 		return
 	}
-	r.render(w, "projects.html", map[string]any{"Projects": projects})
+	r.render(w, "projects.html", r.withUser(req, map[string]any{"Projects": projects}))
 }
 
 // TargetWithRuns bundles a deployment target with its run history for the
@@ -138,12 +149,12 @@ func (r *Renderer) DeploymentDetail(w http.ResponseWriter, req *http.Request) {
 		enriched = append(enriched, TargetWithRuns{T: t, Runs: runs})
 	}
 	costSummary := r.buildCostSummary(ctx, id, targets)
-	r.render(w, "deployment_detail.html", map[string]any{
+	r.render(w, "deployment_detail.html", r.withUser(req, map[string]any{
 		"Deployment":  d,
 		"Targets":     enriched,
 		"APIToken":    r.APIToken,
 		"CostSummary": costSummary,
-	})
+	}))
 }
 
 // RunDetail renders one tofu run.
@@ -155,9 +166,9 @@ func (r *Renderer) RunDetail(w http.ResponseWriter, req *http.Request) {
 		r.renderError(w, http.StatusNotFound, "run not found: "+id)
 		return
 	}
-	r.render(w, "run_detail.html", map[string]any{
+	r.render(w, "run_detail.html", r.withUser(req, map[string]any{
 		"Run": run,
-	})
+	}))
 }
 
 // DriftOverview is the row shape the drift.html template iterates over.
@@ -176,6 +187,14 @@ type DriftSummary struct {
 	Total   int
 	Drifted int
 	Clean   int
+}
+
+// LoginPage renders the login form. The middleware exempts this route.
+func (r *Renderer) LoginPage(w http.ResponseWriter, req *http.Request) {
+	data := map[string]any{
+		"Error": req.URL.Query().Get("error") != "",
+	}
+	r.render(w, "login.html", data)
 }
 
 // Drift renders the org-wide drift overview page.
@@ -206,11 +225,11 @@ func (r *Renderer) Drift(w http.ResponseWriter, req *http.Request) {
 			DetectedAt:         rec.DetectedAt,
 		})
 	}
-	r.render(w, "drift.html", map[string]any{
+	r.render(w, "drift.html", r.withUser(req, map[string]any{
 		"HasData": len(out) > 0,
 		"Records": out,
 		"Summary": DriftSummary{Total: len(out), Drifted: drifted, Clean: len(out) - drifted},
-	})
+	}))
 }
 
 // ProjectDetail renders the per-project page: stacks, components, recent deployments.
@@ -229,12 +248,12 @@ func (r *Renderer) ProjectDetail(w http.ResponseWriter, req *http.Request) {
 		allComponents = append(allComponents, comps...)
 	}
 	deployments, _ := r.Repo.Deployments().ListByProject(ctx, r.OrgID, id, 20)
-	r.render(w, "project_detail.html", map[string]any{
+	r.render(w, "project_detail.html", r.withUser(req, map[string]any{
 		"Project":     p,
 		"Stacks":      stacks,
 		"Components":  allComponents,
 		"Deployments": deployments,
-	})
+	}))
 }
 
 func funcMap() template.FuncMap {

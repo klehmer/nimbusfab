@@ -14,6 +14,7 @@ import (
 type Repo interface {
 	Orgs() OrgRepo
 	Users() UserRepo
+	ApiTokens() ApiTokenRepo
 	Projects() ProjectRepo
 	Stacks() StackRepo
 	Components() ComponentRepo
@@ -61,6 +62,7 @@ type User struct {
 	IsLocal      bool
 	OIDCProvider string
 	OIDCSubject  string
+	PasswordHash []byte // bcrypt; nil for OIDC-only users
 	CreatedAt    time.Time
 }
 
@@ -69,6 +71,30 @@ type UserRepo interface {
 	Get(ctx context.Context, orgID, id string) (*User, error)
 	GetByEmail(ctx context.Context, orgID, email string) (*User, error)
 	Create(ctx context.Context, u User) error
+	UpdatePasswordHash(ctx context.Context, orgID, id string, hash []byte) error
+}
+
+// ApiToken is a personal access token (PAT) for API auth. The plaintext
+// token is never stored — only its argon2id hash. Prefix is the short
+// public portion used for efficient lookup.
+type ApiToken struct {
+	ID         string
+	OrgID      string
+	UserID     string
+	Prefix     string // 8 chars; URL-safe; unique per row
+	TokenHash  []byte // argon2id over the secret part
+	Name       string
+	CreatedAt  time.Time
+	LastUsedAt *time.Time
+}
+
+// ApiTokenRepo manages ApiToken rows (PATs).
+type ApiTokenRepo interface {
+	Create(ctx context.Context, t ApiToken) error
+	GetByPrefix(ctx context.Context, prefix string) (*ApiToken, error)
+	ListByUser(ctx context.Context, orgID, userID string) ([]ApiToken, error)
+	UpdateLastUsed(ctx context.Context, id string, t time.Time) error
+	Revoke(ctx context.Context, orgID, id string) error
 }
 
 // Project is a user's project — one directory of YAML, one inventory scope.

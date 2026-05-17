@@ -353,3 +353,68 @@ func TestSQLite_DriftStatus_ListByOrg(t *testing.T) {
 		t.Errorf("wrong-org returned %d rows", len(other))
 	}
 }
+
+func TestSQLite_Users_RoundTrip(t *testing.T) {
+	r := openMemory(t)
+	ctx := context.Background()
+	_ = r.Orgs().Create(ctx, inventory.Org{ID: "o", Name: "o"})
+	u := inventory.User{
+		ID: "u1", OrgID: "o", Email: "alice@example.com", DisplayName: "Alice",
+		IsLocal: true, PasswordHash: []byte("hashed"),
+	}
+	if err := r.Users().Create(ctx, u); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	got, _ := r.Users().Get(ctx, "o", "u1")
+	if got == nil || got.Email != "alice@example.com" || !got.IsLocal || string(got.PasswordHash) != "hashed" {
+		t.Errorf("Get: %+v", got)
+	}
+	byEmail, _ := r.Users().GetByEmail(ctx, "o", "alice@example.com")
+	if byEmail == nil || byEmail.ID != "u1" {
+		t.Errorf("GetByEmail: %+v", byEmail)
+	}
+	if err := r.Users().UpdatePasswordHash(ctx, "o", "u1", []byte("new")); err != nil {
+		t.Errorf("UpdatePasswordHash: %v", err)
+	}
+	got, _ = r.Users().Get(ctx, "o", "u1")
+	if string(got.PasswordHash) != "new" {
+		t.Errorf("password hash not updated: %s", got.PasswordHash)
+	}
+}
+
+func TestSQLite_ApiTokens_RoundTrip(t *testing.T) {
+	r := openMemory(t)
+	ctx := context.Background()
+	_ = r.Orgs().Create(ctx, inventory.Org{ID: "o", Name: "o"})
+	_ = r.Users().Create(ctx, inventory.User{ID: "u1", OrgID: "o", Email: "a@x", IsLocal: true})
+
+	tok := inventory.ApiToken{
+		ID: "tok1", OrgID: "o", UserID: "u1",
+		Prefix: "abc123XY", TokenHash: []byte("argon-hash"),
+		Name: "ci-script",
+	}
+	if err := r.ApiTokens().Create(ctx, tok); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	got, _ := r.ApiTokens().GetByPrefix(ctx, "abc123XY")
+	if got == nil || got.UserID != "u1" || got.Name != "ci-script" || string(got.TokenHash) != "argon-hash" {
+		t.Errorf("GetByPrefix: %+v", got)
+	}
+	list, _ := r.ApiTokens().ListByUser(ctx, "o", "u1")
+	if len(list) != 1 {
+		t.Errorf("ListByUser len = %d", len(list))
+	}
+	now := time.Now().UTC()
+	_ = r.ApiTokens().UpdateLastUsed(ctx, "tok1", now)
+	got, _ = r.ApiTokens().GetByPrefix(ctx, "abc123XY")
+	if got.LastUsedAt == nil {
+		t.Errorf("LastUsedAt not updated")
+	}
+	if err := r.ApiTokens().Revoke(ctx, "o", "tok1"); err != nil {
+		t.Errorf("Revoke: %v", err)
+	}
+	got, _ = r.ApiTokens().GetByPrefix(ctx, "abc123XY")
+	if got != nil {
+		t.Errorf("token should be revoked: %+v", got)
+	}
+}

@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"net/http"
 	"os"
@@ -24,6 +25,7 @@ import (
 	_ "github.com/klehmer/nimbusfab/internal/inventory/sqlite"
 	"github.com/klehmer/nimbusfab/internal/tofu"
 	"github.com/klehmer/nimbusfab/internal/webapi"
+	"github.com/klehmer/nimbusfab/internal/webapi/middleware"
 	"github.com/klehmer/nimbusfab/pkg/cloud"
 	"github.com/klehmer/nimbusfab/pkg/engine"
 	"github.com/klehmer/nimbusfab/pkg/inventory"
@@ -45,6 +47,11 @@ func run(ctx context.Context) error {
 	orgID := envDefault("NIMBUSFAB_ORG_ID", "default")
 	apiToken := os.Getenv("NIMBUSFAB_API_TOKEN")
 	workRoot := envDefault("NIMBUSFAB_WORK_ROOT", filepath.Join(os.TempDir(), "nimbusfab-server"))
+	authMode := middleware.AuthMode(envDefault("NIMBUSFAB_AUTH_MODE", "disabled"))
+	sessionKey, err := resolveSessionKey(authMode)
+	if err != nil {
+		return fmt.Errorf("session key: %w", err)
+	}
 
 	repo, err := openRepo(ctx, dsn)
 	if err != nil {
@@ -68,7 +75,12 @@ func run(ctx context.Context) error {
 	}
 
 	handler, err := webapi.New(webapi.Config{
-		Repo: repo, OrgID: orgID, APIToken: apiToken, Engine: eng,
+		Repo:       repo,
+		OrgID:      orgID,
+		APIToken:   apiToken,
+		Engine:     eng,
+		AuthMode:   authMode,
+		SessionKey: sessionKey,
 	})
 	if err != nil {
 		return err
@@ -79,13 +91,13 @@ func run(ctx context.Context) error {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	authNote := "API token required (Bearer)"
-	if apiToken == "" {
-		authNote = "API unauthenticated (set NIMBUSFAB_API_TOKEN to require Bearer auth)"
+	authNote := "auth: " + string(authMode)
+	if authMode == middleware.AuthModeDisabled {
+		authNote += " — DEV ONLY; do NOT expose this port publicly"
 	}
 	errCh := make(chan error, 1)
 	go func() {
-		fmt.Printf("nimbusfab-server listening on %s (HTTP Phase 2; UI auth disabled; org=%s; %s)\n", addr, orgID, authNote)
+		fmt.Printf("nimbusfab-server listening on %s (Auth Phase 1; org=%s; %s)\n", addr, orgID, authNote)
 		errCh <- srv.ListenAndServe()
 	}()
 
@@ -130,4 +142,28 @@ func envDefault(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// resolveSessionKey returns the cookie-signing key. In disabled mode the
+// returned key is irrelevant (middleware bypasses signature checks) but
+// must still be ≥16 bytes to satisfy the sign-time guard. For local mode
+// the key is read from NIMBUSFAB_SESSION_KEY (raw bytes); if unset, a
+// random key is generated with a WARN log — only acceptable for
+// single-instance dev (sessions invalidate on restart and across
+// replicas).
+func resolveSessionKey(mode middleware.AuthMode) ([]byte, error) {
+	if v := os.Getenv("NIMBUSFAB_SESSION_KEY"); v != "" {
+		if len(v) < 16 {
+			return nil, fmt.Errorf("NIMBUSFAB_SESSION_KEY must be ≥16 bytes (got %d)", len(v))
+		}
+		return []byte(v), nil
+	}
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		return nil, err
+	}
+	if mode == middleware.AuthModeLocal {
+		fmt.Fprintln(os.Stderr, "WARN: NIMBUSFAB_SESSION_KEY unset; generated a random session key. Sessions will not survive a restart or work across replicas. Set NIMBUSFAB_SESSION_KEY to a stable secret in production.")
+	}
+	return key, nil
 }

@@ -1,7 +1,6 @@
-// Package webapi composes the HTTP surface of nimbusfab-server. UI Phase 1
-// mounts a read-only HTML UI at /ui/* plus /assets/*, /healthz, /readyz,
-// and a / → /ui/projects redirect. HTTP Phase 1 adds JSON GETs under
-// /api/v1/* with optional bearer-token auth.
+// Package webapi composes the HTTP surface of nimbusfab-server. Auth
+// Phase 1 mounts cookie-session + PAT auth via middleware.Auth; UI Phase
+// 1/2 + HTTP Phase 1/2 mount the actual handlers under that.
 package webapi
 
 import (
@@ -18,22 +17,35 @@ import (
 
 // Config carries the dependencies the router wires together.
 type Config struct {
-	Repo     inventory.Repo
-	OrgID    string // until Auth Phase 1; "default" in disabled-auth mode
-	APIToken string // optional; empty = no auth on /api/v1/* (dev mode)
-	// Engine is required for HTTP Phase 2 mutating endpoints + SSE. When
-	// nil, /applies, /destroys, /drifts, and /events routes are not
-	// mounted; the read-only API + UI still work.
+	Repo  inventory.Repo
+	OrgID string
+	// AuthMode selects the auth flow: "disabled" attaches a dev user; "local"
+	// requires cookie session or Bearer PAT. Default is "disabled" for
+	// backward compatibility with pre-Auth-Phase-1 deployments.
+	AuthMode middleware.AuthMode
+	// SessionKey signs cookie sessions; ≥16 bytes. Required when AuthMode
+	// != disabled.
+	SessionKey []byte
+	// APIToken is the legacy env-var bearer token. Phased out by Auth
+	// Phase 1's PAT support but kept here for one release cycle so
+	// existing deployments don't break on upgrade.
+	APIToken string
+	// CookieSecure: true → set Secure cookie flag (production HTTPS).
+	CookieSecure bool
+	// Engine is required for HTTP Phase 2 mutating endpoints + SSE.
 	Engine engine.Engine
 }
 
-// New returns an http.Handler mounting all UI Phase 1 routes.
+// New returns an http.Handler with all routes mounted.
 func New(cfg Config) (http.Handler, error) {
 	if cfg.Repo == nil {
 		return nil, fmt.Errorf("webapi: Config.Repo is required")
 	}
 	if cfg.OrgID == "" {
 		cfg.OrgID = "default"
+	}
+	if cfg.AuthMode == "" {
+		cfg.AuthMode = middleware.AuthModeDisabled
 	}
 	renderer, err := ui.NewRenderer(cfg.Repo, cfg.OrgID, cfg.APIToken)
 	if err != nil {
@@ -45,13 +57,14 @@ func New(cfg Config) (http.Handler, error) {
 	}
 
 	mux := http.NewServeMux()
+
+	// Public routes (no auth): static assets, health checks, auth pages,
+	// root redirect.
 	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServerFS(assets)))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("ok"))
 	})
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, _ *http.Request) {
-		// Phase 1 readiness: just confirm the repo accessor returns.
-		// Real readiness (DB ping, OIDC discovery, etc.) lands later.
 		if cfg.Repo.Orgs() != nil {
 			_, _ = w.Write([]byte("ready"))
 			return
@@ -65,35 +78,55 @@ func New(cfg Config) (http.Handler, error) {
 		}
 		http.Redirect(w, r, "/ui/projects", http.StatusFound)
 	})
-	mux.HandleFunc("GET /ui/projects", renderer.ListProjects)
-	mux.HandleFunc("GET /ui/projects/{id}", renderer.ProjectDetail)
-	mux.HandleFunc("GET /ui/deployments/{id}", renderer.DeploymentDetail)
-	mux.HandleFunc("GET /ui/runs/{id}", renderer.RunDetail)
-	mux.HandleFunc("GET /ui/drift", renderer.Drift)
+	mux.HandleFunc("GET /auth/login", renderer.LoginPage)
 
-	// /api/v1/* JSON endpoints. Registered individually so the GET-method
-	// patterns don't conflict with the root "GET /" redirect (Go's
-	// ServeMux refuses ambiguous overlaps between path-only and
-	// method-specific patterns). Bearer-token middleware wraps each
-	// handler so UI routes stay unauthenticated in Phase 1.
+	// Auth handlers + auth API endpoints.
+	authHandlers := &api.AuthHandlers{
+		Repo:       cfg.Repo,
+		OrgID:      cfg.OrgID,
+		SessionKey: cfg.SessionKey,
+		Secure:     cfg.CookieSecure,
+	}
+	mux.HandleFunc("POST /auth/login", authHandlers.LoginForm)
+	mux.HandleFunc("POST /auth/logout", authHandlers.Logout)
+
+	// Middleware factories. UI routes redirect to /auth/login when
+	// unauthenticated; API routes return 401 JSON.
+	uiAuth := middleware.Auth(middleware.AuthConfig{
+		Mode: cfg.AuthMode, Repo: cfg.Repo, SessionKey: cfg.SessionKey,
+		RedirectLogin: "/auth/login",
+	}, false)
+	apiAuth := middleware.Auth(middleware.AuthConfig{
+		Mode: cfg.AuthMode, Repo: cfg.Repo, SessionKey: cfg.SessionKey,
+	}, true)
+
+	// UI routes (cookie session preferred; PAT also accepted).
+	mux.Handle("GET /ui/projects", uiAuth(http.HandlerFunc(renderer.ListProjects)))
+	mux.Handle("GET /ui/projects/{id}", uiAuth(http.HandlerFunc(renderer.ProjectDetail)))
+	mux.Handle("GET /ui/deployments/{id}", uiAuth(http.HandlerFunc(renderer.DeploymentDetail)))
+	mux.Handle("GET /ui/runs/{id}", uiAuth(http.HandlerFunc(renderer.RunDetail)))
+	mux.Handle("GET /ui/drift", uiAuth(http.HandlerFunc(renderer.Drift)))
+
+	// /api/v1/* JSON endpoints.
 	apiHandlers := &api.Handlers{Repo: cfg.Repo, OrgID: cfg.OrgID}
-	apiAuth := middleware.BearerToken(cfg.APIToken)
 	mux.Handle("GET /api/v1/projects", apiAuth(http.HandlerFunc(apiHandlers.ListProjects)))
 	mux.Handle("GET /api/v1/projects/{id}", apiAuth(http.HandlerFunc(apiHandlers.GetProject)))
 	mux.Handle("GET /api/v1/deployments/{id}", apiAuth(http.HandlerFunc(apiHandlers.GetDeployment)))
 	mux.Handle("GET /api/v1/runs/{id}", apiAuth(http.HandlerFunc(apiHandlers.GetRun)))
 	mux.Handle("GET /api/v1/deployments/{id}/costs", apiAuth(http.HandlerFunc(apiHandlers.GetDeploymentCosts)))
 	mux.Handle("GET /api/v1/drift", apiAuth(http.HandlerFunc(apiHandlers.GetDrift)))
+	mux.Handle("GET /api/v1/auth/me", apiAuth(http.HandlerFunc(authHandlers.Me)))
 
-	// HTTP Phase 2: mutating endpoints + SSE. Mounted only when an Engine
-	// is configured so test setups without an engine still work.
+	// HTTP Phase 2: mutating endpoints + SSE. Audit middleware wraps the
+	// mutating handlers so each successful call writes an audit_log row.
 	if cfg.Engine != nil {
 		broker := runner.NewRunBroker(64)
 		mutations := &api.Mutations{Engine: cfg.Engine, Broker: broker, OrgID: cfg.OrgID}
 		sse := &api.SSEEvents{Broker: broker}
-		mux.Handle("POST /api/v1/deployments/{id}/applies", apiAuth(http.HandlerFunc(mutations.PostApply)))
-		mux.Handle("POST /api/v1/deployments/{id}/destroys", apiAuth(http.HandlerFunc(mutations.PostDestroy)))
-		mux.Handle("POST /api/v1/deployments/{id}/drifts", apiAuth(http.HandlerFunc(mutations.PostDrift)))
+		audit := middleware.AuditLog(cfg.Repo)
+		mux.Handle("POST /api/v1/deployments/{id}/applies", apiAuth(audit("deployment.apply")(http.HandlerFunc(mutations.PostApply))))
+		mux.Handle("POST /api/v1/deployments/{id}/destroys", apiAuth(audit("deployment.destroy")(http.HandlerFunc(mutations.PostDestroy))))
+		mux.Handle("POST /api/v1/deployments/{id}/drifts", apiAuth(audit("deployment.drift")(http.HandlerFunc(mutations.PostDrift))))
 		mux.Handle("GET /api/v1/deployments/{id}/events", apiAuth(http.HandlerFunc(sse.Handle)))
 	}
 

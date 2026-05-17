@@ -1,6 +1,75 @@
 # Changelog
 
-## Unreleased — Drift Phase 1 (Drift Overview)
+## Unreleased — Auth Phase 1 (Local Auth + PATs + Sessions)
+
+Real authentication ends the env-var bearer-token stub. Production
+deployments now use bcrypt-hashed user accounts, HMAC-signed cookie
+sessions, and argon2-hashed Personal Access Tokens. Disabled-auth
+mode preserved for local dev. **OIDC SSO deferred to Auth Phase 2**
+(post-v1) — local password auth is the stepping-stone; OIDC will
+layer on the same session foundation.
+
+### Added
+
+- Migration 0002 adds `users.password_hash` (BYTEA / BLOB) and
+  `api_tokens.prefix` (TEXT) with a unique index for O(1) PAT
+  lookup. Both columns nullable so OIDC users (Phase 2) have NULL
+  password_hash.
+- `UserRepo.UpdatePasswordHash` + full wiring for both backends.
+  `errUsers` stub removed.
+- New `ApiTokenRepo` interface: `Create` / `GetByPrefix` /
+  `ListByUser` / `UpdateLastUsed` / `Revoke`. Both backends.
+- `internal/webapi/auth` package: `HashPassword` / `VerifyPassword`
+  (bcrypt cost 12); `SignSession` / `VerifySession` (HMAC-SHA256
+  over JSON+base64 payload; ≥16-byte key); `GeneratePAT` / `ParsePAT`
+  / `VerifyPAT` (token format `nfp_<8-char-prefix>_<32-char-secret>`;
+  argon2id hash stored as salt||key for atomic verification).
+- `internal/webapi/middleware/auth.go` replaces the legacy bearer-
+  token stub with an `Auth` middleware that supports three modes:
+  - `AuthModeDisabled` (default): attaches a fixed dev user.
+  - `AuthModeLocal`: tries cookie session, then Bearer PAT, else
+    401 (API routes) or 302 to /auth/login (UI routes).
+- `internal/webapi/middleware/audit.go`: `AuditLog(repo)(verb)`
+  wraps mutating endpoints — appends one `inventory.AuditEntry` per
+  successful request (deployment.apply / .destroy / .drift verbs).
+  Fire-and-forget; never blocks the response.
+- `internal/webapi/api/auth.go`: `LoginForm` / `Logout` / `Me`
+  handlers. Login takes form-encoded email+password, verifies via
+  GetByEmail + VerifyPassword, sets `HttpOnly; SameSite=Lax;
+  Secure=cfg.CookieSecure` session cookie (12h Expires).
+- New UI: `/auth/login` page; top-nav shows current user email +
+  "Log out" button when authenticated.
+- New CLI commands `nimbusfab user create` and `nimbusfab pat create`
+  for bootstrapping users + PATs without a UI. PAT create prints the
+  full token ONCE with a clear copy-now warning.
+- `cmd/server` reads `NIMBUSFAB_AUTH_MODE` (default `disabled`) and
+  `NIMBUSFAB_SESSION_KEY` (required ≥16 bytes for `local`; auto-
+  generates a random key in dev with a WARN log). Startup log includes
+  "DEV ONLY; do NOT expose this port publicly" when in disabled mode.
+- 9 auth-package unit tests + 4 router integration tests + 2 sqlite
+  repo round-trip tests + 1 end-to-end login-flow test that POSTs the
+  form, captures the cookie, GETs /ui/projects with it, and verifies
+  the bad-password redirect.
+
+### Changed
+
+- Removed the legacy `BearerToken` middleware tests; replaced with
+  `Auth`-mode integration tests. The `Config.APIToken` field is
+  marked deprecated (still present but no longer wires anything).
+- `cmd/cli/main.go` now prints "error: ..." to stderr before
+  `os.Exit(1)` instead of silently swallowing returned errors.
+
+### Out of scope (deferred)
+
+- OIDC SSO — Auth Phase 2. Will layer on the same session foundation.
+- Password reset / email verification flows — Auth Phase 2 / Polish.
+- PAT management UI page — Auth Phase 1B. CLI is the v1 bootstrap.
+- Multi-org provisioning — single-org self-hosted is the v1 shape.
+- Server-side session table + reaper — stateless signed cookies
+  don't need them.
+- RBAC / per-role permissions — single user role for v1.
+
+## Earlier — Drift Phase 1 (Drift Overview)
 
 ### Added
 

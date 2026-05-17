@@ -4,13 +4,16 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/klehmer/nimbusfab/internal/inventory/sqlite"
 	"github.com/klehmer/nimbusfab/internal/webapi"
+	"github.com/klehmer/nimbusfab/internal/webapi/auth"
 	"github.com/klehmer/nimbusfab/pkg/inventory"
 )
 
@@ -125,32 +128,6 @@ func TestNew_NilRepoRejected(t *testing.T) {
 
 // --- HTTP Phase 1: /api/v1/* ---
 
-// newServerWithToken builds a test server with an APIToken set; lets the
-// auth-required tests share the seeded-repo helper.
-func newServerWithToken(t *testing.T, token string, seed func(context.Context, *sqlite.Repo)) *httptest.Server {
-	t.Helper()
-	r, err := sqlite.Open("sqlite::memory:")
-	if err != nil {
-		t.Fatalf("open: %v", err)
-	}
-	t.Cleanup(func() { _ = r.Close() })
-	if err := r.Migrate(context.Background()); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
-	ctx := context.Background()
-	_ = r.Orgs().Create(ctx, inventory.Org{ID: "default", Name: "default"})
-	if seed != nil {
-		seed(ctx, r)
-	}
-	h, err := webapi.New(webapi.Config{Repo: r, OrgID: "default", APIToken: token})
-	if err != nil {
-		t.Fatalf("webapi.New: %v", err)
-	}
-	srv := httptest.NewServer(h)
-	t.Cleanup(srv.Close)
-	return srv
-}
-
 func TestRouter_APIProjectsEmpty(t *testing.T) {
 	srv, _ := newServer(t, nil)
 	resp, body := get(t, srv, "/api/v1/projects")
@@ -176,8 +153,12 @@ func TestRouter_APIProjectMissing(t *testing.T) {
 	}
 }
 
-func TestRouter_APIWithToken_NoHeader_401(t *testing.T) {
-	srv := newServerWithToken(t, "secret", nil)
+// Auth Phase 1: legacy bearer-token tests removed in favor of session-and-PAT
+// integration tests below. The APIToken Config field is deprecated; default
+// AuthMode=disabled covers the dev path. AuthMode=local exercises real auth.
+
+func TestRouter_APIRequiresAuth_LocalMode_401(t *testing.T) {
+	srv := newServerLocalMode(t, nil)
 	resp, body := get(t, srv, "/api/v1/projects")
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", resp.StatusCode)
@@ -187,29 +168,46 @@ func TestRouter_APIWithToken_NoHeader_401(t *testing.T) {
 	}
 }
 
-func TestRouter_APIWithToken_GoodHeader_200(t *testing.T) {
-	srv := newServerWithToken(t, "secret", nil)
-	req, _ := http.NewRequest("GET", srv.URL+"/api/v1/projects", nil)
-	req.Header.Set("Authorization", "Bearer secret")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatalf("get: %v", err)
+func TestRouter_UIRequiresAuth_LocalMode_RedirectsToLogin(t *testing.T) {
+	srv := newServerLocalMode(t, nil)
+	resp, _ := get(t, srv, "/ui/projects")
+	if resp.StatusCode != http.StatusFound {
+		t.Errorf("status = %d, want 302 redirect", resp.StatusCode)
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		t.Errorf("status = %d", resp.StatusCode)
+	if loc := resp.Header.Get("Location"); loc != "/auth/login" {
+		t.Errorf("Location = %q, want /auth/login", loc)
 	}
 }
 
-func TestRouter_UIUnaffectedByAPIToken(t *testing.T) {
-	// UI routes should never require bearer auth in Phase 1, even when an
-	// API token is configured. Auth Phase 1 introduces cookie sessions
-	// for the UI; until then, UI access is fully open.
-	srv := newServerWithToken(t, "secret", nil)
-	resp, _ := get(t, srv, "/ui/projects")
-	if resp.StatusCode != 200 {
-		t.Errorf("UI route blocked by API token: status = %d", resp.StatusCode)
+// newServerLocalMode builds a test server with AuthMode=local + a fixed
+// session key. Tests can then either POST /auth/login to acquire a cookie
+// or use Bearer PAT auth.
+func newServerLocalMode(t *testing.T, seed func(context.Context, *sqlite.Repo)) *httptest.Server {
+	t.Helper()
+	r, err := sqlite.Open("sqlite::memory:")
+	if err != nil {
+		t.Fatalf("open: %v", err)
 	}
+	t.Cleanup(func() { _ = r.Close() })
+	if err := r.Migrate(context.Background()); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	ctx := context.Background()
+	_ = r.Orgs().Create(ctx, inventory.Org{ID: "default", Name: "default"})
+	if seed != nil {
+		seed(ctx, r)
+	}
+	h, err := webapi.New(webapi.Config{
+		Repo: r, OrgID: "default",
+		AuthMode:   "local",
+		SessionKey: []byte("0123456789abcdef0123456789abcdef"),
+	})
+	if err != nil {
+		t.Fatalf("webapi.New: %v", err)
+	}
+	srv := httptest.NewServer(h)
+	t.Cleanup(srv.Close)
+	return srv
 }
 
 // --- HTTP Phase 2 router mounts ---
@@ -310,4 +308,62 @@ func TestRouter_DriftUI(t *testing.T) {
 	if !strings.Contains(body, "Drift overview") {
 		t.Errorf("body missing 'Drift overview': %s", body)
 	}
+}
+
+func TestRouter_LoginFlow_WithSeededUser(t *testing.T) {
+	srv := newServerLocalMode(t, func(ctx context.Context, r *sqlite.Repo) {
+		// Seed a real user with a known bcrypt password.
+		hash, _ := authHash("hunter2")
+		_ = r.Users().Create(ctx, inventory.User{
+			ID: "u-1", OrgID: "default", Email: "alice@example.com",
+			IsLocal: true, PasswordHash: hash,
+		})
+	})
+	// Use a cookie jar to capture the session.
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{
+		Jar: jar,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse // observe each redirect
+		},
+	}
+	// 1. POST /auth/login with valid creds → 302 to /ui/projects + Set-Cookie.
+	form := url.Values{}
+	form.Set("email", "alice@example.com")
+	form.Set("password", "hunter2")
+	resp, err := client.PostForm(srv.URL+"/auth/login", form)
+	if err != nil {
+		t.Fatalf("POST /auth/login: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("login status = %d, want 302", resp.StatusCode)
+	}
+	if loc := resp.Header.Get("Location"); loc != "/ui/projects" {
+		t.Errorf("Location = %q, want /ui/projects", loc)
+	}
+
+	// 2. Authenticated request: GET /ui/projects should now succeed.
+	req2, _ := http.NewRequest("GET", srv.URL+"/ui/projects", nil)
+	resp2, err := client.Do(req2)
+	if err != nil {
+		t.Fatalf("GET /ui/projects: %v", err)
+	}
+	defer resp2.Body.Close()
+	if resp2.StatusCode != 200 {
+		t.Errorf("authenticated GET /ui/projects status = %d, want 200", resp2.StatusCode)
+	}
+
+	// 3. Bad password: 302 to /auth/login?error=invalid.
+	form.Set("password", "wrong")
+	resp3, _ := client.PostForm(srv.URL+"/auth/login", form)
+	resp3.Body.Close()
+	if loc := resp3.Header.Get("Location"); !strings.Contains(loc, "error=") {
+		t.Errorf("bad password Location = %q, want error param", loc)
+	}
+}
+
+// authHash wraps internal/webapi/auth.HashPassword for the integration test.
+func authHash(plain string) ([]byte, error) {
+	return auth.HashPassword(plain)
 }

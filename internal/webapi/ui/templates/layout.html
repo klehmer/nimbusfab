@@ -13,6 +13,14 @@
       <a href="/ui/projects">Projects</a>
       <a href="/ui/drift">Drift</a>
     </nav>
+    {{if .CurrentUser}}
+    <span class="user-info">
+      {{.CurrentUser.Email}}
+      <form method="POST" action="/auth/logout">
+        <button type="submit">Log out</button>
+      </form>
+    </span>
+    {{end}}
   </header>
   <main class="container">
     {{block "content" .}}{{end}}
