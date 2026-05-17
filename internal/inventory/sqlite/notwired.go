@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	"context"
-	"time"
 
 	"github.com/klehmer/nimbusfab/pkg/inventory"
 )
@@ -40,15 +39,6 @@ func (errRunLogs) Read(ctx context.Context, orgID, runID string, sinceSeq int64)
 	return nil, inventory.ErrNotImplementedYet
 }
 
-type errCostEst struct{}
-
-func (errCostEst) BulkInsert(ctx context.Context, items []inventory.CostEstimate) error {
-	return inventory.ErrNotImplementedYet
-}
-func (errCostEst) ListByRun(ctx context.Context, orgID, runID string) ([]inventory.CostEstimate, error) {
-	return nil, inventory.ErrNotImplementedYet
-}
-
 type errCostAct struct{}
 
 func (errCostAct) Upsert(ctx context.Context, rows []inventory.CostActual) error {
@@ -73,11 +63,3 @@ func (errSecrets) Delete(ctx context.Context, orgID, name string) error {
 	return inventory.ErrNotImplementedYet
 }
 
-type errAudit struct{}
-
-func (errAudit) Append(ctx context.Context, e inventory.AuditEntry) error {
-	return inventory.ErrNotImplementedYet
-}
-func (errAudit) Query(ctx context.Context, orgID string, since, until time.Time, limit int) ([]inventory.AuditEntry, error) {
-	return nil, inventory.ErrNotImplementedYet
-}
