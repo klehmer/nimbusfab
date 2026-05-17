@@ -167,6 +167,22 @@ func (rp *runtimeProvisioner) planOne(ctx context.Context, in PlanInput, stack i
 	if err != nil {
 		return TargetPlan{}, fmt.Errorf("ProviderBlock: %w", err)
 	}
+	// providerLocalName is the local-name tofu uses to attribute resource
+	// types to providers (e.g., "azurerm_*" → "azurerm"). Adapters declare it
+	// by being the single top-level key in their ProviderBlock map. This
+	// keeps required_providers in lockstep with the provider config block,
+	// so resources like azurerm_virtual_network and google_compute_network
+	// resolve correctly even when the cloud short name (azure/gcp) differs.
+	providerLocalName := adapter.Name()
+	if len(providerBlock) == 1 {
+		for k := range providerBlock {
+			providerLocalName = k
+		}
+	}
+	var providerVersion string
+	if v, ok := adapter.(cloud.TofuProviderVersioner); ok {
+		providerVersion = v.TofuProviderVersion()
+	}
 
 	deploymentTargetID := uuid.NewString()
 	workspaceDir := filepath.Join(
@@ -187,12 +203,13 @@ func (rp *runtimeProvisioner) planOne(ctx context.Context, in PlanInput, stack i
 	}
 
 	layout := WorkspaceLayout{
-		Dir:            workspaceDir,
-		ProviderName:   adapter.Name(),
-		ProviderConfig: providerBlock,
-		Backend:        backend,
-		Primitives:     primitives,
-		UpstreamRefs:   upstreamRefs,
+		Dir:             workspaceDir,
+		ProviderName:    providerLocalName,
+		ProviderVersion: providerVersion,
+		ProviderConfig:  providerBlock,
+		Backend:         backend,
+		Primitives:      primitives,
+		UpstreamRefs:    upstreamRefs,
 	}
 	if err := WriteWorkspace(layout); err != nil {
 		return TargetPlan{}, fmt.Errorf("WriteWorkspace: %w", err)

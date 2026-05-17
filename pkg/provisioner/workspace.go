@@ -77,16 +77,6 @@ func WriteWorkspace(layout WorkspaceLayout) error {
 	return nil
 }
 
-// providerSourceByName maps a cloud Adapter's Name() to its OpenTofu
-// registry source path when the two don't match by the default rule
-// (`hashicorp/<name>`). Azure's adapter is named "azure" but the registry
-// provider is hashicorp/azurerm; GCP's adapter is "gcp" but the provider
-// is hashicorp/google. Adapters can still override at the layout level.
-var providerSourceByName = map[string]string{
-	"azure": "hashicorp/azurerm",
-	"gcp":   "hashicorp/google",
-}
-
 func buildVersions(layout WorkspaceLayout) map[string]any {
 	required := layout.ProviderRequiredVersion
 	if required == "" {
@@ -94,11 +84,7 @@ func buildVersions(layout WorkspaceLayout) map[string]any {
 	}
 	src := layout.ProviderSource
 	if src == "" {
-		if mapped, ok := providerSourceByName[layout.ProviderName]; ok {
-			src = mapped
-		} else {
-			src = "hashicorp/" + layout.ProviderName
-		}
+		src = "hashicorp/" + layout.ProviderName
 	}
 	ver := layout.ProviderVersion
 	if ver == "" {
