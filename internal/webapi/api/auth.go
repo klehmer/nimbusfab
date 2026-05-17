@@ -11,10 +11,10 @@ import (
 
 // AuthHandlers wires the auth API endpoints.
 type AuthHandlers struct {
-	Repo        inventory.Repo
-	OrgID       string
-	SessionKey  []byte
-	SessionTTL  time.Duration
+	Repo         inventory.Repo
+	OrgID        string
+	SessionKey   []byte
+	SessionTTL   time.Duration
 	CookieDomain string // optional
 	Secure       bool   // true → set Secure cookie flag (production HTTPS)
 }
@@ -104,4 +104,3 @@ func (h *AuthHandlers) setSessionCookie(w http.ResponseWriter, u inventory.User)
 	})
 	return nil
 }
-

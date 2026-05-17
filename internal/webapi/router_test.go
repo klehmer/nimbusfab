@@ -128,7 +128,6 @@ func TestNew_NilRepoRejected(t *testing.T) {
 
 // --- HTTP Phase 1: /api/v1/* ---
 
-
 func TestRouter_APIProjectsEmpty(t *testing.T) {
 	srv, _ := newServer(t, nil)
 	resp, body := get(t, srv, "/api/v1/projects")
