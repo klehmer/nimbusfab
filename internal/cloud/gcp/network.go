@@ -36,6 +36,7 @@ func emitNetworkImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 			Cloud:    "gcp",
 			TofuType: "google_compute_network",
 			TofuName: name,
+			NoTags:   true,
 			Attributes: map[string]any{
 				"name":                    resName + "-vpc",
 				"auto_create_subnetworks": false,
@@ -49,6 +50,7 @@ func emitNetworkImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 			Cloud:    "gcp",
 			TofuType: "google_compute_subnetwork",
 			TofuName: sname,
+			NoTags:   true,
 			Attributes: map[string]any{
 				"name":          fmt.Sprintf("%s-subnet-%d", resName, i),
 				"ip_cidr_range": subnetCIDRs[i],
@@ -63,6 +65,7 @@ func emitNetworkImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 			Cloud:    "gcp",
 			TofuType: "google_compute_firewall",
 			TofuName: name + "_internal",
+			NoTags:   true,
 			Attributes: map[string]any{
 				"name":          resName + "-fw-internal",
 				"network":       "${google_compute_network." + name + ".name}",
@@ -76,6 +79,7 @@ func emitNetworkImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 			Cloud:    "gcp",
 			TofuType: "google_compute_firewall",
 			TofuName: name + "_deny_external",
+			NoTags:   true,
 			Attributes: map[string]any{
 				"name":          resName + "-fw-deny-ext",
 				"network":       "${google_compute_network." + name + ".name}",
