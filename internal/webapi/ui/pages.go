@@ -4,6 +4,7 @@
 package ui
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"html/template"
@@ -102,6 +103,24 @@ type TargetWithRuns struct {
 	Runs []inventory.Run
 }
 
+// CostSummary is the per-deployment cost rollup the deployment detail page
+// renders. HasData is false when no cost estimates are persisted (network-
+// only components or pre-Dashboards-Phase-1 deployments).
+type CostSummary struct {
+	HasData  bool
+	Currency string
+	Total    float64
+	Targets  []TargetCostSummary
+}
+
+// TargetCostSummary is one deployment-target's cost rollup.
+type TargetCostSummary struct {
+	ComponentName string
+	Cloud         string
+	Region        string
+	Subtotal      float64
+}
+
 // DeploymentDetail renders one deployment plus its per-target rows + runs.
 func (r *Renderer) DeploymentDetail(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
@@ -117,10 +136,12 @@ func (r *Renderer) DeploymentDetail(w http.ResponseWriter, req *http.Request) {
 		runs, _ := r.Repo.Runs().ListByDeploymentTarget(ctx, r.OrgID, t.ID)
 		enriched = append(enriched, TargetWithRuns{T: t, Runs: runs})
 	}
+	costSummary := r.buildCostSummary(ctx, id, targets)
 	r.render(w, "deployment_detail.html", map[string]any{
-		"Deployment": d,
-		"Targets":    enriched,
-		"APIToken":   r.APIToken,
+		"Deployment":  d,
+		"Targets":     enriched,
+		"APIToken":    r.APIToken,
+		"CostSummary": costSummary,
 	})
 }
 
@@ -208,4 +229,47 @@ func statusBadge(s string) string {
 		return "warn"
 	}
 	return ""
+}
+
+// buildCostSummary aggregates cost_estimates for the deployment into a
+// per-target rollup. HasData is false when no estimates are persisted.
+func (r *Renderer) buildCostSummary(ctx context.Context, deploymentID string, targets []inventory.DeploymentTarget) CostSummary {
+	rows, err := r.Repo.CostEstimates().ListByDeployment(ctx, r.OrgID, deploymentID)
+	if err != nil || len(rows) == 0 {
+		return CostSummary{}
+	}
+	// Build run-id → target lookup.
+	runToTarget := map[string]inventory.DeploymentTarget{}
+	for _, t := range targets {
+		runs, _ := r.Repo.Runs().ListByDeploymentTarget(ctx, r.OrgID, t.ID)
+		for _, run := range runs {
+			runToTarget[run.ID] = t
+		}
+	}
+	subtotals := map[string]float64{}
+	var currency string
+	var total float64
+	for _, row := range rows {
+		t, ok := runToTarget[row.RunID]
+		if !ok {
+			continue
+		}
+		subtotals[t.ID] += row.Subtotal
+		total += row.Subtotal
+		if currency == "" {
+			currency = row.Currency
+		}
+	}
+	summary := CostSummary{HasData: true, Currency: currency, Total: total}
+	for _, t := range targets {
+		if sub, ok := subtotals[t.ID]; ok {
+			summary.Targets = append(summary.Targets, TargetCostSummary{
+				ComponentName: t.ComponentName,
+				Cloud:         t.Cloud,
+				Region:        t.Region,
+				Subtotal:      sub,
+			})
+		}
+	}
+	return summary
 }

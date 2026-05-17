@@ -274,3 +274,18 @@ func TestRouter_AppJSServedFromAssets(t *testing.T) {
 		t.Errorf("app.js body missing expected function")
 	}
 }
+
+func TestRouter_APIDeploymentCostsEmpty(t *testing.T) {
+	srv, _ := newServer(t, func(ctx context.Context, r *sqlite.Repo) {
+		_ = r.Projects().Create(ctx, inventory.Project{ID: "p-1", OrgID: "default", Name: "demo", CreatedAt: time.Now()})
+		_ = r.Stacks().Upsert(ctx, inventory.Stack{ID: "s-1", OrgID: "default", ProjectID: "p-1", Name: "dev"})
+		_ = r.Deployments().Create(ctx, inventory.Deployment{ID: "d-1", OrgID: "default", ProjectID: "p-1", StackID: "s-1", Status: "planned", StartedAt: time.Now()})
+	})
+	resp, body := get(t, srv, "/api/v1/deployments/d-1/costs")
+	if resp.StatusCode != 200 {
+		t.Errorf("status = %d", resp.StatusCode)
+	}
+	if !strings.Contains(body, `"total":0`) || !strings.Contains(body, `"targets":[]`) {
+		t.Errorf("body: %s", body)
+	}
+}
