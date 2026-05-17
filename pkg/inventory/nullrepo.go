@@ -148,6 +148,9 @@ func (nullDrift) Get(ctx context.Context, orgID, dtID string) (*DriftRecord, err
 	return nil, ErrInventoryRequired
 }
 func (nullDrift) Upsert(ctx context.Context, d DriftRecord) error { return nil }
+func (nullDrift) ListByOrg(ctx context.Context, orgID string) ([]DriftRecord, error) {
+	return nil, ErrInventoryRequired
+}
 
 type nullCostEst struct{}
 
