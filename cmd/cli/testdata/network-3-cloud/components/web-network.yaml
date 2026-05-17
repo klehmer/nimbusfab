@@ -1,0 +1,16 @@
+apiVersion: infra.dev/v1alpha1
+name: web-network
+type: network
+spec:
+  cidr: 10.0.0.0/16
+  subnetCount: 2
+targets:
+  - cloud: aws
+    region: us-east-1
+    credentialRef: aws-dev
+  - cloud: azure
+    region: eastus
+    credentialRef: azure-dev
+  - cloud: gcp
+    region: us-central1
+    credentialRef: gcp-dev
