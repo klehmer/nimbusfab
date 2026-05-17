@@ -55,10 +55,10 @@ func (r *Repo) DeploymentTargets() inventory.DeploymentTargetRepo { return &targ
 func (r *Repo) Runs() inventory.RunRepo                           { return &runRepo{db: r.db} }
 func (r *Repo) RunLogs() inventory.RunLogRepo                     { return errRunLogs{} }
 func (r *Repo) DriftStatus() inventory.DriftStatusRepo            { return &driftRepo{db: r.db} }
-func (r *Repo) CostEstimates() inventory.CostEstimateRepo         { return errCostEst{} }
+func (r *Repo) CostEstimates() inventory.CostEstimateRepo         { return &costEstimateRepo{db: r.db} }
 func (r *Repo) CostActuals() inventory.CostActualRepo             { return errCostAct{} }
 func (r *Repo) SecretsRefs() inventory.SecretsRefRepo             { return errSecrets{} }
-func (r *Repo) AuditLog() inventory.AuditLogRepo                  { return errAudit{} }
+func (r *Repo) AuditLog() inventory.AuditLogRepo                  { return &auditRepo{db: r.db} }
 
 // init registers the postgres scheme with the inventory dispatcher.
 func init() {

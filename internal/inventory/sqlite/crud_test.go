@@ -146,3 +146,119 @@ func TestDrift_UpsertReplaces(t *testing.T) {
 		t.Errorf("summary not replaced: %s", d.SummaryJSON)
 	}
 }
+
+func TestSQLite_CostEstimates_RoundTrip(t *testing.T) {
+	r := openMemory(t)
+	ctx := context.Background()
+
+	// Seed the FK chain runs requires.
+	_ = r.Orgs().Create(ctx, inventory.Org{ID: "o", Name: "o"})
+	_ = r.Projects().Create(ctx, inventory.Project{ID: "p", OrgID: "o", Name: "x"})
+	_ = r.Stacks().Upsert(ctx, inventory.Stack{ID: "s", OrgID: "o", ProjectID: "p", Name: "dev"})
+	_ = r.Deployments().Create(ctx, inventory.Deployment{ID: "d", OrgID: "o", ProjectID: "p", StackID: "s", Status: "planned", StartedAt: time.Now()})
+	_ = r.DeploymentTargets().Create(ctx, inventory.DeploymentTarget{ID: "t", OrgID: "o", DeploymentID: "d", ComponentName: "web", Cloud: "aws", Region: "us-east-1", CredentialRef: "r", Status: "planned", StartedAt: time.Now()})
+	_ = r.Runs().Create(ctx, inventory.Run{ID: "run-1", OrgID: "o", DeploymentTargetID: "t", Kind: "plan", Status: "succeeded", StartedAt: time.Now()})
+
+	items := []inventory.CostEstimate{
+		{RunID: "run-1", OrgID: "o", PrimitiveID: "ec2-a", Currency: "USD", UnitPrice: 0.0416, Units: 730, UnitOfMeasure: "Hrs", Subtotal: 30.37, PricingKeyJSON: []byte(`{"sku":"t3.small"}`)},
+		{RunID: "run-1", OrgID: "o", PrimitiveID: "ec2-b", Currency: "USD", UnitPrice: 0.0832, Units: 730, UnitOfMeasure: "Hrs", Subtotal: 60.74, PricingKeyJSON: []byte(`{"sku":"t3.medium"}`)},
+		{RunID: "run-1", OrgID: "o", PrimitiveID: "s3-bucket", Currency: "USD", UnitPrice: 0.023, Units: 100, UnitOfMeasure: "GB-Mo", Subtotal: 2.30, PricingKeyJSON: []byte(`{"sku":"std"}`)},
+	}
+	if err := r.CostEstimates().BulkInsert(ctx, items); err != nil {
+		t.Fatalf("BulkInsert: %v", err)
+	}
+
+	got, err := r.CostEstimates().ListByRun(ctx, "o", "run-1")
+	if err != nil {
+		t.Fatalf("ListByRun: %v", err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("len = %d, want 3", len(got))
+	}
+	// Spot-check one row keeps all fields.
+	for _, e := range got {
+		if e.PrimitiveID == "ec2-a" {
+			if e.Subtotal != 30.37 || e.UnitOfMeasure != "Hrs" || string(e.PricingKeyJSON) != `{"sku":"t3.small"}` {
+				t.Errorf("ec2-a fields mangled: %+v", e)
+			}
+		}
+	}
+
+	// Empty input is a no-op (defensive).
+	if err := r.CostEstimates().BulkInsert(ctx, nil); err != nil {
+		t.Errorf("empty BulkInsert: %v", err)
+	}
+
+	// Wrong org isolation.
+	if list, _ := r.CostEstimates().ListByRun(ctx, "other-org", "run-1"); len(list) != 0 {
+		t.Errorf("wrong-org lookup returned %d rows", len(list))
+	}
+}
+
+func TestSQLite_AuditLog_RoundTrip(t *testing.T) {
+	r := openMemory(t)
+	ctx := context.Background()
+	_ = r.Orgs().Create(ctx, inventory.Org{ID: "o", Name: "o"})
+
+	base := time.Now().UTC().Truncate(time.Second)
+	entries := []inventory.AuditEntry{
+		{OrgID: "o", ActorUserID: "u1", Verb: "apply", Target: "deployment-1", PayloadJSON: []byte(`{"ok":true}`), Timestamp: base.Add(-3 * time.Hour)},
+		{OrgID: "o", ActorUserID: "u2", Verb: "destroy", Target: "deployment-2", Timestamp: base.Add(-2 * time.Hour)},
+		{OrgID: "o", Verb: "pat.create", Target: "pat-1", Timestamp: base.Add(-1 * time.Hour)},
+		{OrgID: "o", ActorUserID: "u1", Verb: "drift", Target: "deployment-1", Timestamp: base},
+	}
+	for _, e := range entries {
+		if err := r.AuditLog().Append(ctx, e); err != nil {
+			t.Fatalf("Append %s: %v", e.Verb, err)
+		}
+	}
+
+	got, err := r.AuditLog().Query(ctx, "o", base.Add(-4*time.Hour), base, 100)
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	if len(got) != 4 {
+		t.Fatalf("Query len = %d, want 4", len(got))
+	}
+	// DESC order: most recent first.
+	if got[0].Verb != "drift" {
+		t.Errorf("first entry should be most recent (drift), got %q", got[0].Verb)
+	}
+	if got[3].Verb != "apply" {
+		t.Errorf("last entry should be oldest (apply), got %q", got[3].Verb)
+	}
+
+	// Limit caps results.
+	if got, _ := r.AuditLog().Query(ctx, "o", base.Add(-4*time.Hour), base, 2); len(got) != 2 {
+		t.Errorf("limit=2: got %d", len(got))
+	}
+
+	// Time-window narrows.
+	narrow, _ := r.AuditLog().Query(ctx, "o", base.Add(-90*time.Minute), base.Add(-30*time.Minute), 100)
+	if len(narrow) != 1 || narrow[0].Verb != "pat.create" {
+		t.Errorf("window query: %v", narrow)
+	}
+
+	// Wrong-org isolation.
+	if other, _ := r.AuditLog().Query(ctx, "other-org", base.Add(-4*time.Hour), base, 100); len(other) != 0 {
+		t.Errorf("wrong-org query returned %d", len(other))
+	}
+}
+
+func TestSQLite_AuditLog_DefaultsTimestampToNow(t *testing.T) {
+	r := openMemory(t)
+	ctx := context.Background()
+	_ = r.Orgs().Create(ctx, inventory.Org{ID: "o", Name: "o"})
+
+	before := time.Now().UTC().Add(-time.Second)
+	if err := r.AuditLog().Append(ctx, inventory.AuditEntry{OrgID: "o", Verb: "noop"}); err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+	got, _ := r.AuditLog().Query(ctx, "o", before, time.Now().UTC().Add(time.Second), 1)
+	if len(got) != 1 {
+		t.Fatalf("got %d entries", len(got))
+	}
+	if got[0].Timestamp.Before(before) {
+		t.Errorf("timestamp not auto-assigned: %v", got[0].Timestamp)
+	}
+}
