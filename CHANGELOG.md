@@ -1,6 +1,38 @@
 # Changelog
 
-## Unreleased — Auth Phase 1 (Local Auth + PATs + Sessions)
+## Unreleased — Polish Phase 1 (v1 release prep)
+
+The final v1 phase. Fixes a latent PAT parsing bug, makes /readyz a
+real readiness probe, and ships a production deployment guide. With
+this phase v1 is feature-complete and ready for user testing.
+
+### Added
+
+- `docs/DEPLOY.md` — production deployment guide covering env vars,
+  SQLite vs Postgres backends, cloud credential resolution, reverse-
+  proxy + TLS, a sample systemd unit, user / PAT bootstrapping via
+  CLI, health-check endpoints, and migration rollout. Calls out
+  items deferred to v1.1+ (OIDC, drift cron, cost collector,
+  notifications, PAT management UI, etc.).
+- `TestPAT_GenerateMany` — 100-iteration round-trip regression that
+  would have caught the PAT separator bug below.
+
+### Changed
+
+- `/readyz` now actually pings the inventory database via the
+  optional `Ping(ctx)` interface both sqlite + postgres backends
+  expose. Returns 503 on failure. Previously it was a
+  `cfg.Repo.Orgs() != nil` accessor check that always passed once
+  the repo was constructed — not useful for k8s readiness gating.
+- **PAT token format**: separator switched from `_` to `.`
+  (`nfp_<prefix>.<secret>`). The previous format had a latent bug —
+  base64url's alphabet includes `_`, so a prefix that happened to
+  contain one collided with the separator and made ~1-in-N
+  `ParsePAT` calls split at the wrong position. `.` is not in
+  base64url so the split is unambiguous. **Any PAT minted before
+  this change must be re-minted** via `nimbusfab pat create`.
+
+## Earlier — Auth Phase 1 (Local Auth + PATs + Sessions)
 
 Real authentication ends the env-var bearer-token stub. Production
 deployments now use bcrypt-hashed user accounts, HMAC-signed cookie
