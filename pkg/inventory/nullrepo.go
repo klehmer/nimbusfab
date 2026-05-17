@@ -155,6 +155,9 @@ func (nullCostEst) BulkInsert(ctx context.Context, items []CostEstimate) error {
 func (nullCostEst) ListByRun(ctx context.Context, orgID, runID string) ([]CostEstimate, error) {
 	return nil, ErrInventoryRequired
 }
+func (nullCostEst) ListByDeployment(ctx context.Context, orgID, deploymentID string) ([]CostEstimate, error) {
+	return nil, ErrInventoryRequired
+}
 
 type nullCostAct struct{}
 

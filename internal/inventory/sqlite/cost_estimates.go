@@ -57,6 +57,32 @@ func (r *costEstimateRepo) ListByRun(ctx context.Context, orgID, runID string) (
 		return nil, fmt.Errorf("cost_estimates.ListByRun: %w", err)
 	}
 	defer rows.Close()
+	return scanCostEstimates(rows)
+}
+
+// ListByDeployment returns every estimate attached to any run of any target
+// of the given deployment. JOINs runs → deployment_targets to filter.
+func (r *costEstimateRepo) ListByDeployment(ctx context.Context, orgID, deploymentID string) ([]inventory.CostEstimate, error) {
+	rows, err := r.db.QueryContext(ctx, `
+        SELECT ce.run_id, ce.org_id, ce.primitive_id, ce.currency,
+               ce.unit_price, ce.units, ce.unit_of_measure, ce.subtotal,
+               COALESCE(ce.pricing_key_json, '')
+        FROM cost_estimates ce
+        JOIN runs r ON r.id = ce.run_id
+        JOIN deployment_targets dt ON dt.id = r.deployment_target_id
+        WHERE ce.org_id = ? AND dt.deployment_id = ?
+        ORDER BY ce.id
+    `, orgID, deploymentID)
+	if err != nil {
+		return nil, fmt.Errorf("cost_estimates.ListByDeployment: %w", err)
+	}
+	defer rows.Close()
+	return scanCostEstimates(rows)
+}
+
+// scanCostEstimates drains rows and returns the cost-estimate slice;
+// shared between ListByRun and ListByDeployment.
+func scanCostEstimates(rows *sql.Rows) ([]inventory.CostEstimate, error) {
 	var out []inventory.CostEstimate
 	for rows.Next() {
 		var e inventory.CostEstimate
