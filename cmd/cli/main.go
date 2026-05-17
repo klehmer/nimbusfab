@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -31,8 +32,11 @@ func main() {
 	root.AddCommand(newDriftCommand())
 	root.AddCommand(newParityCommand())
 	root.AddCommand(newCostCommand())
+	root.AddCommand(newUserCommand())
+	root.AddCommand(newPATCommand())
 
 	if err := root.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)
 	}
 }
