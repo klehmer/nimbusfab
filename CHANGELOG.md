@@ -1,6 +1,45 @@
 # Changelog
 
-## Unreleased — Inventory Persistence (Cost + Audit)
+## Unreleased — Dashboards Phase 1 (Per-Deployment Cost View)
+
+### Added
+
+- `engine.persistPlan` now also persists cost estimates: after
+  writing the per-target plan-run rows, calls the estimator and
+  `CostEstimates.BulkInsert`s one row per priced primitive with
+  the right run ID. Per-target estimator failures are skipped (rest
+  of the deployment's data still lands); repo-level failures log
+  via `cfg.Logger` but don't fail the plan — cost-dashboard data is
+  non-critical.
+- `CostEstimateRepo.ListByDeployment(orgID, deploymentID)` —
+  JOINs `cost_estimates → runs → deployment_targets` to return all
+  estimates attached to any run of any target of the deployment.
+  Both backends. nullRepo gets the matching stub returning
+  ErrInventoryRequired.
+- `GET /api/v1/deployments/{id}/costs` — JSON handler returning the
+  per-target rollup + aggregate total. Shape:
+  `{data:{deploymentId, currency, total, targets:[{deploymentTargetId,
+  componentName, cloud, region, total, primitives:[...]}]}}`. 404 on
+  missing deployment; empty targets array + total:0 when no cost rows.
+- Deployment-detail UI page gains a "Cost estimate" section between
+  Actions and Live events: per-target table with subtotal and tfoot
+  Total. Empty-state copy explains the two no-cost cases (network-only
+  components have no priced primitives; pre-Dashboards-Phase-1
+  deployments populate after the next plan).
+- 8 new tests: ListByDeployment per backend; engine.Plan persistence
+  end-to-end; API handler happy/empty/404; UI section with-data and
+  empty-state; router-mux integration.
+
+### Out of scope (deferred)
+
+- Cross-deployment / org-wide aggregate cost dashboard — Dashboards
+  Phase 2.
+- Parity overview page — separate phase.
+- Drift overview — Drift Phase 1.
+- Cost actuals (estimated-vs-actual) — Cost Collector phase.
+- Cost-over-time charts — Dashboards Phase 2 or Polish.
+
+## Earlier — Inventory Persistence (Cost + Audit)
 
 ### Added
 
