@@ -48,11 +48,14 @@ func GeneratePAT() (token, prefix string, hash []byte, err error) {
 	if err != nil {
 		return "", "", nil, err
 	}
-	token = "nfp_" + prefix + "_" + secret
+	// Separator is "." — not in base64url alphabet so the split is
+	// unambiguous (vs "_" which IS in base64url and caused random parse
+	// failures when the prefix happened to contain one).
+	token = "nfp_" + prefix + "." + secret
 	return token, prefix, hash, nil
 }
 
-// ParsePAT splits "nfp_<prefix>_<secret>" into its parts. Returns
+// ParsePAT splits "nfp_<prefix>.<secret>" into its parts. Returns
 // (prefix, secret, ok). ok=false if the token doesn't match the expected
 // shape.
 func ParsePAT(token string) (prefix, secret string, ok bool) {
@@ -60,7 +63,7 @@ func ParsePAT(token string) (prefix, secret string, ok bool) {
 		return "", "", false
 	}
 	rest := token[len("nfp_"):]
-	parts := strings.SplitN(rest, "_", 2)
+	parts := strings.SplitN(rest, ".", 2)
 	if len(parts) != 2 || len(parts[0]) != PATPrefixLen || parts[1] == "" {
 		return "", "", false
 	}

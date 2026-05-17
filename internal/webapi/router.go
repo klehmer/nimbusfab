@@ -4,6 +4,7 @@
 package webapi
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
@@ -64,12 +65,22 @@ func New(cfg Config) (http.Handler, error) {
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("ok"))
 	})
-	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, _ *http.Request) {
-		if cfg.Repo.Orgs() != nil {
-			_, _ = w.Write([]byte("ready"))
+	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
+		// Real readiness: ping the inventory DB if the repo exposes a Ping
+		// method (sqlite + postgres both do). Repos without Ping fall back
+		// to the accessor-returns check for backward compat with nullRepo.
+		if p, ok := cfg.Repo.(interface {
+			Ping(ctx context.Context) error
+		}); ok {
+			if err := p.Ping(r.Context()); err != nil {
+				http.Error(w, "not ready: "+err.Error(), http.StatusServiceUnavailable)
+				return
+			}
+		} else if cfg.Repo.Orgs() == nil {
+			http.Error(w, "not ready: repo Orgs accessor returns nil", http.StatusServiceUnavailable)
 			return
 		}
-		http.Error(w, "not ready", http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte("ready"))
 	})
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {

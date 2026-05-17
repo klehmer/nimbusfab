@@ -114,9 +114,28 @@ func TestPAT_GenerateAndVerify(t *testing.T) {
 }
 
 func TestPAT_ParseRejectsBadShapes(t *testing.T) {
-	for _, bad := range []string{"", "nope_x_y", "nfp_short_y", "nfp_12345678", "nfp_12345678_"} {
+	for _, bad := range []string{"", "nope_x.y", "nfp_short.y", "nfp_12345678", "nfp_12345678."} {
 		if _, _, ok := auth.ParsePAT(bad); ok {
 			t.Errorf("ParsePAT(%q) should fail", bad)
+		}
+	}
+}
+
+// TestPAT_GenerateMany sanity-checks that 100 generations all round-trip
+// — defends against the underscore-in-base64url separator bug we hit
+// during Polish Phase 1.
+func TestPAT_GenerateMany(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		token, prefix, hash, err := auth.GeneratePAT()
+		if err != nil {
+			t.Fatalf("iter %d: %v", i, err)
+		}
+		gotPrefix, secret, ok := auth.ParsePAT(token)
+		if !ok || gotPrefix != prefix {
+			t.Fatalf("iter %d: ParsePAT failed for token=%q prefix=%q", i, token, prefix)
+		}
+		if !auth.VerifyPAT(secret, hash) {
+			t.Fatalf("iter %d: VerifyPAT failed", i)
 		}
 	}
 }
