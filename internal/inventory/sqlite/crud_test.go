@@ -331,8 +331,8 @@ func TestSQLite_DriftStatus_ListByOrg(t *testing.T) {
 		})
 		_ = r.DriftStatus().Upsert(ctx, inventory.DriftRecord{
 			DeploymentTargetID: target.id, OrgID: "o",
-			DetectedAt: base.Add(time.Duration(i) * time.Minute),
-			HasDrift:   i == 1,
+			DetectedAt:  base.Add(time.Duration(i) * time.Minute),
+			HasDrift:    i == 1,
 			SummaryJSON: []byte(`{"i":` + string(rune('0'+i)) + `}`),
 		})
 	}

@@ -1,6 +1,31 @@
 # Changelog
 
-## Unreleased — Dashboards Phase 1 (Per-Deployment Cost View)
+## Unreleased — Drift Phase 1 (Drift Overview)
+
+### Added
+
+- `DriftStatusRepo.ListByOrg` returns every drift record for an org
+  ordered by detected_at DESC. SQLite + Postgres impls + null stub.
+- `GET /api/v1/drift` returns `{data: {summary: {total, drifted,
+  clean}, records: [{deploymentTargetId, deploymentId,
+  componentName, cloud, region, hasDrift, detectedAt}]}}`. Per-record
+  target lookup (N+1; fine at v1 scale). Orphaned records skipped.
+- `/ui/drift` page with status badges, summary counts, and per-row
+  link back to the deployment. Empty-state directs to
+  `nimbusfab drift` CLI or the deployment-detail "Detect drift"
+  button.
+- "Drift" top-nav link added to layout.html.
+- 6 new tests: 2 repo (sqlite always, postgres gated), 3 API
+  handler, 2 UI page, 2 router-mux integration.
+
+### Out of scope (deferred)
+
+- Background drift cron / scheduler — Drift Phase 2.
+- Email / Slack notifications on drift detection.
+- Drift-history time series (each Upsert overwrites; no
+  per-target history table).
+
+## Earlier — Dashboards Phase 1 (Per-Deployment Cost View)
 
 ### Added
 

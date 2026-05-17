@@ -23,9 +23,9 @@ func seedDriftRecords(t *testing.T, r *sqlite.Repo) {
 	_ = r.Stacks().Upsert(ctx, inventory.Stack{ID: "s", OrgID: "default", ProjectID: "p", Name: "dev"})
 	_ = r.Deployments().Create(ctx, inventory.Deployment{ID: "d", OrgID: "default", ProjectID: "p", StackID: "s", Status: "succeeded", StartedAt: time.Now()})
 	for _, td := range []struct {
-		id       string
-		cloud    string
-		drift    bool
+		id    string
+		cloud string
+		drift bool
 	}{
 		{"t-aws", "aws", true},
 		{"t-azure", "azure", false},
