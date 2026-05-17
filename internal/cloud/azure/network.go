@@ -72,6 +72,7 @@ func (*Adapter) emitNetwork(ctx context.Context, target ir.DeploymentTarget, ref
 			Cloud:    "azure",
 			TofuType: "azurerm_subnet",
 			TofuName: subnetName,
+			NoTags:   true,
 			Attributes: map[string]any{
 				"name":                 subnetName,
 				"resource_group_name":  "${azurerm_resource_group." + name + ".name}",
