@@ -168,6 +168,43 @@ func TestPostgres_CRUDRoundTrip(t *testing.T) {
 	if err := r.DeploymentTargets().UpdateStatus(ctx, orgID, tgtID, "succeeded", &finished); err != nil {
 		t.Errorf("DeploymentTargets.UpdateStatus: %v", err)
 	}
+
+	// CostEstimates: BulkInsert + ListByRun.
+	estimates := []inventory.CostEstimate{
+		{RunID: runID, OrgID: orgID, PrimitiveID: "ec2-a", Currency: "USD", UnitPrice: 0.0416, Units: 730, UnitOfMeasure: "Hrs", Subtotal: 30.37, PricingKeyJSON: []byte(`{"sku":"t3.small"}`)},
+		{RunID: runID, OrgID: orgID, PrimitiveID: "s3-bucket", Currency: "USD", UnitPrice: 0.023, Units: 100, UnitOfMeasure: "GB-Mo", Subtotal: 2.30, PricingKeyJSON: []byte(`{"sku":"std"}`)},
+	}
+	if err := r.CostEstimates().BulkInsert(ctx, estimates); err != nil {
+		t.Fatalf("CostEstimates.BulkInsert: %v", err)
+	}
+	if list, _ := r.CostEstimates().ListByRun(ctx, orgID, runID); len(list) != 2 {
+		t.Errorf("CostEstimates.ListByRun = %d, want 2", len(list))
+	}
+	if err := r.CostEstimates().BulkInsert(ctx, nil); err != nil {
+		t.Errorf("empty BulkInsert should no-op: %v", err)
+	}
+
+	// AuditLog: Append + Query (timestamp window + limit + ordering).
+	base := time.Now().UTC().Add(-time.Hour)
+	for i, verb := range []string{"apply", "destroy", "drift", "pat.create"} {
+		if err := r.AuditLog().Append(ctx, inventory.AuditEntry{
+			OrgID: orgID, ActorUserID: "", Verb: verb, Target: "target-x",
+			PayloadJSON: []byte(`{"i":` + string(rune('0'+i)) + `}`),
+			Timestamp:   base.Add(time.Duration(i) * time.Minute),
+		}); err != nil {
+			t.Fatalf("AuditLog.Append %s: %v", verb, err)
+		}
+	}
+	got, err := r.AuditLog().Query(ctx, orgID, base.Add(-time.Minute), base.Add(10*time.Minute), 100)
+	if err != nil {
+		t.Fatalf("AuditLog.Query: %v", err)
+	}
+	if len(got) != 4 {
+		t.Errorf("AuditLog.Query = %d, want 4", len(got))
+	}
+	if len(got) > 0 && got[0].Verb != "pat.create" {
+		t.Errorf("AuditLog.Query first should be newest (pat.create), got %q", got[0].Verb)
+	}
 }
 
 func TestPostgres_RegistersWithDispatcher(t *testing.T) {
