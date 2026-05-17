@@ -17,7 +17,11 @@ import (
 	"github.com/klehmer/nimbusfab/internal/cloud/aws"
 	"github.com/klehmer/nimbusfab/internal/cloud/azure"
 	"github.com/klehmer/nimbusfab/internal/cloud/gcp"
-	"github.com/klehmer/nimbusfab/internal/inventory/sqlite"
+	// Backend imports are for side-effect init() registration with
+	// inventory.Open's dispatcher. Adding a new backend requires only
+	// adding an import line here.
+	_ "github.com/klehmer/nimbusfab/internal/inventory/postgres"
+	_ "github.com/klehmer/nimbusfab/internal/inventory/sqlite"
 	"github.com/klehmer/nimbusfab/internal/tofu"
 	"github.com/klehmer/nimbusfab/internal/webapi"
 	"github.com/klehmer/nimbusfab/pkg/cloud"
@@ -98,18 +102,11 @@ func run(ctx context.Context) error {
 	}
 }
 
-// openRepo opens the SQLite inventory. Postgres support lands in Inventory
-// Phase 2.
+// openRepo dispatches by DSN scheme via inventory.Open. Both sqlite and
+// postgres backends register via init(); adding a new backend is one
+// import line at the top of this file.
 func openRepo(ctx context.Context, dsn string) (inventory.Repo, error) {
-	r, err := sqlite.Open(dsn)
-	if err != nil {
-		return nil, err
-	}
-	if err := r.Migrate(ctx); err != nil {
-		_ = r.Close()
-		return nil, fmt.Errorf("migrate: %w", err)
-	}
-	return r, nil
+	return inventory.Open(ctx, dsn)
 }
 
 // defaultCloudRegistry mirrors the CLI's helper: register every in-tree

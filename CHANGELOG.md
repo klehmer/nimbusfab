@@ -1,6 +1,55 @@
 # Changelog
 
-## Unreleased — Web App UI Phase 2 (Buttons + Live Updates)
+## Unreleased — Inventory Phase 2 (Postgres Backend)
+
+### Added
+
+- `internal/inventory/postgres` package — second `inventory.Repo`
+  implementation against Postgres via `github.com/jackc/pgx/v5/stdlib`.
+  Mirrors `internal/inventory/sqlite` one-for-one: one file per real
+  table (orgs / projects / stacks / components / deployments /
+  targets / runs / drift) plus the same notwired.go stubs for
+  not-yet-wired repos.
+- `pkg/inventory.Open(ctx, dsn)` dispatcher routes by DSN scheme:
+  `sqlite:` → sqlite, `postgres:` / `postgresql:` → postgres. Both
+  backend packages register via init() so the dispatcher avoids
+  importing them directly (no import cycle).
+- `cmd/server` switches from `sqlite.Open` to `inventory.Open` — one
+  import line per backend; adding a new backend (e.g. mysql) is one
+  import line at the top of main.go.
+- 3 dispatcher unit tests + 3 Postgres integration tests (gated on
+  `NIMBUSFAB_TEST_PG_DSN`; skip cleanly when unset so CI without
+  Postgres passes). Local Postgres: `docker run --rm -d
+  -e POSTGRES_PASSWORD=test -p 5432:5432 postgres:16` then
+  `NIMBUSFAB_TEST_PG_DSN='postgres://postgres:test@localhost:5432/postgres?sslmode=disable' go test ./...`.
+
+### Design notes
+
+- **Query-syntax delta vs SQLite**: $N placeholders, TIMESTAMPTZ
+  scans directly into `time.Time` (no `mustParseTime` helper), JSONB
+  reads via `COALESCE(col::text, '')` and writes via `$N::jsonb` cast,
+  `ON CONFLICT (cols) DO UPDATE SET col = EXCLUDED.col` syntax,
+  `now()` instead of `strftime()`.
+- **`jsonOrEmpty(b []byte)`** helper turns nil / empty into `"{}"`
+  so Postgres JSONB never receives an empty string (which fails
+  to parse).
+- **CLI stays SQLite-only** — it's a single-instance dev tool; only
+  `cmd/server` needs the multi-backend dispatcher.
+- **No new tables yet.** sessions / pats / idempotency_keys (called
+  for by the web app spec) land with Auth Phase 1 and HTTP Phase 2
+  polish — additive to the Repo interface; easier to introduce when
+  the consumers ship.
+
+### Out of scope (deferred)
+
+- Wiring `CostEstimates` / `RunLogs` / `CostActuals` / `AuditLog`
+  for either backend (both still return ErrNotImplementedYet).
+- Connection pool tuning / prepared-statement caching / per-query
+  timeouts — Polish Phase 1.
+- Schema migrations beyond `0001_init.sql` — the existing migration
+  runs as-is.
+
+## Earlier — Web App UI Phase 2 (Buttons + Live Updates)
 
 ### Added
 

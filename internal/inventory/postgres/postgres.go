@@ -1,85 +1,44 @@
-// Package sqlite implements pkg/inventory.Repo against modernc.org/sqlite.
-// All cross-cutting concerns (connection setup, foreign-key pragma, helpers)
-// live here; each sub-repo lives in its own file.
-package sqlite
+// Package postgres implements pkg/inventory.Repo against Postgres via
+// github.com/jackc/pgx/v5/stdlib. Mirrors internal/inventory/sqlite's
+// structure (one file per table); query syntax adjusted for $N
+// placeholders and Postgres-native types (TIMESTAMPTZ → time.Time
+// directly, no string-parsing dance).
+package postgres
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net/url"
-	"strings"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/klehmer/nimbusfab/pkg/inventory"
 )
 
-// Repo is the SQLite Repo implementation.
+// Repo is the Postgres Repo implementation.
 type Repo struct {
 	db *sql.DB
 }
 
-// init registers the sqlite scheme with the inventory dispatcher so
-// inventory.Open(ctx, "sqlite:...") routes here automatically.
-func init() {
-	inventory.RegisterBackend("sqlite", func(ctx context.Context, dsn string) (inventory.Repo, error) {
-		r, err := Open(dsn)
-		if err != nil {
-			return nil, err
-		}
-		if err := r.Migrate(ctx); err != nil {
-			_ = r.Close()
-			return nil, err
-		}
-		return r, nil
-	})
-}
-
-// Open returns a SQLite Repo from a DSN like "sqlite:///path/to/file.db" or
-// "sqlite::memory:". Foreign keys are enabled.
+// Open returns a Postgres Repo. Accepts "postgres://..." or
+// "postgresql://..." DSNs; pgx parses both.
 func Open(dsn string) (*Repo, error) {
-	path, err := parseDSN(dsn)
+	db, err := sql.Open("pgx", dsn)
 	if err != nil {
-		return nil, err
-	}
-	db, err := sql.Open("sqlite", path)
-	if err != nil {
-		return nil, fmt.Errorf("sqlite open: %w", err)
-	}
-	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("foreign_keys pragma: %w", err)
+		return nil, fmt.Errorf("postgres open: %w", err)
 	}
 	return &Repo{db: db}, nil
 }
 
-// parseDSN turns "sqlite:///path" or "sqlite::memory:" into the path
-// modernc.org/sqlite expects. Plain paths are passed through.
-func parseDSN(dsn string) (string, error) {
-	if strings.HasPrefix(dsn, "sqlite::memory:") {
-		return ":memory:", nil
-	}
-	if strings.HasPrefix(dsn, "sqlite://") {
-		return strings.TrimPrefix(dsn, "sqlite://"), nil
-	}
-	if strings.HasPrefix(dsn, "sqlite:") {
-		return strings.TrimPrefix(dsn, "sqlite:"), nil
-	}
-	if _, err := url.Parse(dsn); err != nil {
-		return "", fmt.Errorf("invalid DSN: %w", err)
-	}
-	return dsn, nil
-}
-
+// Migrate runs the embedded migrations against the Postgres flavor.
 func (r *Repo) Migrate(ctx context.Context) error {
-	return inventory.RunMigrations(ctx, r.db, inventory.FlavorSQLite)
+	return inventory.RunMigrations(ctx, r.db, inventory.FlavorPostgres)
 }
 
-func (r *Repo) Ping(ctx context.Context) error {
-	return r.db.PingContext(ctx)
-}
+// Ping verifies the connection is alive.
+func (r *Repo) Ping(ctx context.Context) error { return r.db.PingContext(ctx) }
 
+// Close releases the connection pool.
 func (r *Repo) Close() error { return r.db.Close() }
 
 // Verify the Repo satisfies the inventory contract at compile time.
@@ -100,3 +59,18 @@ func (r *Repo) CostEstimates() inventory.CostEstimateRepo         { return errCo
 func (r *Repo) CostActuals() inventory.CostActualRepo             { return errCostAct{} }
 func (r *Repo) SecretsRefs() inventory.SecretsRefRepo             { return errSecrets{} }
 func (r *Repo) AuditLog() inventory.AuditLogRepo                  { return errAudit{} }
+
+// init registers the postgres scheme with the inventory dispatcher.
+func init() {
+	inventory.RegisterBackend("postgres", func(ctx context.Context, dsn string) (inventory.Repo, error) {
+		r, err := Open(dsn)
+		if err != nil {
+			return nil, err
+		}
+		if err := r.Migrate(ctx); err != nil {
+			_ = r.Close()
+			return nil, err
+		}
+		return r, nil
+	})
+}
