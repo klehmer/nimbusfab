@@ -33,6 +33,7 @@ func emitDatabaseImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir
 		component = "database"
 	}
 	name := tofuIdentifier(component)
+	awsName := awsResourceName(component)
 
 	engine, _ := target.Spec["engine"].(string)
 	if engine == "" {
@@ -52,7 +53,7 @@ func emitDatabaseImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir
 		return nil, fmt.Errorf("aws.emitDatabase: %w", err)
 	}
 
-	subnetIDs := subnetIDsFromRefs(refs, component)
+	subnetIDsAttr := subnetIDsFromRefs(refs, component)
 	multiAZ := boolFromSpec(target.Spec, "multiAZ", false)
 	backupRetention := 7
 	if !boolFromSpec(target.Spec, "pointInTimeRestore", true) {
@@ -66,8 +67,8 @@ func emitDatabaseImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir
 			TofuType: "aws_db_subnet_group",
 			TofuName: name,
 			Attributes: map[string]any{
-				"name":       name + "-subnet-group",
-				"subnet_ids": subnetIDs,
+				"name":       awsName + "-subnet-group",
+				"subnet_ids": subnetIDsAttr,
 			},
 		},
 		{
@@ -76,7 +77,7 @@ func emitDatabaseImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir
 			TofuType: "aws_db_instance",
 			TofuName: name,
 			Attributes: map[string]any{
-				"identifier":              name,
+				"identifier":              awsName,
 				"engine":                  engine,
 				"engine_version":          version,
 				"instance_class":          profile.InstanceClass,
@@ -125,9 +126,21 @@ func resolveDBSize(spec map[string]any) (dbSizeProfile, error) {
 	return dbSizeProfile{}, fmt.Errorf("no T-shirt size satisfies vCPU>=%d memoryGB>=%v", vcpu, memGB)
 }
 
-func subnetIDsFromRefs(refs cloud.ResolvedRefs, fallbackComp string) []any {
+// subnetIDsFromRefs returns the value for aws_db_subnet_group.subnet_ids.
+// The provisioner populates refs["subnetIds"] with a bare tofu interpolation
+// (`${data.terraform_remote_state.<upstream>.outputs.subnet_ids}`) that
+// evaluates to a list at plan/apply time; assigning that bare string to the
+// list-typed attribute lets tofu bind the whole list directly. The state-
+// resolved []string/[]any forms are still accepted (Apply path can pre-
+// resolve from state). The fallback string preserves the legacy shape for
+// callers that bypass the provisioner.
+func subnetIDsFromRefs(refs cloud.ResolvedRefs, fallbackComp string) any {
 	if v, ok := refs["subnetIds"]; ok {
 		switch t := v.(type) {
+		case string:
+			if t != "" {
+				return t
+			}
 		case []string:
 			out := make([]any, len(t))
 			for i, s := range t {
@@ -138,7 +151,7 @@ func subnetIDsFromRefs(refs cloud.ResolvedRefs, fallbackComp string) []any {
 			return t
 		}
 	}
-	return []any{"${data.terraform_remote_state." + tofuIdentifier(fallbackComp) + ".outputs.subnet_ids}"}
+	return "${data.terraform_remote_state." + tofuIdentifier(fallbackComp) + ".outputs.subnet_ids}"
 }
 
 func boolFromSpec(spec map[string]any, key string, def bool) bool {

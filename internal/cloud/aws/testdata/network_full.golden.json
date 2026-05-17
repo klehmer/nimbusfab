@@ -10,7 +10,11 @@
     },
     "aws_route_table": {
       "count": 1,
-      "attribute_keys": ["vpc_id", "route"]
+      "attribute_keys": ["vpc_id"]
+    },
+    "aws_route": {
+      "count": 1,
+      "attribute_keys": ["route_table_id", "destination_cidr_block", "gateway_id"]
     },
     "aws_subnet": {
       "count": 3,

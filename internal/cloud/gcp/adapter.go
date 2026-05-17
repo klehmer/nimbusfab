@@ -24,6 +24,10 @@ var _ cloud.Adapter = (*Adapter)(nil)
 
 func (*Adapter) Name() string                   { return "gcp" }
 func (*Adapter) SupportedAPIVersions() []string { return []string{ir.APIVersionV1Alpha1} }
+
+// TofuProviderVersion pins hashicorp/google v7 (current major release).
+// The renderer's default "~> 5.0" would not resolve.
+func (*Adapter) TofuProviderVersion() string { return "~> 7.0" }
 func (*Adapter) SupportedComponentTypes() []string {
 	return []string{"network", "compute", "database", "storage"}
 }

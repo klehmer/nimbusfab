@@ -15,6 +15,9 @@ type tagContext struct {
 // inventory join works reliably).
 func injectFrameworkTags(p ir.ResourcePrimitive, c tagContext) ir.ResourcePrimitive {
 	out := p
+	if out.NoTags {
+		return out
+	}
 	copyTags := make(map[string]string, len(out.Tags)+3)
 	for k, v := range out.Tags {
 		copyTags[k] = v

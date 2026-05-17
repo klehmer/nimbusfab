@@ -1,0 +1,5 @@
+apiVersion: infra.dev/v1alpha1
+name: network-3-cloud
+stacks:
+  dev:
+    stateBackend: { kind: local }

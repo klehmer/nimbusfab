@@ -58,12 +58,18 @@ func (*Adapter) emitNetwork(ctx context.Context, target ir.DeploymentTarget, ref
 			TofuName: name,
 			Attributes: map[string]any{
 				"vpc_id": "${aws_vpc." + name + ".id}",
-				"route": []any{
-					map[string]any{
-						"cidr_block": "0.0.0.0/0",
-						"gateway_id": "${aws_internet_gateway." + name + ".id}",
-					},
-				},
+			},
+		},
+		{
+			ID:       fmt.Sprintf("%s.aws-%s.route_default", component, target.Region),
+			Cloud:    "aws",
+			TofuType: "aws_route",
+			TofuName: name + "_default",
+			NoTags:   true,
+			Attributes: map[string]any{
+				"route_table_id":         "${aws_route_table." + name + ".id}",
+				"destination_cidr_block": "0.0.0.0/0",
+				"gateway_id":             "${aws_internet_gateway." + name + ".id}",
 			},
 		},
 	}
@@ -86,6 +92,7 @@ func (*Adapter) emitNetwork(ctx context.Context, target ir.DeploymentTarget, ref
 			Cloud:    "aws",
 			TofuType: "aws_route_table_association",
 			TofuName: subnetName,
+			NoTags:   true,
 			Attributes: map[string]any{
 				"subnet_id":      "${aws_subnet." + subnetName + ".id}",
 				"route_table_id": "${aws_route_table." + name + ".id}",

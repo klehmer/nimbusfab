@@ -66,17 +66,20 @@ func emitComputeImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 			TofuType: "aws_security_group",
 			TofuName: name,
 			Attributes: map[string]any{
-				"name":        name + "-sg",
+				"name":        awsResourceName(component) + "-sg",
 				"description": "Default SG for " + component,
 				"vpc_id":      stringFromRefs(refs, "vpcId", "${data.terraform_remote_state."+tofuIdentifier(component)+".outputs.vpc_id}"),
-				"egress": []any{
-					map[string]any{
-						"from_port":   0,
-						"to_port":     0,
-						"protocol":    "-1",
-						"cidr_blocks": []any{"0.0.0.0/0"},
-					},
-				},
+			},
+		},
+		{
+			ID:       fmt.Sprintf("%s.aws-%s.sg_egress", component, target.Region),
+			Cloud:    "aws",
+			TofuType: "aws_vpc_security_group_egress_rule",
+			TofuName: name + "_egress_all",
+			Attributes: map[string]any{
+				"security_group_id": "${aws_security_group." + name + ".id}",
+				"cidr_ipv4":         "0.0.0.0/0",
+				"ip_protocol":       "-1",
 			},
 		},
 	}

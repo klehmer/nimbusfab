@@ -71,6 +71,17 @@ type Adapter interface {
 	ProviderBlock(ctx context.Context, target ir.DeploymentTarget, creds Credentials) (map[string]any, error)
 }
 
+// TofuProviderVersioner is an optional interface adapters implement to pin
+// the OpenTofu provider version. The provisioner uses the returned value
+// for the required_providers `version` constraint; adapters that don't
+// implement it inherit the workspace renderer's default ("~> 5.0", which
+// matches hashicorp/aws v5). Azure's adapter pins "~> 4.0" (azurerm v4)
+// and GCP pins "~> 7.0" (google v7) because their provider releases are
+// on different major versions than AWS.
+type TofuProviderVersioner interface {
+	TofuProviderVersion() string
+}
+
 // Credentials is an opaque handle that adapters resolve via the secrets
 // backend. The engine fetches it by name and passes the result through.
 type Credentials struct {
