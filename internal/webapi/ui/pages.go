@@ -10,6 +10,7 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"time"
 
 	"github.com/klehmer/nimbusfab/pkg/inventory"
 )
@@ -156,6 +157,59 @@ func (r *Renderer) RunDetail(w http.ResponseWriter, req *http.Request) {
 	}
 	r.render(w, "run_detail.html", map[string]any{
 		"Run": run,
+	})
+}
+
+// DriftOverview is the row shape the drift.html template iterates over.
+type DriftOverview struct {
+	DeploymentTargetID string
+	DeploymentID       string
+	ComponentName      string
+	Cloud              string
+	Region             string
+	HasDrift           bool
+	DetectedAt         time.Time
+}
+
+// DriftSummary captures the per-org rollup the drift page renders.
+type DriftSummary struct {
+	Total   int
+	Drifted int
+	Clean   int
+}
+
+// Drift renders the org-wide drift overview page.
+func (r *Renderer) Drift(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	records, err := r.Repo.DriftStatus().ListByOrg(ctx, r.OrgID)
+	if err != nil {
+		r.renderError(w, http.StatusInternalServerError, "list drift: "+err.Error())
+		return
+	}
+	out := make([]DriftOverview, 0, len(records))
+	drifted := 0
+	for _, rec := range records {
+		t, _ := r.Repo.DeploymentTargets().Get(ctx, r.OrgID, rec.DeploymentTargetID)
+		if t == nil {
+			continue
+		}
+		if rec.HasDrift {
+			drifted++
+		}
+		out = append(out, DriftOverview{
+			DeploymentTargetID: rec.DeploymentTargetID,
+			DeploymentID:       t.DeploymentID,
+			ComponentName:      t.ComponentName,
+			Cloud:              t.Cloud,
+			Region:             t.Region,
+			HasDrift:           rec.HasDrift,
+			DetectedAt:         rec.DetectedAt,
+		})
+	}
+	r.render(w, "drift.html", map[string]any{
+		"HasData": len(out) > 0,
+		"Records": out,
+		"Summary": DriftSummary{Total: len(out), Drifted: drifted, Clean: len(out) - drifted},
 	})
 }
 

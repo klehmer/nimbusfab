@@ -320,3 +320,45 @@ func TestDeploymentDetail_RendersCostSection_NoData(t *testing.T) {
 		t.Errorf("body should show empty-state copy when no cost data: %s", body)
 	}
 }
+
+func TestDrift_RendersTable(t *testing.T) {
+	r := seededRepo(t, func(ctx context.Context, r *sqlite.Repo) {
+		_ = r.Projects().Create(ctx, inventory.Project{ID: "p", OrgID: "default", Name: "demo", CreatedAt: time.Now()})
+		_ = r.Stacks().Upsert(ctx, inventory.Stack{ID: "s", OrgID: "default", ProjectID: "p", Name: "dev"})
+		_ = r.Deployments().Create(ctx, inventory.Deployment{ID: "d", OrgID: "default", ProjectID: "p", StackID: "s", Status: "ok", StartedAt: time.Now()})
+		_ = r.DeploymentTargets().Create(ctx, inventory.DeploymentTarget{
+			ID: "t-1", OrgID: "default", DeploymentID: "d",
+			ComponentName: "web-app", Cloud: "aws", Region: "us-east-1",
+			CredentialRef: "x", Status: "ok", StartedAt: time.Now(),
+		})
+		_ = r.DriftStatus().Upsert(ctx, inventory.DriftRecord{
+			DeploymentTargetID: "t-1", OrgID: "default", DetectedAt: time.Now().UTC(),
+			HasDrift: true, SummaryJSON: []byte(`{}`),
+		})
+	})
+	rend, _ := ui.NewRenderer(r, "default", "")
+	rec := httptest.NewRecorder()
+	rend.Drift(rec, httptest.NewRequest("GET", "/ui/drift", nil))
+	if rec.Code != 200 {
+		t.Fatalf("status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"Drift overview", "1 drifted", "web-app", "aws", `href="/ui/deployments/d"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("body missing %q", want)
+		}
+	}
+}
+
+func TestDrift_EmptyState(t *testing.T) {
+	r := seededRepo(t, nil)
+	rend, _ := ui.NewRenderer(r, "default", "")
+	rec := httptest.NewRecorder()
+	rend.Drift(rec, httptest.NewRequest("GET", "/ui/drift", nil))
+	if rec.Code != 200 {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "No drift checks recorded yet") {
+		t.Errorf("body should show empty-state copy")
+	}
+}
