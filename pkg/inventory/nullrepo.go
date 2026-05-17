@@ -23,6 +23,7 @@ func IsNullRepo(r Repo) bool {
 
 func (nullRepo) Orgs() OrgRepo                           { return nullOrgs{} }
 func (nullRepo) Users() UserRepo                         { return nullUsers{} }
+func (nullRepo) ApiTokens() ApiTokenRepo                 { return nullApiTokens{} }
 func (nullRepo) Projects() ProjectRepo                   { return nullProjects{} }
 func (nullRepo) Stacks() StackRepo                       { return nullStacks{} }
 func (nullRepo) Components() ComponentRepo               { return nullComponents{} }
@@ -55,6 +56,21 @@ func (nullUsers) GetByEmail(ctx context.Context, orgID, email string) (*User, er
 	return nil, ErrInventoryRequired
 }
 func (nullUsers) Create(ctx context.Context, u User) error { return nil }
+func (nullUsers) UpdatePasswordHash(ctx context.Context, orgID, id string, hash []byte) error {
+	return nil
+}
+
+type nullApiTokens struct{}
+
+func (nullApiTokens) Create(ctx context.Context, t ApiToken) error { return nil }
+func (nullApiTokens) GetByPrefix(ctx context.Context, prefix string) (*ApiToken, error) {
+	return nil, ErrInventoryRequired
+}
+func (nullApiTokens) ListByUser(ctx context.Context, orgID, userID string) ([]ApiToken, error) {
+	return nil, ErrInventoryRequired
+}
+func (nullApiTokens) UpdateLastUsed(ctx context.Context, id string, t time.Time) error { return nil }
+func (nullApiTokens) Revoke(ctx context.Context, orgID, id string) error               { return nil }
 
 type nullProjects struct{}
 

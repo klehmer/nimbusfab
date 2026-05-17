@@ -9,18 +9,6 @@ import (
 // notWired stubs — Phase 1 wires only the subset of repos that
 // Plan/Apply/Destroy/Drift need; the others land in their owning phases.
 
-type errUsers struct{}
-
-func (errUsers) Get(ctx context.Context, orgID, id string) (*inventory.User, error) {
-	return nil, inventory.ErrNotImplementedYet
-}
-func (errUsers) GetByEmail(ctx context.Context, orgID, email string) (*inventory.User, error) {
-	return nil, inventory.ErrNotImplementedYet
-}
-func (errUsers) Create(ctx context.Context, u inventory.User) error {
-	return inventory.ErrNotImplementedYet
-}
-
 type errCompositions struct{}
 
 func (errCompositions) ListByProject(ctx context.Context, orgID, projectID string) ([]inventory.CompositionRecord, error) {

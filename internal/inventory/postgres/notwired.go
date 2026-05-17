@@ -10,18 +10,6 @@ import (
 // Plan/Apply/Destroy/Drift need are real, the rest return
 // ErrNotImplementedYet until their owning phases ship.
 
-type errUsers struct{}
-
-func (errUsers) Get(ctx context.Context, orgID, id string) (*inventory.User, error) {
-	return nil, inventory.ErrNotImplementedYet
-}
-func (errUsers) GetByEmail(ctx context.Context, orgID, email string) (*inventory.User, error) {
-	return nil, inventory.ErrNotImplementedYet
-}
-func (errUsers) Create(ctx context.Context, u inventory.User) error {
-	return inventory.ErrNotImplementedYet
-}
-
 type errCompositions struct{}
 
 func (errCompositions) ListByProject(ctx context.Context, orgID, projectID string) ([]inventory.CompositionRecord, error) {
