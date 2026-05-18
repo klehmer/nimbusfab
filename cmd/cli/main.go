@@ -34,6 +34,7 @@ func main() {
 	root.AddCommand(newCostCommand())
 	root.AddCommand(newUserCommand())
 	root.AddCommand(newPATCommand())
+	root.AddCommand(newGraphCommand())
 
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
