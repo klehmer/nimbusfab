@@ -25,7 +25,7 @@ func RenderSVG(out *Output) []byte {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" class="nimbusfab-graph">`, w, h)
 	b.WriteString(`<style>
-.nimbusfab-graph .graph-node rect { fill: #1e4d2b; stroke: #5cb85c; stroke-width: 1.5; rx: 4; }
+.nimbusfab-graph .graph-node rect { fill: #1e4d2b; stroke: #5cb85c; stroke-width: 1.5; }
 .nimbusfab-graph .graph-node text { fill: #e8e8e8; font-family: system-ui, sans-serif; font-size: 12px; }
 .nimbusfab-graph .graph-node .type { fill: #9cc; font-size: 10px; }
 .nimbusfab-graph .edge-ok { stroke: #888; stroke-width: 1.5; fill: none; }
@@ -48,7 +48,7 @@ func RenderSVG(out *Output) []byte {
 
 	for _, n := range out.Nodes {
 		fmt.Fprintf(&b, `<g class="graph-node" data-component="%s">`, html.EscapeString(n.Name))
-		fmt.Fprintf(&b, `<rect x="%d" y="%d" width="%d" height="%d"/>`, n.X, n.Y, n.W, n.H)
+		fmt.Fprintf(&b, `<rect x="%d" y="%d" width="%d" height="%d" rx="4"/>`, n.X, n.Y, n.W, n.H)
 		fmt.Fprintf(&b, `<text x="%d" y="%d" text-anchor="middle">%s</text>`,
 			n.X+n.W/2, n.Y+18, html.EscapeString(n.Name))
 		fmt.Fprintf(&b, `<text x="%d" y="%d" text-anchor="middle" class="type">%s</text>`,

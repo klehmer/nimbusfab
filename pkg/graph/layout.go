@@ -48,7 +48,15 @@ func Layout(in Input) (*Output, error) {
 	}
 
 	// Coordinates: index within rank → column position; rank → row position.
-	// For "lr" we swap rows and columns at the end.
+	// For TB:  rank steps along Y, columns along X.
+	// For LR:  rank steps along X, columns along Y.
+	rankStepX, rankStepY := 0, nodeH+gapY
+	colStepX, colStepY := nodeW+gapX, 0
+	if dir == "lr" {
+		rankStepX, rankStepY = nodeW+gapX, 0
+		colStepX, colStepY = 0, nodeH+gapY
+	}
+
 	pos := map[string]NodeBox{}
 	maxCols := 0
 	for r := 0; r <= maxRank; r++ {
@@ -58,19 +66,11 @@ func Layout(in Input) (*Output, error) {
 		}
 		for i, c := range col {
 			b := NodeBox{Name: c.Name, Type: c.Type, W: nodeW, H: nodeH,
-				X:      marginX + i*(nodeW+gapX),
-				Y:      marginY + r*(nodeH+gapY),
+				X:      marginX + r*rankStepX + i*colStepX,
+				Y:      marginY + r*rankStepY + i*colStepY,
 				Badges: badgesFor(c.Name, in.Targets),
 			}
 			pos[c.Name] = b
-		}
-	}
-
-	// Apply direction transform if "lr".
-	if dir == "lr" {
-		for name, b := range pos {
-			b.X, b.Y = b.Y, b.X
-			pos[name] = b
 		}
 	}
 
@@ -111,10 +111,13 @@ func Layout(in Input) (*Output, error) {
 	}
 
 	// Bounding box.
-	width := marginX*2 + maxCols*(nodeW+gapX) - gapX
-	height := marginY*2 + (maxRank+1)*(nodeH+gapY) - gapY
+	var width, height int
 	if dir == "lr" {
-		width, height = height, width
+		width = marginX*2 + (maxRank+1)*(nodeW+gapX) - gapX
+		height = marginY*2 + maxCols*(nodeH+gapY) - gapY
+	} else {
+		width = marginX*2 + maxCols*(nodeW+gapX) - gapX
+		height = marginY*2 + (maxRank+1)*(nodeH+gapY) - gapY
 	}
 
 	return &Output{

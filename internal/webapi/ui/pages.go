@@ -319,29 +319,15 @@ func (r *Renderer) Graph(kind string) http.HandlerFunc {
 			return
 		}
 
-		// Convert ir.Component → graph.Component.
-		gComps := make([]graph.Component, len(components))
-		for i, c := range components {
-			refs := make([]graph.Ref, len(c.Refs))
-			for j, ref := range c.Refs {
-				refs[j] = graph.Ref{Component: ref.Component, Output: ref.Output, As: ref.As}
-			}
-			gComps[i] = graph.Component{Name: c.Name, Type: c.Type, Refs: refs}
-		}
-
 		// PreflightPairing → warnings (NOT fatal in the UI; just annotate).
+		rawPairErrors := upstream.PreflightPairing(components)
 		var pairWarnings []string
-		var pairErrors []graph.PairingError
-		for _, pe := range upstream.PreflightPairing(components) {
+		for _, pe := range rawPairErrors {
 			pairWarnings = append(pairWarnings,
 				fmt.Sprintf("%s in %s/%s references %s.%s but no upstream target matches",
 					pe.Component, pe.Cloud, pe.Region, pe.Ref.Component, pe.Ref.Output))
-			pairErrors = append(pairErrors, graph.PairingError{
-				Component: pe.Component,
-				Ref:       graph.Ref{Component: pe.Ref.Component, Output: pe.Ref.Output, As: pe.Ref.As},
-				Cloud:     pe.Cloud, Region: pe.Region, Reason: pe.Reason,
-			})
 		}
+		gComps, pairErrors := graph.FromIR(components, rawPairErrors)
 
 		out, err := graph.Layout(graph.Input{
 			Components:    gComps,

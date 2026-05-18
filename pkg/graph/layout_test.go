@@ -135,3 +135,44 @@ func TestLayout_Diamond_LR(t *testing.T) {
 		t.Errorf("bad x-order: %+v", x)
 	}
 }
+
+func TestLayout_LR_NoOverlap(t *testing.T) {
+	// Two ranks in LR mode. Rank-0 right edge must not overlap rank-1 left edge.
+	in := Input{
+		Direction: "lr",
+		Components: []Component{
+			{Name: "app", Refs: []Ref{{Component: "net", Output: "vpc_id", As: "v"}}},
+			{Name: "net"},
+		},
+	}
+	out, _ := Layout(in)
+	byName := map[string]NodeBox{}
+	for _, n := range out.Nodes {
+		byName[n.Name] = n
+	}
+	netRight := byName["net"].X + byName["net"].W
+	appLeft := byName["app"].X
+	if netRight >= appLeft {
+		t.Errorf("LR overlap: net right edge=%d >= app left edge=%d", netRight, appLeft)
+	}
+}
+
+func TestLayout_TB_NoOverlap(t *testing.T) {
+	// Two ranks in TB mode. Rank-0 bottom must not overlap rank-1 top.
+	in := Input{
+		Components: []Component{
+			{Name: "app", Refs: []Ref{{Component: "net", Output: "vpc_id", As: "v"}}},
+			{Name: "net"},
+		},
+	}
+	out, _ := Layout(in)
+	byName := map[string]NodeBox{}
+	for _, n := range out.Nodes {
+		byName[n.Name] = n
+	}
+	netBottom := byName["net"].Y + byName["net"].H
+	appTop := byName["app"].Y
+	if netBottom >= appTop {
+		t.Errorf("TB overlap: net bottom=%d >= app top=%d", netBottom, appTop)
+	}
+}

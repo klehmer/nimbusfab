@@ -95,25 +95,7 @@ func runGraph(args graphArgs) int {
 			pe.Component, pe.Cloud, pe.Region, pe.Ref.Component, pe.Ref.Output)
 	}
 
-	gComps := make([]graph.Component, len(project.Components))
-	for i, c := range project.Components {
-		refs := make([]graph.Ref, len(c.Refs))
-		for j, r := range c.Refs {
-			refs[j] = graph.Ref{Component: r.Component, Output: r.Output, As: r.As}
-		}
-		gComps[i] = graph.Component{Name: c.Name, Type: c.Type, Refs: refs}
-	}
-
-	gPairs := make([]graph.PairingError, len(pairErrors))
-	for i, pe := range pairErrors {
-		gPairs[i] = graph.PairingError{
-			Component: pe.Component,
-			Ref:       graph.Ref{Component: pe.Ref.Component, Output: pe.Ref.Output, As: pe.Ref.As},
-			Cloud:     pe.Cloud,
-			Region:    pe.Region,
-			Reason:    pe.Reason,
-		}
-	}
+	gComps, gPairs := graph.FromIR(project.Components, pairErrors)
 
 	out, err := graph.Layout(graph.Input{
 		Components:    gComps,
