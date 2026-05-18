@@ -1,0 +1,13 @@
+Subject: [nimbusfab] Drift {{verbForKind .Kind}}: {{.DeploymentID}}
+
+Project: {{.ProjectName}}
+Stack: {{.Stack}}
+Detected: {{.DetectedAt.Format "2006-01-02 15:04:05 UTC"}}
+
+Affected targets:
+{{range .Targets -}}
+- {{.ComponentName}} ({{.Type}}) on {{.Cloud}}/{{.Region}} — {{.Summary}}
+{{end}}
+{{if .DeploymentURL}}
+View: {{.DeploymentURL}}
+{{end}}
