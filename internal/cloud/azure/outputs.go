@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/klehmer/nimbusfab/pkg/ir"
 )
 
-func (*Adapter) OutputBindings(ctx context.Context, target ir.DeploymentTarget, primitives []ir.ResourcePrimitive) (map[string]string, error) {
+func (*Adapter) OutputBindings(ctx context.Context, target ir.DeploymentTarget, primitives []ir.ResourcePrimitive) (map[string]any, error) {
 	t, _ := target.Spec["__type"].(string)
 	switch t {
 	case "network":
@@ -21,11 +20,11 @@ func (*Adapter) OutputBindings(ctx context.Context, target ir.DeploymentTarget, 
 	case "storage":
 		return azureOutputsStorage(primitives), nil
 	}
-	return map[string]string{}, nil
+	return map[string]any{}, nil
 }
 
-func azureOutputsNetwork(primitives []ir.ResourcePrimitive) map[string]string {
-	out := map[string]string{}
+func azureOutputsNetwork(primitives []ir.ResourcePrimitive) map[string]any {
+	out := map[string]any{}
 	var subnetNames []string
 	for _, p := range primitives {
 		switch p.TofuType {
@@ -36,14 +35,14 @@ func azureOutputsNetwork(primitives []ir.ResourcePrimitive) map[string]string {
 		}
 	}
 	sort.Strings(subnetNames)
-	out["subnet_ids"] = azureListExpr("azurerm_subnet", subnetNames, "id")
+	out["subnet_ids"] = azureListExprs("azurerm_subnet", subnetNames, "id")
 	// Azure has no direct route-table-per-subnet primitive in our adapter; empty list.
-	out["route_table_ids"] = "[]"
+	out["route_table_ids"] = []string{}
 	return out
 }
 
-func azureOutputsCompute(primitives []ir.ResourcePrimitive) map[string]string {
-	out := map[string]string{}
+func azureOutputsCompute(primitives []ir.ResourcePrimitive) map[string]any {
+	out := map[string]any{}
 	var vmNames []string
 	for _, p := range primitives {
 		switch p.TofuType {
@@ -54,13 +53,13 @@ func azureOutputsCompute(primitives []ir.ResourcePrimitive) map[string]string {
 		}
 	}
 	sort.Strings(vmNames)
-	out["instance_ids"] = azureListExpr("azurerm_linux_virtual_machine", vmNames, "id")
-	out["private_ips"] = azureListExpr("azurerm_linux_virtual_machine", vmNames, "private_ip_address")
+	out["instance_ids"] = azureListExprs("azurerm_linux_virtual_machine", vmNames, "id")
+	out["private_ips"] = azureListExprs("azurerm_linux_virtual_machine", vmNames, "private_ip_address")
 	return out
 }
 
-func azureOutputsDatabase(primitives []ir.ResourcePrimitive) map[string]string {
-	out := map[string]string{}
+func azureOutputsDatabase(primitives []ir.ResourcePrimitive) map[string]any {
+	out := map[string]any{}
 	for _, p := range primitives {
 		switch p.TofuType {
 		case "azurerm_postgresql_flexible_server":
@@ -80,8 +79,8 @@ func azureOutputsDatabase(primitives []ir.ResourcePrimitive) map[string]string {
 	return out
 }
 
-func azureOutputsStorage(primitives []ir.ResourcePrimitive) map[string]string {
-	out := map[string]string{}
+func azureOutputsStorage(primitives []ir.ResourcePrimitive) map[string]any {
+	out := map[string]any{}
 	for _, p := range primitives {
 		if p.TofuType == "azurerm_storage_account" {
 			out["bucket_name"] = fmt.Sprintf("${azurerm_storage_account.%s.name}", p.TofuName)
@@ -92,10 +91,10 @@ func azureOutputsStorage(primitives []ir.ResourcePrimitive) map[string]string {
 	return out
 }
 
-func azureListExpr(resourceType string, names []string, attr string) string {
+func azureListExprs(resourceType string, names []string, attr string) []string {
 	parts := make([]string, len(names))
 	for i, n := range names {
 		parts[i] = fmt.Sprintf("${%s.%s.%s}", resourceType, n, attr)
 	}
-	return "[" + strings.Join(parts, ", ") + "]"
+	return parts
 }

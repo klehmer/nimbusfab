@@ -75,7 +75,7 @@ type Adapter interface {
 	// are tofu HCL expressions written verbatim into output blocks. The
 	// upstream's workspace renders these as `output {}` blocks so apply
 	// writes them into terraform.tfstate, where dependents read them.
-	OutputBindings(ctx context.Context, target ir.DeploymentTarget, primitives []ir.ResourcePrimitive) (map[string]string, error)
+	OutputBindings(ctx context.Context, target ir.DeploymentTarget, primitives []ir.ResourcePrimitive) (map[string]any, error)
 }
 
 // TofuProviderVersioner is an optional interface adapters implement to pin

@@ -34,7 +34,7 @@ type WorkspaceLayout struct {
 	// workspace publishes so its terraform.tfstate contains them after
 	// apply. Keys are output names per components.Type.Outputs(); values
 	// are HCL expressions written verbatim inside an `output {}` block.
-	OutputBindings map[string]string
+	OutputBindings map[string]any
 }
 
 // UpstreamVariable is one tofu `variable` block declaration.

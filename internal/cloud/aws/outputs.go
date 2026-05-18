@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/klehmer/nimbusfab/pkg/ir"
 )
 
-func (*Adapter) OutputBindings(ctx context.Context, target ir.DeploymentTarget, primitives []ir.ResourcePrimitive) (map[string]string, error) {
+func (*Adapter) OutputBindings(ctx context.Context, target ir.DeploymentTarget, primitives []ir.ResourcePrimitive) (map[string]any, error) {
 	t, _ := target.Spec["__type"].(string)
 	switch t {
 	case "network":
@@ -21,11 +20,11 @@ func (*Adapter) OutputBindings(ctx context.Context, target ir.DeploymentTarget, 
 	case "storage":
 		return outputsStorage(primitives), nil
 	}
-	return map[string]string{}, nil
+	return map[string]any{}, nil
 }
 
-func outputsNetwork(primitives []ir.ResourcePrimitive) map[string]string {
-	out := map[string]string{}
+func outputsNetwork(primitives []ir.ResourcePrimitive) map[string]any {
+	out := map[string]any{}
 	var subnetNames []string
 	var routeTableNames []string
 	for _, p := range primitives {
@@ -40,13 +39,13 @@ func outputsNetwork(primitives []ir.ResourcePrimitive) map[string]string {
 	}
 	sort.Strings(subnetNames)
 	sort.Strings(routeTableNames)
-	out["subnet_ids"] = listExpr("aws_subnet", subnetNames, "id")
-	out["route_table_ids"] = listExpr("aws_route_table", routeTableNames, "id")
+	out["subnet_ids"] = listExprs("aws_subnet", subnetNames, "id")
+	out["route_table_ids"] = listExprs("aws_route_table", routeTableNames, "id")
 	return out
 }
 
-func outputsCompute(primitives []ir.ResourcePrimitive) map[string]string {
-	out := map[string]string{}
+func outputsCompute(primitives []ir.ResourcePrimitive) map[string]any {
+	out := map[string]any{}
 	var instanceNames []string
 	for _, p := range primitives {
 		switch p.TofuType {
@@ -57,13 +56,13 @@ func outputsCompute(primitives []ir.ResourcePrimitive) map[string]string {
 		}
 	}
 	sort.Strings(instanceNames)
-	out["instance_ids"] = listExpr("aws_instance", instanceNames, "id")
-	out["private_ips"] = listExpr("aws_instance", instanceNames, "private_ip")
+	out["instance_ids"] = listExprs("aws_instance", instanceNames, "id")
+	out["private_ips"] = listExprs("aws_instance", instanceNames, "private_ip")
 	return out
 }
 
-func outputsDatabase(primitives []ir.ResourcePrimitive) map[string]string {
-	out := map[string]string{}
+func outputsDatabase(primitives []ir.ResourcePrimitive) map[string]any {
+	out := map[string]any{}
 	for _, p := range primitives {
 		if p.TofuType == "aws_db_instance" {
 			out["endpoint"] = fmt.Sprintf("${aws_db_instance.%s.address}", p.TofuName)
@@ -74,8 +73,8 @@ func outputsDatabase(primitives []ir.ResourcePrimitive) map[string]string {
 	return out
 }
 
-func outputsStorage(primitives []ir.ResourcePrimitive) map[string]string {
-	out := map[string]string{}
+func outputsStorage(primitives []ir.ResourcePrimitive) map[string]any {
+	out := map[string]any{}
 	for _, p := range primitives {
 		if p.TofuType == "aws_s3_bucket" {
 			out["bucket_name"] = fmt.Sprintf("${aws_s3_bucket.%s.bucket}", p.TofuName)
@@ -86,10 +85,10 @@ func outputsStorage(primitives []ir.ResourcePrimitive) map[string]string {
 	return out
 }
 
-func listExpr(resourceType string, names []string, attr string) string {
+func listExprs(resourceType string, names []string, attr string) []string {
 	parts := make([]string, len(names))
 	for i, n := range names {
 		parts[i] = fmt.Sprintf("${%s.%s.%s}", resourceType, n, attr)
 	}
-	return "[" + strings.Join(parts, ", ") + "]"
+	return parts
 }

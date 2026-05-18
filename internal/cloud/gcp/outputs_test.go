@@ -16,10 +16,15 @@ func TestOutputBindings_GCPNetwork(t *testing.T) {
 			"cidr": "10.0.0.0/16", "subnetCount": 2}}
 	prim, _ := a.Emit(context.Background(), target, cloud.ResolvedRefs{})
 	got, _ := a.OutputBindings(context.Background(), target, prim)
-	if !strings.HasPrefix(got["vpc_id"], "${google_compute_network.") {
+	vpcID, _ := got["vpc_id"].(string)
+	if !strings.HasPrefix(vpcID, "${google_compute_network.") {
 		t.Errorf("vpc_id: got %q", got["vpc_id"])
 	}
-	if !strings.HasPrefix(got["subnet_ids"], "[${google_compute_subnetwork.") {
-		t.Errorf("subnet_ids: got %q", got["subnet_ids"])
+	subnetIDs, ok := got["subnet_ids"].([]string)
+	if !ok || len(subnetIDs) == 0 {
+		t.Fatalf("subnet_ids should be non-empty []string, got %T: %v", got["subnet_ids"], got["subnet_ids"])
+	}
+	if !strings.HasPrefix(subnetIDs[0], "${google_compute_subnetwork.") {
+		t.Errorf("subnet_ids[0]: got %q", subnetIDs[0])
 	}
 }

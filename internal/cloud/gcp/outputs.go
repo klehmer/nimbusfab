@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/klehmer/nimbusfab/pkg/ir"
 )
 
-func (*Adapter) OutputBindings(ctx context.Context, target ir.DeploymentTarget, primitives []ir.ResourcePrimitive) (map[string]string, error) {
+func (*Adapter) OutputBindings(ctx context.Context, target ir.DeploymentTarget, primitives []ir.ResourcePrimitive) (map[string]any, error) {
 	t, _ := target.Spec["__type"].(string)
 	switch t {
 	case "network":
@@ -21,11 +20,11 @@ func (*Adapter) OutputBindings(ctx context.Context, target ir.DeploymentTarget, 
 	case "storage":
 		return gcpOutputsStorage(primitives), nil
 	}
-	return map[string]string{}, nil
+	return map[string]any{}, nil
 }
 
-func gcpOutputsNetwork(primitives []ir.ResourcePrimitive) map[string]string {
-	out := map[string]string{}
+func gcpOutputsNetwork(primitives []ir.ResourcePrimitive) map[string]any {
+	out := map[string]any{}
 	var subnetNames []string
 	for _, p := range primitives {
 		switch p.TofuType {
@@ -36,13 +35,13 @@ func gcpOutputsNetwork(primitives []ir.ResourcePrimitive) map[string]string {
 		}
 	}
 	sort.Strings(subnetNames)
-	out["subnet_ids"] = gcpListExpr("google_compute_subnetwork", subnetNames, "id")
-	out["route_table_ids"] = "[]"
+	out["subnet_ids"] = gcpListExprs("google_compute_subnetwork", subnetNames, "id")
+	out["route_table_ids"] = []string{}
 	return out
 }
 
-func gcpOutputsCompute(primitives []ir.ResourcePrimitive) map[string]string {
-	out := map[string]string{}
+func gcpOutputsCompute(primitives []ir.ResourcePrimitive) map[string]any {
+	out := map[string]any{}
 	var instNames []string
 	for _, p := range primitives {
 		switch p.TofuType {
@@ -55,13 +54,13 @@ func gcpOutputsCompute(primitives []ir.ResourcePrimitive) map[string]string {
 		}
 	}
 	sort.Strings(instNames)
-	out["instance_ids"] = gcpListExpr("google_compute_instance", instNames, "id")
-	out["private_ips"] = gcpListExpr("google_compute_instance", instNames, "network_interface.0.network_ip")
+	out["instance_ids"] = gcpListExprs("google_compute_instance", instNames, "id")
+	out["private_ips"] = gcpListExprs("google_compute_instance", instNames, "network_interface.0.network_ip")
 	return out
 }
 
-func gcpOutputsDatabase(primitives []ir.ResourcePrimitive) map[string]string {
-	out := map[string]string{}
+func gcpOutputsDatabase(primitives []ir.ResourcePrimitive) map[string]any {
+	out := map[string]any{}
 	for _, p := range primitives {
 		if p.TofuType == "google_sql_database_instance" {
 			out["endpoint"] = fmt.Sprintf("${google_sql_database_instance.%s.public_ip_address}", p.TofuName)
@@ -72,8 +71,8 @@ func gcpOutputsDatabase(primitives []ir.ResourcePrimitive) map[string]string {
 	return out
 }
 
-func gcpOutputsStorage(primitives []ir.ResourcePrimitive) map[string]string {
-	out := map[string]string{}
+func gcpOutputsStorage(primitives []ir.ResourcePrimitive) map[string]any {
+	out := map[string]any{}
 	for _, p := range primitives {
 		if p.TofuType == "google_storage_bucket" {
 			out["bucket_name"] = fmt.Sprintf("${google_storage_bucket.%s.name}", p.TofuName)
@@ -84,10 +83,10 @@ func gcpOutputsStorage(primitives []ir.ResourcePrimitive) map[string]string {
 	return out
 }
 
-func gcpListExpr(resourceType string, names []string, attr string) string {
+func gcpListExprs(resourceType string, names []string, attr string) []string {
 	parts := make([]string, len(names))
 	for i, n := range names {
 		parts[i] = fmt.Sprintf("${%s.%s.%s}", resourceType, n, attr)
 	}
-	return "[" + strings.Join(parts, ", ") + "]"
+	return parts
 }

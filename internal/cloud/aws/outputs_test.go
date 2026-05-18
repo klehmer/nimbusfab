@@ -23,8 +23,13 @@ func TestOutputBindings_Network(t *testing.T) {
 	if got["vpc_id"] != "${aws_vpc.web_network.id}" {
 		t.Errorf("vpc_id: got %q", got["vpc_id"])
 	}
-	if got["subnet_ids"] != "[${aws_subnet.web_network_0.id}, ${aws_subnet.web_network_1.id}]" {
-		t.Errorf("subnet_ids: got %q", got["subnet_ids"])
+	wantSubnets := []string{"${aws_subnet.web_network_0.id}", "${aws_subnet.web_network_1.id}"}
+	gotSubnets, ok := got["subnet_ids"].([]string)
+	if !ok {
+		t.Fatalf("subnet_ids should be []string, got %T: %v", got["subnet_ids"], got["subnet_ids"])
+	}
+	if len(gotSubnets) != len(wantSubnets) || gotSubnets[0] != wantSubnets[0] || gotSubnets[1] != wantSubnets[1] {
+		t.Errorf("subnet_ids: got %v, want %v", gotSubnets, wantSubnets)
 	}
 }
 
