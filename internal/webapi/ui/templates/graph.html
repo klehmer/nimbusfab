@@ -29,12 +29,17 @@
 </div>
 {{end}}
 
-<div class="graph-canvas" data-targets-json='{{.TargetsJSON}}'>
+<div class="graph-canvas" data-targets-json='{{.TargetsJSON}}' data-components-json='{{.ComponentsJSON}}'>
   {{.SVG | safeHTML}}
 </div>
 
 <aside id="node-detail" hidden>
   <h3 id="node-detail-title"></h3>
+  <p id="node-detail-type" class="muted"></p>
+  <table id="node-detail-spec" class="spec-table" hidden>
+    <tbody></tbody>
+  </table>
+  <h4 class="node-detail-targets-heading">Targets</h4>
   <ul id="node-detail-targets"></ul>
   <button type="button" id="node-detail-close">Close</button>
 </aside>

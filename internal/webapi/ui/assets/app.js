@@ -110,11 +110,12 @@
     const canvas = document.querySelector('.graph-canvas');
     if (!canvas) return;
     const targets = JSON.parse(canvas.dataset.targetsJson || '{}');
+    const components = JSON.parse(canvas.dataset.componentsJson || '{}');
 
     document.querySelectorAll('svg .graph-node').forEach((node) => {
       node.addEventListener('click', () => {
         const name = node.dataset.component;
-        renderNodeDetail(name, targets[name] || []);
+        renderNodeDetail(name, components[name] || null, targets[name] || []);
       });
     });
 
@@ -126,10 +127,35 @@
     }
   }
 
-  function renderNodeDetail(name, targetList) {
+  function renderNodeDetail(name, component, targetList) {
     const panel = document.getElementById('node-detail');
     if (!panel) return;
     document.getElementById('node-detail-title').textContent = name;
+
+    const typeEl = document.getElementById('node-detail-type');
+    typeEl.textContent = component && component.type ? component.type : '';
+
+    const specTable = document.getElementById('node-detail-spec');
+    const specBody = specTable.querySelector('tbody');
+    specBody.innerHTML = '';
+    const spec = (component && component.spec) || {};
+    const specKeys = Object.keys(spec).sort();
+    if (specKeys.length === 0) {
+      specTable.hidden = true;
+    } else {
+      specKeys.forEach((k) => {
+        const row = document.createElement('tr');
+        const keyCell = document.createElement('th');
+        keyCell.textContent = k;
+        const valCell = document.createElement('td');
+        valCell.textContent = formatSpecValue(spec[k]);
+        row.appendChild(keyCell);
+        row.appendChild(valCell);
+        specBody.appendChild(row);
+      });
+      specTable.hidden = false;
+    }
+
     const ul = document.getElementById('node-detail-targets');
     ul.innerHTML = '';
     if (targetList.length === 0) {
@@ -155,6 +181,13 @@
       });
     }
     panel.hidden = false;
+  }
+
+  function formatSpecValue(v) {
+    if (v === null || v === undefined) return '—';
+    if (typeof v === 'boolean') return v ? 'yes' : 'no';
+    if (typeof v === 'object') return JSON.stringify(v);
+    return String(v);
   }
 
   window.nimbusfab = { attachDeploymentActions: attachDeploymentActions, attachGraph: attachGraph };
