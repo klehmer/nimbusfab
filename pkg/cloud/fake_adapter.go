@@ -59,5 +59,9 @@ func (f *FakeAdapter) ProviderBlock(ctx context.Context, target ir.DeploymentTar
 	return map[string]any{f.name: map[string]any{"region": target.Region}}, nil
 }
 
+func (a *FakeAdapter) OutputBindings(ctx context.Context, target ir.DeploymentTarget, primitives []ir.ResourcePrimitive) (map[string]string, error) {
+	return map[string]string{}, nil
+}
+
 // Compile-time check that FakeAdapter satisfies Adapter.
 var _ Adapter = (*FakeAdapter)(nil)

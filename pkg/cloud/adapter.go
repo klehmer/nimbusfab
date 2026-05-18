@@ -69,6 +69,13 @@ type Adapter interface {
 	// provider.tf.json. Credentials material flows in through env vars; it
 	// MUST NOT be embedded in the returned map.
 	ProviderBlock(ctx context.Context, target ir.DeploymentTarget, creds Credentials) (map[string]any, error)
+
+	// OutputBindings returns the tofu expressions for outputs declared by
+	// this component's Type. Keyed by output name (e.g., "vpc_id"); values
+	// are tofu HCL expressions written verbatim into output blocks. The
+	// upstream's workspace renders these as `output {}` blocks so apply
+	// writes them into terraform.tfstate, where dependents read them.
+	OutputBindings(ctx context.Context, target ir.DeploymentTarget, primitives []ir.ResourcePrimitive) (map[string]string, error)
 }
 
 // TofuProviderVersioner is an optional interface adapters implement to pin
