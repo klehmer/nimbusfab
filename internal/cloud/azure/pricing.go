@@ -36,14 +36,6 @@ func pricingKeyImpl(p ir.ResourcePrimitive) (map[string]any, error) {
 			"tier":          tier,
 			"priceType":     "Consumption",
 		}, nil
-	case "azurerm_mariadb_server":
-		// Classic MariaDB has different shape.
-		sku, _ := p.Attributes["sku_name"].(string)
-		return map[string]any{
-			"service":       "MariaDB",
-			"skuName":       sku,
-			"armRegionName": region,
-		}, nil
 	case "azurerm_storage_account":
 		return map[string]any{
 			"service":       "Storage",
@@ -74,14 +66,19 @@ func regionFromID(id string) string {
 	return ""
 }
 
+// dbTierFromSKU extracts the tier from a PostgreSQL/MySQL flexible server
+// sku_name. The format is {TierPrefix}_{ComputeFamily}_{VCores}:
+//   - B_  = Burstable
+//   - GP_ = GeneralPurpose
+//   - MO_ = MemoryOptimized
 func dbTierFromSKU(sku string) string {
 	switch {
-	case len(sku) > 11 && sku[:11] == "Standard_B1":
+	case len(sku) >= 2 && sku[:2] == "B_":
 		return "Burstable"
-	case len(sku) > 10 && sku[:10] == "Standard_B":
-		return "Burstable"
-	case len(sku) > 10 && sku[:10] == "Standard_D":
+	case len(sku) >= 3 && sku[:3] == "GP_":
 		return "GeneralPurpose"
+	case len(sku) >= 3 && sku[:3] == "MO_":
+		return "MemoryOptimized"
 	}
 	return "GeneralPurpose"
 }

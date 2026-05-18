@@ -13,7 +13,7 @@ func TestEmitStorage_BasicShape(t *testing.T) {
 	a := azure.New()
 	prims, err := a.Emit(context.Background(), ir.DeploymentTarget{
 		Cloud: "azure", Region: "eastus",
-		Spec: map[string]any{"__type": "storage", "__component": "uploads"},
+		Spec: map[string]any{"__type": "storage", "__component": "uploads", "__deployment_id": "dep-test"},
 	}, cloud.ResolvedRefs{})
 	if err != nil {
 		t.Fatalf("Emit: %v", err)
@@ -37,7 +37,7 @@ func TestEmitStorage_AccountNameDeterministic(t *testing.T) {
 	a := azure.New()
 	target := ir.DeploymentTarget{
 		Cloud: "azure", Region: "eastus",
-		Spec: map[string]any{"__type": "storage", "__component": "uploads"},
+		Spec: map[string]any{"__type": "storage", "__component": "uploads", "__deployment_id": "dep-test"},
 	}
 	p1, _ := a.Emit(context.Background(), target, cloud.ResolvedRefs{})
 	p2, _ := a.Emit(context.Background(), target, cloud.ResolvedRefs{})
@@ -64,7 +64,7 @@ func TestEmitStorage_NameRespectsAzureCharRules(t *testing.T) {
 	a := azure.New()
 	prims, _ := a.Emit(context.Background(), ir.DeploymentTarget{
 		Cloud: "azure", Region: "eastus",
-		Spec: map[string]any{"__type": "storage", "__component": "user-uploads-2026"},
+		Spec: map[string]any{"__type": "storage", "__component": "user-uploads-2026", "__deployment_id": "dep-test"},
 	}, cloud.ResolvedRefs{})
 	for _, p := range prims {
 		if p.TofuType == "azurerm_storage_account" {

@@ -1,10 +1,7 @@
 package azure
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"strings"
 
 	"github.com/klehmer/nimbusfab/pkg/cloud"
 	"github.com/klehmer/nimbusfab/pkg/ir"
@@ -15,12 +12,13 @@ func emitStorageImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 	if component == "" {
 		component = "storage"
 	}
+	deploymentID, _ := target.Spec["__deployment_id"].(string)
 	name := tofuIdent(component)
 	rgName := resourceGroupName(component, target.Region)
 
 	accountName, _ := target.Spec["name"].(string)
 	if accountName == "" {
-		accountName = deriveStorageAccountName(component, target.Region)
+		accountName = azureStorageAccountName(component, deploymentID)
 	}
 	if len(accountName) < 3 || len(accountName) > 24 {
 		return nil, fmt.Errorf("azure.emitStorage: storage account name %q must be 3-24 chars (got %d)", accountName, len(accountName))
@@ -55,16 +53,18 @@ func emitStorageImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 				"account_kind":                    "StorageV2",
 				"public_network_access_enabled":   publicEnabled,
 				"allow_nested_items_to_be_public": publicEnabled,
+				"min_tls_version":                 "TLS1_2",
 				"blob_properties": []any{map[string]any{
 					"versioning_enabled": versioning,
 				}},
 			},
 		},
 		{
-			ID:       fmt.Sprintf("%s.azure-%s.container", component, target.Region),
-			Cloud:    "azure",
-			TofuType: "azurerm_storage_container",
-			TofuName: name,
+			ID:           fmt.Sprintf("%s.azure-%s.container", component, target.Region),
+			Cloud:        "azure",
+			TofuType:     "azurerm_storage_container",
+			TofuName:     name,
+			TagAttribute: ir.TagAttributeSkip, // azurerm_storage_container does not support tags
 			Attributes: map[string]any{
 				"name":                  "default",
 				"storage_account_name":  "${azurerm_storage_account." + name + ".name}",
@@ -74,20 +74,3 @@ func emitStorageImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 	}, nil
 }
 
-// deriveStorageAccountName produces an Azure-legal name (3-24 chars, lowercase
-// letters + digits only) from component + region. Deterministic.
-func deriveStorageAccountName(component, region string) string {
-	clean := strings.Builder{}
-	for _, c := range strings.ToLower(component) {
-		if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') {
-			clean.WriteRune(c)
-		}
-	}
-	base := clean.String()
-	if len(base) > 18 {
-		base = base[:18]
-	}
-	sum := sha256.Sum256([]byte(component + ":" + region))
-	suffix := hex.EncodeToString(sum[:])[:6]
-	return base + suffix
-}

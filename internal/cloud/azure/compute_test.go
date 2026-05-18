@@ -2,6 +2,7 @@ package azure_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/klehmer/nimbusfab/internal/cloud/azure"
@@ -55,5 +56,22 @@ func TestEmitCompute_SizeMapping(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestEmitCompute_Azure_MissingSubnetIDRefErrors(t *testing.T) {
+	a := azure.New()
+	target := ir.DeploymentTarget{
+		Cloud: "azure", Region: "eastus",
+		Spec: map[string]any{"__component": "web-app", "__type": "compute",
+			"__deployment_id": "dep-test",
+			"size": "small", "replicas": 1},
+	}
+	_, err := a.Emit(context.Background(), target, cloud.ResolvedRefs{})
+	if err == nil {
+		t.Fatal("expected Emit to fail when subnetId ref is missing")
+	}
+	if !strings.Contains(err.Error(), "subnet") && !strings.Contains(err.Error(), "ref") {
+		t.Errorf("error should mention missing ref; got: %v", err)
 	}
 }

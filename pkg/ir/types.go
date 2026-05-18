@@ -11,6 +11,12 @@ package ir
 // APIVersionV1Alpha1 is the current IR contract version. Pre-1.0 we are alpha.
 const APIVersionV1Alpha1 = "infra.dev/v1alpha1"
 
+// TagAttributeSkip indicates the primitive's resource type rejects any
+// tag/label attribute (e.g., aws_route, azurerm_subnet, google_compute_network).
+// Setting TagAttribute = TagAttributeSkip causes injectFrameworkTags to
+// leave the primitive unchanged regardless of cloud.
+const TagAttributeSkip = "-"
+
 // TargetMode controls how a Component fans out across clouds.
 type TargetMode string
 
@@ -109,11 +115,11 @@ type ResourcePrimitive struct {
 	Tags       map[string]string `json:"tags,omitempty"`
 	// TagAttribute selects how framework tags attach to this primitive:
 	//   ""        per-cloud default — "tags" on AWS/Azure, "" (skip) on GCP
-	//   "tags"    AWS / Azure convention
+	//   "tags"    AWS / Azure convention (explicit)
 	//   "labels"  GCP convention (stricter key/value rules; injectFrameworkTags
 	//             sanitizes values for the [a-z0-9_-] + 63-char-cap constraint)
-	// Resources that reject any tag/label attribute use the empty string AND
-	// have no per-resource Tags set.
+	//   "-"       explicit skip — resource does not accept any tag attribute
+	//             (e.g. azurerm_storage_container, aws_route_table_association)
 	TagAttribute string `json:"tagAttribute,omitempty"`
 }
 

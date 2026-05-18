@@ -44,11 +44,12 @@ func tofuIdent(s string) string {
 	return s
 }
 
-// gcpResourceName converts a component name to a GCP-safe resource name:
+// gcpResourceNameSimple converts a component name to a GCP-safe resource name:
 // lowercase letters, digits, hyphens; must start with a letter; ≤63 chars.
+// Deprecated: use gcpResourceName from naming.go instead.
 var gcpResourceNameRe = regexp.MustCompile(`[^a-z0-9-]`)
 
-func gcpResourceName(component string) string {
+func gcpResourceNameSimple(component string) string {
 	s := strings.ToLower(component)
 	s = strings.ReplaceAll(s, "_", "-")
 	s = gcpResourceNameRe.ReplaceAllString(s, "-")

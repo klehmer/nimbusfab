@@ -125,7 +125,10 @@ func TestProvisionerPlan_ToposortsAndPassesPlaceholders(t *testing.T) {
 		Components: []ir.Component{
 			// Dependent declared FIRST in source order — toposort must reorder.
 			{Name: "web-app", Type: "compute",
-				Refs: []ir.ComponentRef{{Component: "web-network", Output: "subnet_ids", As: "subnetId"}},
+				Refs: []ir.ComponentRef{
+					{Component: "web-network", Output: "subnet_ids", As: "subnetId"},
+					{Component: "web-network", Output: "vpc_id", As: "vpcId"},
+				},
 				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1",
 					Spec: map[string]any{"size": "small", "instanceCount": 1, "subnetId": "${refs.subnetId}"}}}},
 			{Name: "web-network", Type: "network",

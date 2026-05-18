@@ -2,6 +2,7 @@ package azure_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/klehmer/nimbusfab/internal/cloud/azure"
@@ -36,10 +37,10 @@ func TestEmitDatabase_PostgresShape(t *testing.T) {
 
 func TestEmitDatabase_SizeMapping(t *testing.T) {
 	cases := map[string]string{
-		"small":  "Standard_B1ms",
-		"medium": "Standard_B2s",
-		"large":  "Standard_D2s_v3",
-		"xlarge": "Standard_D4s_v3",
+		"small":  "B_Standard_B1ms",
+		"medium": "B_Standard_B2s",
+		"large":  "GP_Standard_D2s_v3",
+		"xlarge": "GP_Standard_D4s_v3",
 	}
 	a := azure.New()
 	for size, want := range cases {
@@ -57,20 +58,16 @@ func TestEmitDatabase_SizeMapping(t *testing.T) {
 	}
 }
 
-func TestEmitDatabase_MariaDBClassic(t *testing.T) {
+func TestEmitDatabase_MariaDBRejected(t *testing.T) {
 	a := azure.New()
-	prims, _ := a.Emit(context.Background(), ir.DeploymentTarget{
-		Cloud: "azure", Region: "eastus",
-		Spec: map[string]any{"__type": "database", "__component": "old", "engine": "mariadb", "size": "small"},
-	}, cloud.ResolvedRefs{})
-	var found bool
-	for _, p := range prims {
-		if p.TofuType == "azurerm_mariadb_server" {
-			found = true
-		}
+	_, err := a.Emit(context.Background(), ir.DeploymentTarget{Cloud: "azure", Region: "eastus",
+		Spec: map[string]any{"__component": "orders-db", "__type": "database",
+			"engine": "mariadb", "size": "small"}}, cloud.ResolvedRefs{})
+	if err == nil {
+		t.Fatal("expected Emit to error on engine: mariadb")
 	}
-	if !found {
-		t.Error("expected azurerm_mariadb_server (classic) for engine: mariadb")
+	if !strings.Contains(err.Error(), "mariadb") {
+		t.Errorf("error should mention mariadb; got: %v", err)
 	}
 }
 

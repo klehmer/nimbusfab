@@ -148,6 +148,7 @@ func (rp *runtimeProvisioner) planOne(ctx context.Context, in PlanInput, stack i
 	}
 	target.Spec["__component"] = comp.Name
 	target.Spec["__type"] = comp.Type
+	target.Spec["__deployment_id"] = in.DeploymentID
 
 	primitives, err := adapter.Emit(ctx, target, buildResolvedRefs(comp.Refs))
 	if err != nil {

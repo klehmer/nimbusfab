@@ -22,11 +22,22 @@ func TestEngine_EstimateCost_OneInstance(t *testing.T) {
 	project := &ir.Project{
 		APIVersion: ir.APIVersionV1Alpha1, Name: "x",
 		Stacks: map[string]ir.Stack{"dev": {Name: "dev", StateBackend: ir.StateBackend{Kind: "local"}}},
-		Components: []ir.Component{{
-			Name: "web", Type: "compute",
-			Spec:    map[string]any{"size": "small"},
-			Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1"}},
-		}},
+		Components: []ir.Component{
+			{
+				Name: "net", Type: "network",
+				Spec:    map[string]any{"cidr": "10.0.0.0/16"},
+				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1"}},
+			},
+			{
+				Name: "web", Type: "compute",
+				Spec: map[string]any{"size": "small"},
+				Refs: []ir.ComponentRef{
+					{Component: "net", Output: "subnet_ids", As: "subnetId"},
+					{Component: "net", Output: "vpc_id", As: "vpcId"},
+				},
+				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1"}},
+			},
+		},
 	}
 	plan, err := eng.Plan(context.Background(), project, "dev", engine.PlanOpts{})
 	if err != nil {
@@ -59,9 +70,18 @@ func TestEngine_EstimateCost_FullStack(t *testing.T) {
 		APIVersion: ir.APIVersionV1Alpha1, Name: "x",
 		Stacks: map[string]ir.Stack{"dev": {Name: "dev", StateBackend: ir.StateBackend{Kind: "local"}}},
 		Components: []ir.Component{
+			{Name: "net", Type: "network", Spec: map[string]any{"cidr": "10.0.0.0/16"},
+				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1"}}},
 			{Name: "web", Type: "compute", Spec: map[string]any{"size": "small"},
+				Refs: []ir.ComponentRef{
+					{Component: "net", Output: "subnet_ids", As: "subnetId"},
+					{Component: "net", Output: "vpc_id", As: "vpcId"},
+				},
 				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1"}}},
 			{Name: "db", Type: "database", Spec: map[string]any{"engine": "postgres", "size": "small"},
+				Refs: []ir.ComponentRef{
+					{Component: "net", Output: "subnet_ids", As: "subnetIds"},
+				},
 				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1"}}},
 			{Name: "uploads", Type: "storage", Spec: map[string]any{},
 				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1"}}},

@@ -45,7 +45,7 @@ func emitComputeImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 	}
 
 	name := tofuIdent(component)
-	resName := gcpResourceName(component)
+	resName := gcpResourceNameSimple(component)
 	networkRef, _ := refs["networkId"].(string)
 	subnetRef, _ := refs["subnetworkId"].(string)
 
@@ -76,10 +76,11 @@ func emitComputeImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 			nic["network"] = "default"
 		}
 		out = append(out, ir.ResourcePrimitive{
-			ID:       fmt.Sprintf("%s.gcp-%s.instance_%d", component, target.Region, i),
-			Cloud:    "gcp",
-			TofuType: "google_compute_instance",
-			TofuName: instName,
+			ID:           fmt.Sprintf("%s.gcp-%s.instance_%d", component, target.Region, i),
+			Cloud:        "gcp",
+			TofuType:     "google_compute_instance",
+			TofuName:     instName,
+			TagAttribute: "labels",
 			Attributes: map[string]any{
 				"name":         fmt.Sprintf("%s-%d", resName, i),
 				"machine_type": machineType,

@@ -2,6 +2,7 @@ package aws_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/klehmer/nimbusfab/internal/cloud/aws"
@@ -57,7 +58,7 @@ func TestEmitCompute_SizeMapping(t *testing.T) {
 		prims, _ := a.Emit(context.Background(), ir.DeploymentTarget{
 			Cloud: "aws", Region: "us-east-1",
 			Spec: map[string]any{"__type": "compute", "__component": "x", "size": size},
-		}, cloud.ResolvedRefs{"subnetId": "subnet-1"})
+		}, cloud.ResolvedRefs{"subnetId": "subnet-1", "vpcId": "vpc-1"})
 		for _, p := range prims {
 			if p.TofuType == "aws_instance" {
 				if p.Attributes["instance_type"] != want {
@@ -74,7 +75,7 @@ func TestEmitCompute_AMIPickedPerRegion(t *testing.T) {
 		prims, _ := a.Emit(context.Background(), ir.DeploymentTarget{
 			Cloud: "aws", Region: region,
 			Spec: map[string]any{"__type": "compute", "__component": "x", "size": "small"},
-		}, cloud.ResolvedRefs{"subnetId": "subnet-1"})
+		}, cloud.ResolvedRefs{"subnetId": "subnet-1", "vpcId": "vpc-1"})
 		for _, p := range prims {
 			if p.TofuType == "aws_instance" {
 				ami, _ := p.Attributes["ami"].(string)
@@ -83,5 +84,21 @@ func TestEmitCompute_AMIPickedPerRegion(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestEmitCompute_MissingSubnetIDRefErrors(t *testing.T) {
+	a := aws.New()
+	target := ir.DeploymentTarget{
+		Cloud: "aws", Region: "us-east-1",
+		Spec: map[string]any{"__component": "web-app", "__type": "compute",
+			"size": "small", "instanceCount": 1},
+	}
+	_, err := a.Emit(context.Background(), target, cloud.ResolvedRefs{})
+	if err == nil {
+		t.Fatal("expected Emit to fail when subnetId/vpcId refs are missing")
+	}
+	if !strings.Contains(err.Error(), "subnet") && !strings.Contains(err.Error(), "vpc") && !strings.Contains(err.Error(), "ref") {
+		t.Errorf("error should mention missing ref; got: %v", err)
 	}
 }

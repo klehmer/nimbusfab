@@ -112,11 +112,22 @@ func TestEngine_Plan_PersistsCostEstimates(t *testing.T) {
 	project := &ir.Project{
 		APIVersion: ir.APIVersionV1Alpha1, Name: "cost-demo",
 		Stacks: map[string]ir.Stack{"dev": {Name: "dev", StateBackend: ir.StateBackend{Kind: "local"}}},
-		Components: []ir.Component{{
-			Name: "web-app", Type: "compute",
-			Spec:    map[string]any{"size": "small"},
-			Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1"}},
-		}},
+		Components: []ir.Component{
+			{
+				Name: "net", Type: "network",
+				Spec:    map[string]any{"cidr": "10.0.0.0/16"},
+				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1"}},
+			},
+			{
+				Name: "web-app", Type: "compute",
+				Spec: map[string]any{"size": "small"},
+				Refs: []ir.ComponentRef{
+					{Component: "net", Output: "subnet_ids", As: "subnetId"},
+					{Component: "net", Output: "vpc_id", As: "vpcId"},
+				},
+				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1"}},
+			},
+		},
 	}
 	plan, err := eng.Plan(context.Background(), project, "dev", engine.PlanOpts{})
 	if err != nil {

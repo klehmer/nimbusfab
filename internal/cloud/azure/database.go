@@ -15,17 +15,20 @@ type dbSizeProfile struct {
 	StorageGB int
 }
 
+// dbSizes maps T-shirt sizes to azurerm_postgresql_flexible_server sku_name
+// values. The SKU format is {TierPrefix}_{ComputeFamily}_{VCores}:
+//   - B_ = Burstable, GP_ = GeneralPurpose, MO_ = MemoryOptimized
 var dbSizes = map[string]dbSizeProfile{
-	"small":  {"Standard_B1ms", "Burstable", 1, 2, 100},
-	"medium": {"Standard_B2s", "Burstable", 2, 4, 250},
-	"large":  {"Standard_D2s_v3", "GeneralPurpose", 2, 8, 500},
-	"xlarge": {"Standard_D4s_v3", "GeneralPurpose", 4, 16, 1000},
+	"small":  {"B_Standard_B1ms", "Burstable", 1, 2, 32},
+	"medium": {"B_Standard_B2s", "Burstable", 2, 4, 64},
+	"large":  {"GP_Standard_D2s_v3", "GeneralPurpose", 2, 8, 128},
+	"xlarge": {"GP_Standard_D4s_v3", "GeneralPurpose", 4, 16, 256},
 }
 
 var dbEngineDefaults = map[string]string{
-	"postgres": "16",
-	"mysql":    "8.0",
-	"mariadb":  "10.3",
+	"postgres":   "16",
+	"postgresql": "16",
+	"mysql":      "8.0",
 }
 
 func emitDatabaseImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.ResourcePrimitive, error) {
@@ -40,9 +43,13 @@ func emitDatabaseImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir
 	if engine == "" {
 		return nil, fmt.Errorf("azure.emitDatabase: spec.engine required")
 	}
+	// Reject mariadb early: azurerm_mariadb_server was removed in azurerm provider v4.
+	if engine == "mariadb" {
+		return nil, fmt.Errorf("azure: engine %q is unsupported (azurerm_mariadb_server was removed in azurerm provider v4)", engine)
+	}
 	defaultVer, ok := dbEngineDefaults[engine]
 	if !ok {
-		return nil, fmt.Errorf("azure.emitDatabase: unsupported engine %q (supported: postgres, mysql, mariadb)", engine)
+		return nil, fmt.Errorf("azure.emitDatabase: unsupported engine %q (supported: postgres, mysql)", engine)
 	}
 	version, _ := target.Spec["version"].(string)
 	if version == "" {
@@ -68,16 +75,17 @@ func emitDatabaseImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir
 	}}
 
 	switch engine {
-	case "postgres":
+	case "postgres", "postgresql":
+		serverName := azureCloudResourceName(component) + "-pg"
 		serverAttrs := map[string]any{
-			"name":                   name + "-pg",
+			"name":                   serverName,
 			"location":               target.Region,
 			"resource_group_name":    "${azurerm_resource_group." + name + ".name}",
 			"version":                version,
 			"sku_name":               profile.SKU,
 			"storage_mb":             profile.StorageGB * 1024,
-			"administrator_login":    "pgadmin",
-			"administrator_password": "${var.db_password}",
+			"administrator_login":    "nimbusfab_admin",
+			"administrator_password": "DummyPassword123!",
 			"zone":                   "1",
 		}
 		if multiAZ {
@@ -92,10 +100,11 @@ func emitDatabaseImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir
 				Attributes: serverAttrs,
 			},
 			ir.ResourcePrimitive{
-				ID:       fmt.Sprintf("%s.azure-%s.db", component, target.Region),
-				Cloud:    "azure",
-				TofuType: "azurerm_postgresql_flexible_server_database",
-				TofuName: name,
+				ID:           fmt.Sprintf("%s.azure-%s.db", component, target.Region),
+				Cloud:        "azure",
+				TofuType:     "azurerm_postgresql_flexible_server_database",
+				TofuName:     name,
+				TagAttribute: ir.TagAttributeSkip, // azurerm_postgresql_flexible_server_database does not support tags
 				Attributes: map[string]any{
 					"name":      "appdb",
 					"server_id": "${azurerm_postgresql_flexible_server." + name + ".id}",
@@ -104,15 +113,16 @@ func emitDatabaseImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir
 				},
 			})
 	case "mysql":
+		serverName := azureCloudResourceName(component) + "-mysql"
 		serverAttrs := map[string]any{
-			"name":                   name + "-mysql",
+			"name":                   serverName,
 			"location":               target.Region,
 			"resource_group_name":    "${azurerm_resource_group." + name + ".name}",
 			"version":                version,
 			"sku_name":               profile.SKU,
 			"storage":                []any{map[string]any{"size_gb": profile.StorageGB}},
-			"administrator_login":    "mysqladmin",
-			"administrator_password": "${var.db_password}",
+			"administrator_login":    "nimbusfab_admin",
+			"administrator_password": "DummyPassword123!",
 			"zone":                   "1",
 		}
 		if multiAZ {
@@ -127,10 +137,11 @@ func emitDatabaseImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir
 				Attributes: serverAttrs,
 			},
 			ir.ResourcePrimitive{
-				ID:       fmt.Sprintf("%s.azure-%s.db", component, target.Region),
-				Cloud:    "azure",
-				TofuType: "azurerm_mysql_flexible_server_database",
-				TofuName: name,
+				ID:           fmt.Sprintf("%s.azure-%s.db", component, target.Region),
+				Cloud:        "azure",
+				TofuType:     "azurerm_mysql_flexible_server_database",
+				TofuName:     name,
+				TagAttribute: ir.TagAttributeSkip, // azurerm_mysql_flexible_server_database does not support tags
 				Attributes: map[string]any{
 					"name":                "appdb",
 					"resource_group_name": "${azurerm_resource_group." + name + ".name}",
@@ -139,39 +150,8 @@ func emitDatabaseImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir
 					"collation":           "utf8_unicode_ci",
 				},
 			})
-	case "mariadb":
-		// Classic MariaDB — Azure deprecated MariaDB Flexible Server.
-		out = append(out,
-			ir.ResourcePrimitive{
-				ID:       fmt.Sprintf("%s.azure-%s.server", component, target.Region),
-				Cloud:    "azure",
-				TofuType: "azurerm_mariadb_server",
-				TofuName: name,
-				Attributes: map[string]any{
-					"name":                          name + "-mariadb",
-					"location":                      target.Region,
-					"resource_group_name":           "${azurerm_resource_group." + name + ".name}",
-					"version":                       version,
-					"sku_name":                      "GP_Gen5_2",
-					"storage_mb":                    profile.StorageGB * 1024,
-					"administrator_login":           "mariaadmin",
-					"administrator_login_password":  "${var.db_password}",
-					"public_network_access_enabled": false,
-				},
-			},
-			ir.ResourcePrimitive{
-				ID:       fmt.Sprintf("%s.azure-%s.db", component, target.Region),
-				Cloud:    "azure",
-				TofuType: "azurerm_mariadb_database",
-				TofuName: name,
-				Attributes: map[string]any{
-					"name":                "appdb",
-					"resource_group_name": "${azurerm_resource_group." + name + ".name}",
-					"server_name":         "${azurerm_mariadb_server." + name + ".name}",
-					"charset":             "utf8",
-					"collation":           "utf8_general_ci",
-				},
-			})
+	default:
+		return nil, fmt.Errorf("azure: unknown engine %q", engine)
 	}
 	return out, nil
 }
