@@ -53,6 +53,15 @@ type Stack struct {
 	Name         string         `json:"name"         yaml:"name"         jsonschema:"pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?$,maxLength=63"`
 	Vars         map[string]any `json:"vars,omitempty" yaml:"vars,omitempty"`
 	StateBackend StateBackend   `json:"stateBackend,omitempty" yaml:"stateBackend,omitempty"`
+	Drift        *DriftConfig   `json:"drift,omitempty" yaml:"drift,omitempty"`
+}
+
+// DriftConfig holds per-stack drift-detection scheduling overrides for
+// the Phase 2 drift scheduler. Empty / nil means "use server default".
+type DriftConfig struct {
+	// Interval is a time.ParseDuration-compatible string ("1h", "30m", "4h").
+	// Validator phase 6 rejects values < 60s.
+	Interval string `json:"interval,omitempty" yaml:"interval,omitempty"`
 }
 
 // StateBackend selects how OpenTofu state is stored for this stack. The
