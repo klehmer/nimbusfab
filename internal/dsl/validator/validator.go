@@ -58,6 +58,9 @@ func (v *fsValidator) Validate(ctx context.Context, proj *ir.Project) (*ir.Valid
 	if err := phase5Refs(proj, v.registry, report); err != nil {
 		return nil, err
 	}
+	if err := phase6Drift(proj, report); err != nil {
+		return nil, err
+	}
 	_ = ctx
 	return report, nil
 }

@@ -124,6 +124,9 @@ func (nullDeployments) UpdateStatus(ctx context.Context, orgID, id, status strin
 func (nullDeployments) ListByProject(ctx context.Context, orgID, projectID string, limit int) ([]Deployment, error) {
 	return nil, ErrInventoryRequired
 }
+func (nullDeployments) ListAll(ctx context.Context, orgID string) ([]Deployment, error) {
+	return nil, ErrInventoryRequired
+}
 
 type nullTargets struct{}
 
@@ -165,6 +168,12 @@ func (nullDrift) Get(ctx context.Context, orgID, dtID string) (*DriftRecord, err
 }
 func (nullDrift) Upsert(ctx context.Context, d DriftRecord) error { return nil }
 func (nullDrift) ListByOrg(ctx context.Context, orgID string) ([]DriftRecord, error) {
+	return nil, ErrInventoryRequired
+}
+func (nullDrift) LatestByDeployment(ctx context.Context, orgID, deploymentID string) ([]DriftRecord, error) {
+	return nil, ErrInventoryRequired
+}
+func (nullDrift) ListByProject(ctx context.Context, orgID, projectID string) ([]DriftRecord, error) {
 	return nil, ErrInventoryRequired
 }
 

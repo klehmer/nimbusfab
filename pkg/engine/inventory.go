@@ -77,11 +77,18 @@ func (e *runtimeEngine) persistPlan(ctx context.Context, project *ir.Project, st
 			return fmt.Errorf("component upsert: %w", err)
 		}
 	}
+	var driftSecs int
+	if stack, ok := project.Stacks[stackName]; ok && stack.Drift != nil && stack.Drift.Interval != "" {
+		if d, err := time.ParseDuration(stack.Drift.Interval); err == nil {
+			driftSecs = int(d.Seconds())
+		}
+	}
 	deploymentID := "dep-" + uuid.NewString()
 	if err := e.cfg.InventoryRepo.Deployments().Create(ctx, inventory.Deployment{
 		ID: deploymentID, OrgID: orgID, ProjectID: projectID, StackID: stackID,
 		Status: "planned", PartialFailurePolicy: string(opts.PartialFailure),
-		StartedAt: time.Now().UTC(),
+		StartedAt:            time.Now().UTC(),
+		DriftIntervalSeconds: driftSecs,
 	}); err != nil {
 		return fmt.Errorf("deployment create: %w", err)
 	}

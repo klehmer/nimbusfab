@@ -18,10 +18,12 @@ func (r *deploymentRepo) Get(ctx context.Context, orgID, id string) (*inventory.
 	var finishedAt sql.NullTime
 	err := r.db.QueryRowContext(ctx, `
         SELECT id, org_id, project_id, stack_id, requested_by_user_id, status,
-               COALESCE(partial_failure_policy,''), started_at, finished_at
+               COALESCE(partial_failure_policy,''), started_at, finished_at,
+               drift_interval_seconds
         FROM deployments WHERE org_id = $1 AND id = $2
     `, orgID, id).Scan(&d.ID, &d.OrgID, &d.ProjectID, &d.StackID, &requestedBy,
-		&d.Status, &d.PartialFailurePolicy, &d.StartedAt, &finishedAt)
+		&d.Status, &d.PartialFailurePolicy, &d.StartedAt, &finishedAt,
+		&d.DriftIntervalSeconds)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -42,9 +44,12 @@ func (r *deploymentRepo) Create(ctx context.Context, d inventory.Deployment) err
 		requestedBy = d.RequestedByUserID
 	}
 	_, err := r.db.ExecContext(ctx, `
-        INSERT INTO deployments (id, org_id, project_id, stack_id, requested_by_user_id, status, partial_failure_policy, started_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    `, d.ID, d.OrgID, d.ProjectID, d.StackID, requestedBy, d.Status, d.PartialFailurePolicy, d.StartedAt)
+        INSERT INTO deployments
+            (id, org_id, project_id, stack_id, requested_by_user_id, status,
+             partial_failure_policy, started_at, drift_interval_seconds)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `, d.ID, d.OrgID, d.ProjectID, d.StackID, requestedBy, d.Status,
+		d.PartialFailurePolicy, d.StartedAt, d.DriftIntervalSeconds)
 	if err != nil {
 		return fmt.Errorf("deployments.Create: %w", err)
 	}
@@ -71,7 +76,8 @@ func (r *deploymentRepo) ListByProject(ctx context.Context, orgID, projectID str
 	}
 	rows, err := r.db.QueryContext(ctx, `
         SELECT id, org_id, project_id, stack_id, COALESCE(requested_by_user_id::text, ''), status,
-               COALESCE(partial_failure_policy,''), started_at, finished_at
+               COALESCE(partial_failure_policy,''), started_at, finished_at,
+               drift_interval_seconds
         FROM deployments WHERE org_id = $1 AND project_id = $2
         ORDER BY started_at DESC LIMIT $3
     `, orgID, projectID, limit)
@@ -84,7 +90,38 @@ func (r *deploymentRepo) ListByProject(ctx context.Context, orgID, projectID str
 		var d inventory.Deployment
 		var finishedAt sql.NullTime
 		if err := rows.Scan(&d.ID, &d.OrgID, &d.ProjectID, &d.StackID, &d.RequestedByUserID,
-			&d.Status, &d.PartialFailurePolicy, &d.StartedAt, &finishedAt); err != nil {
+			&d.Status, &d.PartialFailurePolicy, &d.StartedAt, &finishedAt,
+			&d.DriftIntervalSeconds); err != nil {
+			return nil, err
+		}
+		if finishedAt.Valid {
+			t := finishedAt.Time
+			d.FinishedAt = &t
+		}
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
+func (r *deploymentRepo) ListAll(ctx context.Context, orgID string) ([]inventory.Deployment, error) {
+	rows, err := r.db.QueryContext(ctx, `
+        SELECT id, org_id, project_id, stack_id, COALESCE(requested_by_user_id::text, ''), status,
+               COALESCE(partial_failure_policy,''), started_at, finished_at,
+               drift_interval_seconds
+        FROM deployments WHERE org_id = $1
+        ORDER BY started_at DESC
+    `, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("deployments.ListAll: %w", err)
+	}
+	defer rows.Close()
+	var out []inventory.Deployment
+	for rows.Next() {
+		var d inventory.Deployment
+		var finishedAt sql.NullTime
+		if err := rows.Scan(&d.ID, &d.OrgID, &d.ProjectID, &d.StackID, &d.RequestedByUserID,
+			&d.Status, &d.PartialFailurePolicy, &d.StartedAt, &finishedAt,
+			&d.DriftIntervalSeconds); err != nil {
 			return nil, err
 		}
 		if finishedAt.Valid {

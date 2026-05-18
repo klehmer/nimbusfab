@@ -95,6 +95,56 @@ func TestEngine_NoInventory_ApplyByIDRejected(t *testing.T) {
 	}
 }
 
+func TestPersistPlan_WritesDriftIntervalSeconds(t *testing.T) {
+	repo, _ := sqlite.Open("sqlite::memory:")
+	defer repo.Close()
+	if err := repo.Migrate(context.Background()); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	reg := cloud.NewRegistry()
+	_ = reg.Register(aws.New())
+	eng, err := engine.New(context.Background(), engine.Config{
+		CloudAdapters: reg, TofuRunner: tofu.NewFakeRunner(), WorkRoot: t.TempDir(),
+		InventoryRepo: repo,
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	project := &ir.Project{
+		APIVersion: ir.APIVersionV1Alpha1, Name: "drift-demo",
+		Stacks: map[string]ir.Stack{
+			"dev": {
+				Name:         "dev",
+				StateBackend: ir.StateBackend{Kind: "local"},
+				Drift:        &ir.DriftConfig{Interval: "4h"},
+			},
+		},
+		Components: []ir.Component{{
+			Name: "web", Type: "network",
+			Spec:    map[string]any{"cidr": "10.0.0.0/16"},
+			Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1"}},
+		}},
+	}
+
+	plan, err := eng.Plan(context.Background(), project, "dev", engine.PlanOpts{})
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+
+	d, err := repo.Deployments().Get(context.Background(), "local", plan.DeploymentID)
+	if err != nil {
+		t.Fatalf("Get deployment: %v", err)
+	}
+	if d == nil {
+		t.Fatal("deployment not found")
+	}
+	const want = 4 * 60 * 60 // 4h in seconds = 14400
+	if d.DriftIntervalSeconds != want {
+		t.Errorf("DriftIntervalSeconds = %d, want %d", d.DriftIntervalSeconds, want)
+	}
+}
+
 func TestEngine_Plan_PersistsCostEstimates(t *testing.T) {
 	repo, _ := sqlite.Open("sqlite::memory:")
 	defer repo.Close()

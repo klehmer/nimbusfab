@@ -27,6 +27,8 @@ import (
 	"github.com/klehmer/nimbusfab/internal/webapi"
 	"github.com/klehmer/nimbusfab/internal/webapi/middleware"
 	"github.com/klehmer/nimbusfab/pkg/cloud"
+	"github.com/klehmer/nimbusfab/pkg/drift/notify"
+	"github.com/klehmer/nimbusfab/pkg/drift/scheduler"
 	"github.com/klehmer/nimbusfab/pkg/engine"
 	"github.com/klehmer/nimbusfab/pkg/inventory"
 	"github.com/klehmer/nimbusfab/pkg/secrets"
@@ -72,6 +74,18 @@ func run(ctx context.Context) error {
 	})
 	if err != nil {
 		return fmt.Errorf("engine: %w", err)
+	}
+
+	notif := notify.FromEnv()
+	if interval := parseDriftDuration(os.Getenv("NIMBUSFAB_DRIFT_INTERVAL")); interval > 0 {
+		sched := scheduler.New(scheduler.Config{
+			OrgID:          orgID,
+			GlobalInterval: interval,
+			MaxConcurrent:  4,
+		}, repo, eng, notif)
+		go sched.Run(ctx)
+		fmt.Printf("drift scheduler active (interval=%s, notifier configured: %t)\n",
+			interval, hasNotifier(notif))
 	}
 
 	handler, err := webapi.New(webapi.Config{
@@ -142,6 +156,22 @@ func envDefault(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func parseDriftDuration(s string) time.Duration {
+	if s == "" {
+		return 0
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil || d < 0 {
+		return 0
+	}
+	return d
+}
+
+func hasNotifier(n notify.Notifier) bool {
+	_, isNop := n.(notify.NopNotifier)
+	return !isNop
 }
 
 // resolveSessionKey returns the cookie-signing key. In disabled mode the

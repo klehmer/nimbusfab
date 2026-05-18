@@ -65,3 +65,69 @@ func (r *driftRepo) Upsert(ctx context.Context, d inventory.DriftRecord) error {
 	}
 	return nil
 }
+
+// LatestByDeployment returns the current drift_status row for every
+// deployment_target belonging to the given deployment, joined to
+// deployment_targets for component metadata.
+func (r *driftRepo) LatestByDeployment(ctx context.Context, orgID, deploymentID string) ([]inventory.DriftRecord, error) {
+	rows, err := r.db.QueryContext(ctx, `
+        SELECT ds.deployment_target_id, ds.org_id, ds.detected_at, ds.has_drift,
+               COALESCE(ds.summary_json::text,''),
+               dt.component_name, dt.cloud, dt.region, dt.deployment_id
+          FROM drift_status ds
+          JOIN deployment_targets dt ON dt.id = ds.deployment_target_id
+         WHERE ds.org_id = $1 AND dt.deployment_id = $2
+         ORDER BY ds.detected_at DESC
+    `, orgID, deploymentID)
+	if err != nil {
+		return nil, fmt.Errorf("drift.LatestByDeployment: %w", err)
+	}
+	defer rows.Close()
+	var out []inventory.DriftRecord
+	for rows.Next() {
+		var d inventory.DriftRecord
+		var summary string
+		if err := rows.Scan(
+			&d.DeploymentTargetID, &d.OrgID, &d.DetectedAt, &d.HasDrift, &summary,
+			&d.ComponentName, &d.Cloud, &d.Region, &d.DeploymentID,
+		); err != nil {
+			return nil, err
+		}
+		d.SummaryJSON = []byte(summary)
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
+// ListByProject joins drift_status → deployment_targets → deployments to
+// return the current drift row for every target in the project.
+func (r *driftRepo) ListByProject(ctx context.Context, orgID, projectID string) ([]inventory.DriftRecord, error) {
+	rows, err := r.db.QueryContext(ctx, `
+        SELECT ds.deployment_target_id, ds.org_id, ds.detected_at, ds.has_drift,
+               COALESCE(ds.summary_json::text,''),
+               dt.component_name, dt.cloud, dt.region, dt.deployment_id
+          FROM drift_status ds
+          JOIN deployment_targets dt ON dt.id = ds.deployment_target_id
+          JOIN deployments d ON d.id = dt.deployment_id
+         WHERE ds.org_id = $1 AND d.project_id = $2
+         ORDER BY ds.detected_at DESC
+    `, orgID, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("drift.ListByProject: %w", err)
+	}
+	defer rows.Close()
+	var out []inventory.DriftRecord
+	for rows.Next() {
+		var d inventory.DriftRecord
+		var summary string
+		if err := rows.Scan(
+			&d.DeploymentTargetID, &d.OrgID, &d.DetectedAt, &d.HasDrift, &summary,
+			&d.ComponentName, &d.Cloud, &d.Region, &d.DeploymentID,
+		); err != nil {
+			return nil, err
+		}
+		d.SummaryJSON = []byte(summary)
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
