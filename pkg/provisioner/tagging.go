@@ -1,6 +1,11 @@
 package provisioner
 
-import "github.com/klehmer/nimbusfab/pkg/ir"
+import (
+	"regexp"
+	"strings"
+
+	"github.com/klehmer/nimbusfab/pkg/ir"
+)
 
 // tagContext carries the values the provisioner injects as framework tags.
 type tagContext struct {
@@ -9,30 +14,57 @@ type tagContext struct {
 	OrgID        string
 }
 
-// injectFrameworkTags returns a copy of p with infra:* tags merged in.
-// User-provided tags take precedence ONLY for non-infra:* keys; framework
-// keys are always overwritten with the framework value (this is how the
-// inventory join works reliably).
-func injectFrameworkTags(p ir.ResourcePrimitive, c tagContext) ir.ResourcePrimitive {
-	out := p
-	if out.NoTags {
-		return out
+// injectFrameworkTags attaches framework attribution (component, deployment,
+// org) to the primitive's cloud-appropriate tag attribute. Per-cloud default:
+// AWS / Azure → "tags"; GCP → "" (skip; explicit opt-in required via
+// TagAttribute: "labels"). Resources that reject tag attributes set
+// TagAttribute: "" AND don't populate Tags.
+func injectFrameworkTags(p ir.ResourcePrimitive, ctx tagContext) ir.ResourcePrimitive {
+	attr := resolveTagAttribute(p)
+	if attr == "" {
+		return p
 	}
-	copyTags := make(map[string]string, len(out.Tags)+3)
-	for k, v := range out.Tags {
-		copyTags[k] = v
+	merged := frameworkTags(ctx.Component, ctx.DeploymentID, ctx.OrgID)
+	for k, v := range p.Tags {
+		merged[k] = v
 	}
-	out.Tags = copyTags
-	if c.Component != "" {
-		out.Tags["infra:component"] = c.Component
+	if attr == "labels" {
+		merged = sanitizeForLabels(merged)
 	}
-	if c.DeploymentID != "" {
-		out.Tags["infra:deployment_id"] = c.DeploymentID
+	if p.Attributes == nil {
+		p.Attributes = map[string]any{}
 	}
-	orgID := c.OrgID
-	if orgID == "" {
-		orgID = "local"
+	p.Attributes[attr] = merged
+	p.Tags = nil
+	return p
+}
+
+func resolveTagAttribute(p ir.ResourcePrimitive) string {
+	if p.TagAttribute != "" {
+		return p.TagAttribute
 	}
-	out.Tags["infra:org_id"] = orgID
+	if p.Cloud == "gcp" {
+		return ""
+	}
+	return "tags"
+}
+
+var labelSanitizeRe = regexp.MustCompile(`[^a-z0-9_-]`)
+
+// sanitizeForLabels normalizes a tag map for GCP labels: lowercase keys +
+// values, [a-z0-9_-] only (replace anything else with '_'), 63-char cap.
+func sanitizeForLabels(m map[string]string) map[string]string {
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		kk := labelSanitizeRe.ReplaceAllString(strings.ToLower(k), "_")
+		if len(kk) > 63 {
+			kk = kk[:63]
+		}
+		vv := labelSanitizeRe.ReplaceAllString(strings.ToLower(v), "_")
+		if len(vv) > 63 {
+			vv = vv[:63]
+		}
+		out[kk] = vv
+	}
 	return out
 }
