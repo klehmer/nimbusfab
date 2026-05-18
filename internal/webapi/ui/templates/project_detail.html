@@ -1,6 +1,11 @@
 {{define "title"}}{{.Project.Name}}{{end}}
 {{define "content"}}
 <h1>{{.Project.Name}}</h1>
+
+<nav class="page-tabs">
+  <a href="/ui/projects/{{.Project.ID}}"><strong>Overview</strong></a> · <a href="/ui/projects/{{.Project.ID}}/graph">Graph</a>
+</nav>
+
 <dl class="kv">
   <dt>Project ID</dt><dd>{{.Project.ID}}</dd>
   <dt>Org ID</dt><dd>{{.Project.OrgID}}</dd>

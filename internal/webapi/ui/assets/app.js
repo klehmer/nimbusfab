@@ -96,5 +96,66 @@
     }[c]));
   }
 
-  window.nimbusfab = { attachDeploymentActions: attachDeploymentActions };
+  function attachGraph() {
+    document.querySelectorAll('.graph-toolbar .seg').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const dir = btn.dataset.dir;
+        document.cookie = 'nf_graph_dir=' + dir + '; path=/; max-age=31536000; samesite=lax';
+        const url = new URL(window.location.href);
+        url.searchParams.set('dir', dir);
+        window.location.href = url.toString();
+      });
+    });
+
+    const canvas = document.querySelector('.graph-canvas');
+    if (!canvas) return;
+    const targets = JSON.parse(canvas.dataset.targetsJson || '{}');
+
+    document.querySelectorAll('svg .graph-node').forEach((node) => {
+      node.addEventListener('click', () => {
+        const name = node.dataset.component;
+        renderNodeDetail(name, targets[name] || []);
+      });
+    });
+
+    const closeBtn = document.getElementById('node-detail-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        document.getElementById('node-detail').hidden = true;
+      });
+    }
+  }
+
+  function renderNodeDetail(name, targetList) {
+    const panel = document.getElementById('node-detail');
+    if (!panel) return;
+    document.getElementById('node-detail-title').textContent = name;
+    const ul = document.getElementById('node-detail-targets');
+    ul.innerHTML = '';
+    if (targetList.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'muted';
+      li.textContent = 'No targets yet';
+      ul.appendChild(li);
+    } else {
+      targetList.forEach((t) => {
+        const li = document.createElement('li');
+        const cloud = document.createElement('span');
+        cloud.className = 'badge';
+        cloud.textContent = t.cloud;
+        const region = document.createElement('code');
+        region.textContent = ' ' + t.region + ' ';
+        const status = document.createElement('span');
+        status.className = 'badge status-' + (t.status || 'unknown');
+        status.textContent = t.status || 'unknown';
+        li.appendChild(cloud);
+        li.appendChild(region);
+        li.appendChild(status);
+        ul.appendChild(li);
+      });
+    }
+    panel.hidden = false;
+  }
+
+  window.nimbusfab = { attachDeploymentActions: attachDeploymentActions, attachGraph: attachGraph };
 })();

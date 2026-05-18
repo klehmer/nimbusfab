@@ -1,0 +1,13 @@
+apiVersion: infra.dev/v1alpha1
+name: web-app
+type: compute
+spec:
+  size: small
+refs:
+  - component: web-network
+    output: subnet_ids
+    as: subnetId
+targets:
+  - cloud: aws
+    region: us-west-2
+    credentialRef: aws-dev

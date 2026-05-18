@@ -40,16 +40,24 @@ func TestPlan_PopulatesResolvedRefsFromComponentRefs(t *testing.T) {
 	project := &ir.Project{
 		APIVersion: ir.APIVersionV1Alpha1, Name: "x",
 		Stacks: map[string]ir.Stack{"dev": {Name: "dev", StateBackend: ir.StateBackend{Kind: "local"}}},
-		Components: []ir.Component{{
-			Name: "orders-db", Type: "database",
-			Spec:    map[string]any{"engine": "postgres"},
-			Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1"}},
-			Refs: []ir.ComponentRef{
-				{Component: "web-network", Output: "subnet_ids", As: "subnetIds"},
-				{Component: "web-network", Output: "vpc_id", As: "vpcId"},
-				{Component: "web-network", Output: "subnet_ids", As: "subnetId"},
+		Components: []ir.Component{
+			{
+				Name:    "web-network",
+				Type:    "network",
+				Spec:    map[string]any{"cidr": "10.0.0.0/16"},
+				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1"}},
 			},
-		}},
+			{
+				Name: "orders-db", Type: "database",
+				Spec:    map[string]any{"engine": "postgres"},
+				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1"}},
+				Refs: []ir.ComponentRef{
+					{Component: "web-network", Output: "subnet_ids", As: "subnetIds"},
+					{Component: "web-network", Output: "vpc_id", As: "vpcId"},
+					{Component: "web-network", Output: "subnet_ids", As: "subnetId"},
+				},
+			},
+		},
 	}
 	if _, err := p.Plan(context.Background(), provisioner.PlanInput{
 		Project: project, Stack: "dev", OrgID: "local", DeploymentID: "dep-t",

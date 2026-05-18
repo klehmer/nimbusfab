@@ -1,6 +1,11 @@
 {{define "title"}}Deployment {{shortID .Deployment.ID}}{{end}}
 {{define "content"}}
 <h1>Deployment <code>{{shortID .Deployment.ID}}</code></h1>
+
+<nav class="page-tabs">
+  <a href="/ui/deployments/{{.Deployment.ID}}"><strong>Overview</strong></a> · <a href="/ui/deployments/{{.Deployment.ID}}/graph">Graph</a>
+</nav>
+
 <dl class="kv">
   <dt>Deployment ID</dt><dd>{{.Deployment.ID}}</dd>
   <dt>Project</dt><dd><a href="/ui/projects/{{.Deployment.ProjectID}}"><code>{{shortID .Deployment.ProjectID}}</code></a></dd>
