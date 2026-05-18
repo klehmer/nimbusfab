@@ -65,7 +65,7 @@ func (*Adapter) emitNetwork(ctx context.Context, target ir.DeploymentTarget, ref
 			Cloud:    "aws",
 			TofuType: "aws_route",
 			TofuName: name + "_default",
-			NoTags:   true,
+			TagAttribute: "",
 			Attributes: map[string]any{
 				"route_table_id":         "${aws_route_table." + name + ".id}",
 				"destination_cidr_block": "0.0.0.0/0",
@@ -92,7 +92,7 @@ func (*Adapter) emitNetwork(ctx context.Context, target ir.DeploymentTarget, ref
 			Cloud:    "aws",
 			TofuType: "aws_route_table_association",
 			TofuName: subnetName,
-			NoTags:   true,
+			TagAttribute: "",
 			Attributes: map[string]any{
 				"subnet_id":      "${aws_subnet." + subnetName + ".id}",
 				"route_table_id": "${aws_route_table." + name + ".id}",
