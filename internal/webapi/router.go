@@ -119,6 +119,7 @@ func New(cfg Config) (http.Handler, error) {
 	mux.Handle("GET /ui/deployments/{id}/graph", uiAuth(renderer.Graph("deployment")))
 	mux.Handle("GET /ui/runs/{id}", uiAuth(http.HandlerFunc(renderer.RunDetail)))
 	mux.Handle("GET /ui/drift", uiAuth(http.HandlerFunc(renderer.Drift)))
+	mux.Handle("GET /ui/projects/{id}/drift", uiAuth(http.HandlerFunc(renderer.ProjectDrift)))
 
 	// /api/v1/* JSON endpoints.
 	apiHandlers := &api.Handlers{Repo: cfg.Repo, OrgID: cfg.OrgID}

@@ -537,3 +537,27 @@ func TestUI_DeploymentGraph_ComponentsJSONPopulated(t *testing.T) {
 		t.Errorf("data-components-json missing net.type=network; body:\n%s", body)
 	}
 }
+
+func TestUI_ProjectDrift_Renders(t *testing.T) {
+	srv := newTestServerWithSeedData(t)
+	defer srv.Close()
+	resp, body := get(t, srv, "/ui/projects/p-1/drift")
+	if resp.StatusCode != 200 {
+		t.Fatalf("status=%d body=%s", resp.StatusCode, body)
+	}
+	if !strings.Contains(body, "Drift") {
+		t.Errorf("body missing 'Drift'; body:\n%s", body)
+	}
+}
+
+func TestUI_GlobalDrift_ProjectFilter(t *testing.T) {
+	srv := newTestServerWithSeedData(t)
+	defer srv.Close()
+	resp, body := get(t, srv, "/ui/drift?project=p-1")
+	if resp.StatusCode != 200 {
+		t.Fatalf("status=%d", resp.StatusCode)
+	}
+	if !strings.Contains(body, `name="project"`) {
+		t.Errorf("expected project filter form; body:\n%s", body)
+	}
+}

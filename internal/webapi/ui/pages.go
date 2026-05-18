@@ -175,7 +175,10 @@ func (r *Renderer) RunDetail(w http.ResponseWriter, req *http.Request) {
 	}))
 }
 
-// DriftOverview is the row shape the drift.html template iterates over.
+// DriftOverview is the row shape the drift.html and drift_project.html
+// templates iterate over. ProjectID and ProjectName are populated by the
+// global drift handler (via a deployment lookup); they are empty for the
+// per-project view where the project is already known from context.
 type DriftOverview struct {
 	DeploymentTargetID string
 	DeploymentID       string
@@ -184,6 +187,8 @@ type DriftOverview struct {
 	Region             string
 	HasDrift           bool
 	DetectedAt         time.Time
+	ProjectID          string
+	ProjectName        string
 }
 
 // DriftSummary captures the per-org rollup the drift page renders.
@@ -191,6 +196,31 @@ type DriftSummary struct {
 	Total   int
 	Drifted int
 	Clean   int
+}
+
+// buildDriftView converts joined DriftRecord rows (from ListByProject or
+// ListAll-with-join) into the view slice + summary the templates consume.
+// Records must already have ComponentName/Cloud/Region/DeploymentID populated
+// (i.e. come from a JOIN-backed query). ProjectID/ProjectName in the returned
+// DriftOverview are left empty; callers that need them fill them separately.
+func buildDriftView(records []inventory.DriftRecord) ([]DriftOverview, DriftSummary) {
+	out := make([]DriftOverview, 0, len(records))
+	drifted := 0
+	for _, rec := range records {
+		if rec.HasDrift {
+			drifted++
+		}
+		out = append(out, DriftOverview{
+			DeploymentTargetID: rec.DeploymentTargetID,
+			DeploymentID:       rec.DeploymentID,
+			ComponentName:      rec.ComponentName,
+			Cloud:              rec.Cloud,
+			Region:             rec.Region,
+			HasDrift:           rec.HasDrift,
+			DetectedAt:         rec.DetectedAt,
+		})
+	}
+	return out, DriftSummary{Total: len(out), Drifted: drifted, Clean: len(out) - drifted}
 }
 
 // LoginPage renders the login form. The middleware exempts this route.
@@ -201,38 +231,103 @@ func (r *Renderer) LoginPage(w http.ResponseWriter, req *http.Request) {
 	r.render(w, "login.html", data)
 }
 
-// Drift renders the org-wide drift overview page.
+// Drift renders the org-wide drift overview page with an optional project filter.
 func (r *Renderer) Drift(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
-	records, err := r.Repo.DriftStatus().ListByOrg(ctx, r.OrgID)
+	selectedProject := req.URL.Query().Get("project")
+
+	// Load drift records: filtered by project when a filter is active,
+	// otherwise all records for the org. ListByProject returns joined rows
+	// with ComponentName/Cloud/Region/DeploymentID already populated.
+	// ListByOrg does not include those joined fields, so we fall back to
+	// the old per-target lookup path.
+	var (
+		records []inventory.DriftRecord
+		err     error
+	)
+	if selectedProject != "" {
+		records, err = r.Repo.DriftStatus().ListByProject(ctx, r.OrgID, selectedProject)
+	} else {
+		records, err = r.Repo.DriftStatus().ListByOrg(ctx, r.OrgID)
+	}
 	if err != nil {
 		r.renderError(w, http.StatusInternalServerError, "list drift: "+err.Error())
 		return
 	}
-	out := make([]DriftOverview, 0, len(records))
-	drifted := 0
-	for _, rec := range records {
-		t, _ := r.Repo.DeploymentTargets().Get(ctx, r.OrgID, rec.DeploymentTargetID)
-		if t == nil {
-			continue
+
+	var out []DriftOverview
+	var summary DriftSummary
+	if selectedProject != "" {
+		// ListByProject records already have joined fields.
+		out, summary = buildDriftView(records)
+	} else {
+		// ListByOrg records do not have joined fields; resolve via target lookup.
+		out = make([]DriftOverview, 0, len(records))
+		drifted := 0
+		for _, rec := range records {
+			t, _ := r.Repo.DeploymentTargets().Get(ctx, r.OrgID, rec.DeploymentTargetID)
+			if t == nil {
+				continue
+			}
+			if rec.HasDrift {
+				drifted++
+			}
+			// Resolve project name via deployment lookup.
+			var projID, projName string
+			dep, _ := r.Repo.Deployments().Get(ctx, r.OrgID, t.DeploymentID)
+			if dep != nil {
+				projID = dep.ProjectID
+				proj, _ := r.Repo.Projects().Get(ctx, r.OrgID, dep.ProjectID)
+				if proj != nil {
+					projName = proj.Name
+				}
+			}
+			out = append(out, DriftOverview{
+				DeploymentTargetID: rec.DeploymentTargetID,
+				DeploymentID:       t.DeploymentID,
+				ComponentName:      t.ComponentName,
+				Cloud:              t.Cloud,
+				Region:             t.Region,
+				HasDrift:           rec.HasDrift,
+				DetectedAt:         rec.DetectedAt,
+				ProjectID:          projID,
+				ProjectName:        projName,
+			})
 		}
-		if rec.HasDrift {
-			drifted++
-		}
-		out = append(out, DriftOverview{
-			DeploymentTargetID: rec.DeploymentTargetID,
-			DeploymentID:       t.DeploymentID,
-			ComponentName:      t.ComponentName,
-			Cloud:              t.Cloud,
-			Region:             t.Region,
-			HasDrift:           rec.HasDrift,
-			DetectedAt:         rec.DetectedAt,
-		})
+		summary = DriftSummary{Total: len(out), Drifted: drifted, Clean: len(out) - drifted}
 	}
+
+	projects, _ := r.Repo.Projects().List(ctx, r.OrgID)
 	r.render(w, "drift.html", r.withUser(req, map[string]any{
-		"HasData": len(out) > 0,
-		"Records": out,
-		"Summary": DriftSummary{Total: len(out), Drifted: drifted, Clean: len(out) - drifted},
+		"HasData":         len(out) > 0,
+		"Records":         out,
+		"Summary":         summary,
+		"Projects":        projects,
+		"SelectedProject": selectedProject,
+	}))
+}
+
+// ProjectDrift renders the per-project drift page.
+func (r *Renderer) ProjectDrift(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	id := req.PathValue("id")
+	proj, err := r.Repo.Projects().Get(ctx, r.OrgID, id)
+	if err != nil || proj == nil {
+		r.renderError(w, http.StatusNotFound, "project not found: "+id)
+		return
+	}
+	rows, err := r.Repo.DriftStatus().ListByProject(ctx, r.OrgID, id)
+	if err != nil {
+		r.renderError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	records, summary := buildDriftView(rows)
+	r.render(w, "drift_project.html", r.withUser(req, map[string]any{
+		"ProjectID":   proj.ID,
+		"ProjectName": proj.Name,
+		"HasData":     len(rows) > 0,
+		"Records":     records,
+		"Summary":     summary,
 	}))
 }
 

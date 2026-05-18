@@ -2,6 +2,17 @@
 {{define "content"}}
 <h1>Drift overview</h1>
 
+<form method="GET" class="filter-form">
+  <label>Project:
+    <select name="project" onchange="this.form.submit()">
+      <option value="">All</option>
+      {{range .Projects}}
+        <option value="{{.ID}}" {{if eq $.SelectedProject .ID}}selected{{end}}>{{.Name}}</option>
+      {{end}}
+    </select>
+  </label>
+</form>
+
 {{if .HasData}}
 <p>
   <strong>{{.Summary.Total}}</strong> targets monitored —
@@ -9,11 +20,12 @@
   <span class="badge ok">{{.Summary.Clean}} clean</span>
 </p>
 <table>
-  <thead><tr><th>Status</th><th>Component</th><th>Cloud</th><th>Region</th><th>Detected</th><th>Deployment</th></tr></thead>
+  <thead><tr><th>Status</th><th>Project</th><th>Component</th><th>Cloud</th><th>Region</th><th>Detected</th><th>Deployment</th></tr></thead>
   <tbody>
   {{range .Records}}
   <tr>
     <td>{{if .HasDrift}}<span class="badge fail">drifted</span>{{else}}<span class="badge ok">clean</span>{{end}}</td>
+    <td><a href="/ui/projects/{{.ProjectID}}">{{.ProjectName}}</a></td>
     <td>{{.ComponentName}}</td>
     <td><span class="badge">{{.Cloud}}</span></td>
     <td><code>{{.Region}}</code></td>
