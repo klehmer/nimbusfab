@@ -233,6 +233,63 @@ func ExtractOutputs(state []byte) (map[string]any, error) {
 	return out, nil
 }
 
+// PairingError describes one ref→target pair where no upstream target
+// exists in the dependent's (cloud, region). Distinct from the typed
+// sentinel ErrCrossTargetRefUnsupported because callers (provisioner +
+// graph renderer) want structured fields, not just an error string.
+type PairingError struct {
+	Component string
+	Ref       ir.ComponentRef
+	Cloud     string
+	Region    string
+	Reason    string
+}
+
+// AsError returns a wrapped sentinel suitable for errors.Is checks.
+func (p PairingError) AsError() error {
+	return fmt.Errorf("%w: %s in %s/%s needs %s.%s",
+		ErrCrossTargetRefUnsupported, p.Component, p.Cloud, p.Region, p.Ref.Component, p.Ref.Output)
+}
+
+// PreflightPairing iterates every (component, ref, target) triple in the
+// project and accumulates a PairingError for each (dependent target,
+// upstream component) pair where no upstream target exists in the same
+// (cloud, region). Used by provisioner.Plan as fail-fast pre-flight and
+// by the graph renderer to draw unmatched edges as red dashed paths.
+//
+// Pure function: no I/O.
+func PreflightPairing(components []ir.Component) []PairingError {
+	// Build flat slice of all targets keyed by their owning component.
+	all := make([]TargetIdent, 0)
+	for _, c := range components {
+		for _, t := range c.Targets {
+			all = append(all, TargetIdent{Component: c.Name, Cloud: t.Cloud, Region: t.Region})
+		}
+	}
+
+	var errs []PairingError
+	for _, c := range components {
+		if len(c.Refs) == 0 || len(c.Targets) == 0 {
+			continue
+		}
+		for _, target := range c.Targets {
+			depIdent := TargetIdent{Component: c.Name, Cloud: target.Cloud, Region: target.Region}
+			for _, ref := range c.Refs {
+				if _, err := Pair(depIdent, ref.Component, all); err != nil {
+					errs = append(errs, PairingError{
+						Component: c.Name,
+						Ref:       ref,
+						Cloud:     target.Cloud,
+						Region:    target.Region,
+						Reason:    "no upstream target in same (cloud, region)",
+					})
+				}
+			}
+		}
+	}
+	return errs
+}
+
 // FormatHCLValue turns a Go value (string / []any / number / bool) into an
 // HCL literal suitable for `tofu plan -var name=value`. Tofu accepts JSON
 // for complex types, so we round-trip through json.Marshal for lists/maps
