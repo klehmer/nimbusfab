@@ -43,7 +43,7 @@ func newDestroyCommand() *cobra.Command {
 			defer repo.Close()
 			code := runDestroy(cmd.Context(), destroyArgs{
 				PositionalArg: arg, Stack: stack, AutoApprove: autoApprove,
-				Adapters: reg, Runner: tofu.NewExecRunner(),
+				Adapters: reg, Runner: defaultRunner(),
 				Inventory: repo,
 				Stdout:    cmd.OutOrStdout(), Stderr: cmd.ErrOrStderr(),
 			})
