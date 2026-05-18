@@ -40,3 +40,4 @@ terraform.tfvars
 # Coverage
 coverage.out
 coverage.html
+.superpowers/
