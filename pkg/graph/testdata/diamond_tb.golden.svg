@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 344" class="nimbusfab-graph"><style>
+.nimbusfab-graph .graph-node rect { fill: #1e4d2b; stroke: #5cb85c; stroke-width: 1.5; rx: 4; }
+.nimbusfab-graph .graph-node text { fill: #e8e8e8; font-family: system-ui, sans-serif; font-size: 12px; }
+.nimbusfab-graph .graph-node .type { fill: #9cc; font-size: 10px; }
+.nimbusfab-graph .edge-ok { stroke: #888; stroke-width: 1.5; fill: none; }
+.nimbusfab-graph .edge-unmatched { stroke: #cc4444; stroke-width: 1.5; stroke-dasharray: 5,3; fill: none; }
+.nimbusfab-graph .badge { font-size: 9px; }
+.nimbusfab-graph .badge-applied { fill: #5cb85c; }
+.nimbusfab-graph .badge-failed { fill: #cc4444; }
+.nimbusfab-graph .badge-blocked { fill: #d9a73d; }
+.nimbusfab-graph .badge-pending { fill: #888; }
+</style><path d="M 94 200 L 94 232 L 94 232 L 94 264" class="edge-ok"/><path d="M 266 200 L 266 232 L 94 232 L 94 264" class="edge-ok"/><path d="M 94 80 L 94 112 L 94 112 L 94 144" class="edge-ok"/><path d="M 94 80 L 94 112 L 266 112 L 266 144" class="edge-ok"/><g class="graph-node" data-component="a"><rect x="24" y="24" width="140" height="56"/><text x="94" y="42" text-anchor="middle">a</text><text x="94" y="56" text-anchor="middle" class="type"></text></g><g class="graph-node" data-component="b"><rect x="24" y="144" width="140" height="56"/><text x="94" y="162" text-anchor="middle">b</text><text x="94" y="176" text-anchor="middle" class="type"></text></g><g class="graph-node" data-component="c"><rect x="196" y="144" width="140" height="56"/><text x="266" y="162" text-anchor="middle">c</text><text x="266" y="176" text-anchor="middle" class="type"></text></g><g class="graph-node" data-component="d"><rect x="24" y="264" width="140" height="56"/><text x="94" y="282" text-anchor="middle">d</text><text x="94" y="296" text-anchor="middle" class="type"></text></g></svg>
