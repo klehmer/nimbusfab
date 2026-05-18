@@ -87,6 +87,13 @@ func (e *ExecRunner) Plan(ctx context.Context, ws Workspace, opts PlanOpts) (*Pl
 	if opts.RefreshOnly {
 		args = append(args, "-refresh-only")
 	}
+	for k, v := range ws.Vars {
+		s, ok := v.(string)
+		if !ok {
+			return nil, fmt.Errorf("tofu Plan: ws.Vars[%q] is %T; must be a pre-formatted HCL literal string", k, v)
+		}
+		args = append(args, "-var", k+"="+s)
+	}
 	if err := e.run(ctx, ws, args...); err != nil {
 		return nil, err
 	}
@@ -131,6 +138,13 @@ func (e *ExecRunner) Destroy(ctx context.Context, ws Workspace, opts DestroyOpts
 	args := []string{"destroy", "-no-color", "-input=false", "-json", "-lock-timeout=300s"}
 	if opts.AutoApprove {
 		args = append(args, "-auto-approve")
+	}
+	for k, v := range ws.Vars {
+		s, ok := v.(string)
+		if !ok {
+			return fmt.Errorf("tofu Destroy: ws.Vars[%q] is %T; must be a pre-formatted HCL literal string", k, v)
+		}
+		args = append(args, "-var", k+"="+s)
 	}
 	return e.run(ctx, ws, args...)
 }

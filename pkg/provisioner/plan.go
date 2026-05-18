@@ -13,6 +13,7 @@ import (
 	"github.com/klehmer/nimbusfab/pkg/cloud"
 	"github.com/klehmer/nimbusfab/pkg/ir"
 	"github.com/klehmer/nimbusfab/pkg/parity"
+	"github.com/klehmer/nimbusfab/pkg/provisioner/upstream"
 )
 
 func (rp *runtimeProvisioner) Plan(ctx context.Context, in PlanInput) (*PlanResult, error) {
@@ -33,6 +34,11 @@ func (rp *runtimeProvisioner) Plan(ctx context.Context, in PlanInput) (*PlanResu
 		in.PartialFailure = PartialFailureLeave
 	}
 
+	ordered, err := upstream.Toposort(in.Project.Components)
+	if err != nil {
+		return nil, fmt.Errorf("provisioner.Plan: %w", err)
+	}
+
 	res := &PlanResult{
 		DeploymentID:   in.DeploymentID,
 		Stack:          in.Stack,
@@ -40,12 +46,16 @@ func (rp *runtimeProvisioner) Plan(ctx context.Context, in PlanInput) (*PlanResu
 		GeneratedAt:    time.Now().UTC(),
 	}
 
-	for _, comp := range in.Project.Components {
+	for _, comp := range ordered {
+		placeholders, perr := upstream.PlanPlaceholders(comp.Refs, in.Project.Components, rp.cfg.Components)
+		if perr != nil {
+			return nil, fmt.Errorf("provisioner.Plan: placeholders: %w", perr)
+		}
 		for _, target := range comp.Targets {
 			if !matchesFilter(in.Targets, comp.Name, target.Cloud, target.Region) {
 				continue
 			}
-			tp, err := rp.planOne(ctx, in, stack, comp, target)
+			tp, err := rp.planOne(ctx, in, stack, comp, target, placeholders)
 			if err != nil {
 				return nil, fmt.Errorf("provisioner.Plan: %s/%s/%s: %w",
 					comp.Name, target.Cloud, target.Region, err)
@@ -57,7 +67,7 @@ func (rp *runtimeProvisioner) Plan(ctx context.Context, in PlanInput) (*PlanResu
 		}
 	}
 	// Aggregate parity reports per component.
-	if pEngine, err := parity.NewEngine(); err == nil {
+	if pEngine, perr := parity.NewEngine(); perr == nil {
 		res.ParityReports = aggregateParityReports(ctx, pEngine, in.Project, res.Targets)
 	}
 	return res, nil
@@ -119,7 +129,7 @@ func pickPrimaryProfile(profiles []parity.TargetProfile, compType string) (parit
 	return parity.TargetProfile{}, false
 }
 
-func (rp *runtimeProvisioner) planOne(ctx context.Context, in PlanInput, stack ir.Stack, comp ir.Component, target ir.DeploymentTarget) (TargetPlan, error) {
+func (rp *runtimeProvisioner) planOne(ctx context.Context, in PlanInput, stack ir.Stack, comp ir.Component, target ir.DeploymentTarget, placeholders map[string]string) (TargetPlan, error) {
 	adapter, ok := rp.cfg.Adapters.Get(target.Cloud)
 	if !ok {
 		return TargetPlan{}, fmt.Errorf("no adapter registered for cloud %q", target.Cloud)
@@ -184,6 +194,16 @@ func (rp *runtimeProvisioner) planOne(ctx context.Context, in PlanInput, stack i
 		providerVersion = v.TofuProviderVersion()
 	}
 
+	outputBindings, err := adapter.OutputBindings(ctx, target, primitives)
+	if err != nil {
+		return TargetPlan{}, fmt.Errorf("OutputBindings: %w", err)
+	}
+
+	var varDecls []UpstreamVariable
+	for name, literal := range placeholders {
+		varDecls = append(varDecls, UpstreamVariable{Name: name, TofuType: tofuTypeFromPlaceholder(literal)})
+	}
+
 	deploymentTargetID := uuid.NewString()
 	workspaceDir := filepath.Join(
 		rp.cfg.WorkRoot,
@@ -192,16 +212,6 @@ func (rp *runtimeProvisioner) planOne(ctx context.Context, in PlanInput, stack i
 		comp.Name,
 	)
 
-	// Cross-component refs: assume same backend kind/config in Phase 2.
-	// Cross-stack refs are v2.
-	var upstreamRefs []UpstreamStateRef
-	for _, ref := range comp.Refs {
-		upstreamRefs = append(upstreamRefs, UpstreamStateRef{
-			Component: ref.Component,
-			Backend:   backend,
-		})
-	}
-
 	layout := WorkspaceLayout{
 		Dir:             workspaceDir,
 		ProviderName:    providerLocalName,
@@ -209,13 +219,14 @@ func (rp *runtimeProvisioner) planOne(ctx context.Context, in PlanInput, stack i
 		ProviderConfig:  providerBlock,
 		Backend:         backend,
 		Primitives:      primitives,
-		UpstreamRefs:    upstreamRefs,
+		Variables:       varDecls,
+		OutputBindings:  outputBindings,
 	}
 	if err := WriteWorkspace(layout); err != nil {
 		return TargetPlan{}, fmt.Errorf("WriteWorkspace: %w", err)
 	}
 
-	ws := tofu.Workspace{Dir: workspaceDir}
+	ws := tofu.Workspace{Dir: workspaceDir, Vars: placeholdersAsAny(placeholders)}
 	if err := rp.cfg.Runner.Init(ctx, ws); err != nil {
 		return TargetPlan{}, fmt.Errorf("tofu init: %w", err)
 	}
@@ -247,6 +258,32 @@ func (rp *runtimeProvisioner) planOne(ctx context.Context, in PlanInput, stack i
 		PrimitiveProfiles:  profiles,
 		RawPrimitives:      primitives,
 	}, nil
+}
+
+func placeholdersAsAny(p map[string]string) map[string]any {
+	if len(p) == 0 {
+		return nil
+	}
+	out := map[string]any{}
+	for k, v := range p {
+		out[k] = v
+	}
+	return out
+}
+
+func tofuTypeFromPlaceholder(literal string) string {
+	switch {
+	case literal == "" || literal == `""`:
+		return "string"
+	case literal[0] == '"':
+		return "string"
+	case literal[0] == '[':
+		return "list(string)"
+	case literal == "true" || literal == "false":
+		return "bool"
+	default:
+		return "number"
+	}
 }
 
 func matchesFilter(filters []TargetFilter, component, cloudName, region string) bool {

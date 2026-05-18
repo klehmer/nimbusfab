@@ -115,6 +115,53 @@ func TestPlan_UnknownAdapterFails(t *testing.T) {
 	}
 }
 
+func TestProvisionerPlan_ToposortsAndPassesPlaceholders(t *testing.T) {
+	ctx := context.Background()
+	project := &ir.Project{
+		APIVersion: ir.APIVersionV1Alpha1, Name: "p",
+		Stacks: map[string]ir.Stack{"dev": {Name: "dev", StateBackend: ir.StateBackend{Kind: "local"}}},
+		Components: []ir.Component{
+			// Dependent declared FIRST in source order — toposort must reorder.
+			{Name: "web-app", Type: "compute",
+				Refs: []ir.ComponentRef{{Component: "web-network", Output: "subnet_ids", As: "subnetId"}},
+				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1",
+					Spec: map[string]any{"size": "small", "instanceCount": 1, "subnetId": "${refs.subnetId}"}}}},
+			{Name: "web-network", Type: "network",
+				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1",
+					Spec: map[string]any{"cidr": "10.0.0.0/16", "subnetCount": 1}}}},
+		},
+	}
+
+	fake := tofu.NewFakeRunner()
+	fake.PlanFileContents = []byte("FAKE")
+	reg := cloud.NewRegistry()
+	_ = reg.Register(aws.New())
+	p, _ := provisioner.New(provisioner.Config{WorkRoot: t.TempDir(), Adapters: reg, Runner: fake})
+
+	res, err := p.Plan(ctx, provisioner.PlanInput{Project: project, Stack: "dev", OrgID: "test", DeploymentID: "dep-x"})
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	if len(res.Targets) != 2 {
+		t.Fatalf("want 2 targets; got %d", len(res.Targets))
+	}
+	if res.Targets[0].Component != "web-network" {
+		t.Errorf("expected web-network first, got %s then %s", res.Targets[0].Component, res.Targets[1].Component)
+	}
+	var appCall *tofu.PlanCall
+	for i, pc := range fake.PlanCalls {
+		if filepath.Base(filepath.Dir(pc.Opts.OutFile)) == "web-app" {
+			appCall = &fake.PlanCalls[i]
+		}
+	}
+	if appCall == nil {
+		t.Fatalf("no Plan call against web-app workspace")
+	}
+	if v, ok := appCall.Workspace.Vars["upstream_web_network_subnet_ids"]; !ok || v == nil {
+		t.Errorf("missing upstream_web_network_subnet_ids in vars: %v", appCall.Workspace.Vars)
+	}
+}
+
 func TestPlan_TargetFilter(t *testing.T) {
 	reg := cloud.NewRegistry()
 	_ = reg.Register(aws.New())

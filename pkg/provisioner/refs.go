@@ -3,23 +3,15 @@ package provisioner
 import (
 	"github.com/klehmer/nimbusfab/pkg/cloud"
 	"github.com/klehmer/nimbusfab/pkg/ir"
+	"github.com/klehmer/nimbusfab/pkg/provisioner/upstream"
 )
-
-// UpstreamStateRef captures one cross-component reference: the dependent's
-// workspace needs to read the upstream component's outputs via
-// data.terraform_remote_state.
-type UpstreamStateRef struct {
-	Component string
-	Backend   ir.StateBackend
-}
 
 // buildResolvedRefs translates a component's declared cross-component refs
 // into a ResolvedRefs map of tofu interpolation strings, keyed by the user's
 // alias (`as:` in YAML). Adapters look these up by alias when emitting
 // resource attributes; the value substitutes into the workspace JSON
 // verbatim and is resolved by tofu at plan/apply time against the
-// `data.terraform_remote_state.<referent>` block written by the workspace
-// renderer.
+// `variable` block written by the workspace renderer.
 //
 // Convention: when snake_case(alias) is the singular of the upstream output
 // (e.g. alias `subnetId` for output `subnet_ids`), the interpolation
@@ -33,7 +25,8 @@ func buildResolvedRefs(refs []ir.ComponentRef) cloud.ResolvedRefs {
 		if r.As == "" || r.Component == "" || r.Output == "" {
 			continue
 		}
-		base := "data.terraform_remote_state." + tofuIdentForComponent(r.Component) + ".outputs." + r.Output
+		varName := upstream.VarName(r.Component, r.Output)
+		base := "var." + varName
 		if camelToSnake(r.As)+"s" == r.Output {
 			out[r.As] = "${" + base + "[0]}"
 		} else {
@@ -56,29 +49,6 @@ func camelToSnake(s string) string {
 		default:
 			out = append(out, c)
 		}
-	}
-	return string(out)
-}
-
-// tofuIdentForComponent matches the helper used in cloud adapters so the
-// `data.terraform_remote_state.<name>` matches the upstream's local name.
-func tofuIdentForComponent(name string) string {
-	out := []byte{}
-	for i := 0; i < len(name); i++ {
-		c := name[i]
-		switch {
-		case c == '-':
-			out = append(out, '_')
-		case (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_':
-			out = append(out, c)
-		case c >= 'A' && c <= 'Z':
-			out = append(out, c+32)
-		default:
-			out = append(out, '_')
-		}
-	}
-	if len(out) == 0 || (out[0] >= '0' && out[0] <= '9') {
-		out = append([]byte{'_'}, out...)
 	}
 	return string(out)
 }

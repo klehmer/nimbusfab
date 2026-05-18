@@ -12,11 +12,9 @@ import (
 
 // TestPlan_PopulatesResolvedRefsFromComponentRefs verifies that the
 // provisioner translates a component's declared cross-component refs into
-// tofu interpolation strings before calling adapter.Emit. Without this the
-// adapters fall back to a hardcoded interpolation keyed by the *self*
-// component name, which doesn't match the data.terraform_remote_state block
-// the workspace renderer keys by the *referent* component's name — tofu
-// then rejects the workspace with "no data resource ... in the root module".
+// tofu interpolation strings before calling adapter.Emit. The interpolation
+// strings reference `var.upstream_<component>_<output>` which are declared as
+// `variable` blocks in the workspace and supplied via `tofu plan -var` flags.
 //
 // Convention: aliases whose snake-case form is the singular of the upstream
 // output name (e.g. as=subnetId for output=subnet_ids) get the [0] subscript
@@ -60,9 +58,9 @@ func TestPlan_PopulatesResolvedRefsFromComponentRefs(t *testing.T) {
 	}
 
 	want := cloud.ResolvedRefs{
-		"subnetIds": "${data.terraform_remote_state.web_network.outputs.subnet_ids}",
-		"vpcId":     "${data.terraform_remote_state.web_network.outputs.vpc_id}",
-		"subnetId":  "${data.terraform_remote_state.web_network.outputs.subnet_ids[0]}",
+		"subnetIds": "${var.upstream_web_network_subnet_ids}",
+		"vpcId":     "${var.upstream_web_network_vpc_id}",
+		"subnetId":  "${var.upstream_web_network_subnet_ids[0]}",
 	}
 	if len(capa.capturedRefs) != len(want) {
 		t.Fatalf("capturedRefs has %d entries, want %d: %#v", len(capa.capturedRefs), len(want), capa.capturedRefs)
