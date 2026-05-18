@@ -34,6 +34,13 @@ func (rp *runtimeProvisioner) Plan(ctx context.Context, in PlanInput) (*PlanResu
 		in.PartialFailure = PartialFailureLeave
 	}
 
+	if pairErrors := upstream.PreflightPairing(in.Project.Components); len(pairErrors) > 0 {
+		// Fail fast: cross-target refs make any plan output structurally
+		// unreliable. Report the first error wrapped with the typed sentinel
+		// so callers can errors.Is it.
+		return nil, pairErrors[0].AsError()
+	}
+
 	ordered, err := upstream.Toposort(in.Project.Components)
 	if err != nil {
 		return nil, fmt.Errorf("provisioner.Plan: %w", err)

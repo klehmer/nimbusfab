@@ -2,6 +2,7 @@ package provisioner_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/klehmer/nimbusfab/pkg/cloud"
 	"github.com/klehmer/nimbusfab/pkg/ir"
 	"github.com/klehmer/nimbusfab/pkg/provisioner"
+	"github.com/klehmer/nimbusfab/pkg/provisioner/upstream"
 )
 
 func TestPlan_SingleAWSNetworkTarget(t *testing.T) {
@@ -191,5 +193,36 @@ func TestPlan_TargetFilter(t *testing.T) {
 	}
 	if len(res.Targets) != 1 || res.Targets[0].Component != "b" {
 		t.Errorf("filter not applied: %+v", res.Targets)
+	}
+}
+
+func TestProvisionerPlan_FailsFastOnCrossTargetRef(t *testing.T) {
+	ctx := context.Background()
+	project := &ir.Project{
+		APIVersion: "infra.dev/v1alpha1", Name: "p",
+		Stacks: map[string]ir.Stack{"dev": {Name: "dev", StateBackend: ir.StateBackend{Kind: "local"}}},
+		Components: []ir.Component{
+			// app's only target is us-west-2; net's only target is us-east-1.
+			{Name: "app", Type: "compute",
+				Refs: []ir.ComponentRef{{Component: "net", Output: "subnet_ids", As: "subnetId"}},
+				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-west-2",
+					Spec: map[string]any{"size": "small", "instanceCount": 1}}}},
+			{Name: "net", Type: "network",
+				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1",
+					Spec: map[string]any{"cidr": "10.0.0.0/16", "subnetCount": 1}}}},
+		},
+	}
+
+	fake := tofu.NewFakeRunner()
+	reg := cloud.NewRegistry()
+	_ = reg.Register(aws.New())
+	p, _ := provisioner.New(provisioner.Config{WorkRoot: t.TempDir(), Adapters: reg, Runner: fake})
+
+	_, err := p.Plan(ctx, provisioner.PlanInput{Project: project, Stack: "dev", OrgID: "test", DeploymentID: "dep-x"})
+	if err == nil {
+		t.Fatal("expected Plan to fail on cross-target ref")
+	}
+	if !errors.Is(err, upstream.ErrCrossTargetRefUnsupported) {
+		t.Errorf("error should wrap ErrCrossTargetRefUnsupported, got: %v", err)
 	}
 }
