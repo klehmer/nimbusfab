@@ -63,7 +63,7 @@ func emitDatabaseImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir
 	}
 
 	name := tofuIdent(component)
-	instanceName := gcpResourceName(component) + "-sql"
+	instanceName := gcpResourceNameSimple(component) + "-sql"
 
 	return []ir.ResourcePrimitive{
 		{

@@ -45,7 +45,7 @@ func emitComputeImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 	}
 
 	name := tofuIdent(component)
-	resName := gcpResourceName(component)
+	resName := gcpResourceNameSimple(component)
 	networkRef, _ := refs["networkId"].(string)
 	subnetRef, _ := refs["subnetworkId"].(string)
 

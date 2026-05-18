@@ -23,7 +23,7 @@ func emitNetworkImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 		subnetCount = 1
 	}
 	name := tofuIdent(component)
-	resName := gcpResourceName(component)
+	resName := gcpResourceNameSimple(component)
 
 	subnetCIDRs, err := splitCIDR(cidr, subnetCount)
 	if err != nil {
