@@ -49,6 +49,9 @@ func (c *captureAdapter) ProviderBlock(ctx context.Context, target ir.Deployment
 func (c *captureAdapter) Validate(ctx context.Context, target ir.DeploymentTarget) []ir.Issue {
 	return c.FakeAdapter.Validate(ctx, target)
 }
+func (c *captureAdapter) OutputBindings(ctx context.Context, target ir.DeploymentTarget, primitives []ir.ResourcePrimitive) (map[string]any, error) {
+	return c.FakeAdapter.OutputBindings(ctx, target, primitives)
+}
 
 func TestPlan_StuffsComponentTypeIntoSpec(t *testing.T) {
 	capa := &captureAdapter{FakeAdapter: cloud.NewFakeAdapter("aws")}

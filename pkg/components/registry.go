@@ -57,6 +57,24 @@ type OutputType struct {
 	Description string
 }
 
+// TofuType returns the OpenTofu HCL type expression for this output's Kind.
+// Unknown / empty kinds default to "string" because tofu can coerce many
+// values into strings safely.
+func (o OutputType) TofuType() string {
+	switch o.Kind {
+	case "string", "":
+		return "string"
+	case "list<string>":
+		return "list(string)"
+	case "integer", "number":
+		return "number"
+	case "bool":
+		return "bool"
+	default:
+		return "string"
+	}
+}
+
 // NewInMemoryRegistry returns an empty Registry suitable for testing and for
 // composing in-tree types at startup. Returned implementation is not exported
 // since callers depend only on the interface.

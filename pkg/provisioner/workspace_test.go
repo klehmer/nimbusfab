@@ -9,6 +9,50 @@ import (
 	"github.com/klehmer/nimbusfab/pkg/ir"
 )
 
+func TestWriteWorkspace_EmitsVariableAndOutputBlocks(t *testing.T) {
+	dir := t.TempDir()
+	layout := WorkspaceLayout{
+		Dir:            dir,
+		ProviderName:   "aws",
+		ProviderConfig: map[string]any{"aws": map[string]any{"region": "us-east-1"}},
+		Backend:        ir.StateBackend{Kind: "local"},
+		Primitives: []ir.ResourcePrimitive{{
+			ID: "x.aws.vpc", Cloud: "aws", TofuType: "aws_vpc", TofuName: "net",
+			Attributes: map[string]any{"cidr_block": "10.0.0.0/16"},
+		}},
+		Variables: []UpstreamVariable{
+			{Name: "upstream_net_vpc_id", TofuType: "string"},
+			{Name: "upstream_net_subnet_ids", TofuType: "list(string)"},
+		},
+		OutputBindings: map[string]any{
+			"vpc_id":     "${aws_vpc.net.id}",
+			"subnet_ids": []string{"${aws_subnet.net_0.id}"},
+		},
+	}
+	if err := WriteWorkspace(layout); err != nil {
+		t.Fatalf("WriteWorkspace: %v", err)
+	}
+	body, err := os.ReadFile(filepath.Join(dir, "main.tf.json"))
+	if err != nil {
+		t.Fatalf("read main.tf.json: %v", err)
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	variables, ok := parsed["variable"].(map[string]any)
+	if !ok || len(variables) != 2 {
+		t.Errorf("variable block: %v", parsed["variable"])
+	}
+	outputs, ok := parsed["output"].(map[string]any)
+	if !ok || len(outputs) != 2 {
+		t.Errorf("output block: %v", parsed["output"])
+	}
+	if _, present := parsed["data"]; present {
+		t.Errorf("data block should be absent in v1.1 workspaces")
+	}
+}
+
 func TestWriteWorkspace_AllFourFilesPresent(t *testing.T) {
 	dir := t.TempDir()
 	layout := WorkspaceLayout{
@@ -94,6 +138,40 @@ func TestWriteWorkspace_ByteIdenticalAcrossRuns(t *testing.T) {
 		if string(ab) != string(bb) {
 			t.Errorf("%s differs between runs:\n a: %s\n b: %s", f, ab, bb)
 		}
+	}
+}
+
+func TestWriteWorkspace_OutputListIsJSONArray(t *testing.T) {
+	dir := t.TempDir()
+	layout := WorkspaceLayout{
+		Dir:            dir,
+		ProviderName:   "aws",
+		ProviderConfig: map[string]any{"aws": map[string]any{"region": "us-east-1"}},
+		Backend:        ir.StateBackend{Kind: "local"},
+		Primitives:     []ir.ResourcePrimitive{{ID: "x", Cloud: "aws", TofuType: "aws_vpc", TofuName: "net", Attributes: map[string]any{}}},
+		OutputBindings: map[string]any{
+			"vpc_id":     "${aws_vpc.net.id}",
+			"subnet_ids": []string{"${aws_subnet.net_0.id}", "${aws_subnet.net_1.id}"},
+		},
+	}
+	if err := WriteWorkspace(layout); err != nil {
+		t.Fatalf("WriteWorkspace: %v", err)
+	}
+	body, _ := os.ReadFile(filepath.Join(dir, "main.tf.json"))
+	var parsed map[string]any
+	_ = json.Unmarshal(body, &parsed)
+	outputs := parsed["output"].(map[string]any)
+	subnetOut := outputs["subnet_ids"].(map[string]any)
+	subnetValue, ok := subnetOut["value"].([]any)
+	if !ok {
+		t.Fatalf("subnet_ids value should be a JSON array, got %T: %v", subnetOut["value"], subnetOut["value"])
+	}
+	if len(subnetValue) != 2 || subnetValue[0] != "${aws_subnet.net_0.id}" {
+		t.Errorf("unexpected subnet_ids value: %v", subnetValue)
+	}
+	vpcOut := outputs["vpc_id"].(map[string]any)
+	if _, ok := vpcOut["value"].(string); !ok {
+		t.Errorf("vpc_id should remain a string, got %T", vpcOut["value"])
 	}
 }
 

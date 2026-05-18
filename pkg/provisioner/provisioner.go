@@ -7,6 +7,7 @@ import (
 
 	"github.com/klehmer/nimbusfab/internal/tofu"
 	"github.com/klehmer/nimbusfab/pkg/cloud"
+	"github.com/klehmer/nimbusfab/pkg/components"
 	"github.com/klehmer/nimbusfab/pkg/secrets"
 )
 
@@ -27,7 +28,8 @@ type Config struct {
 	WorkRoot       string
 	Adapters       cloud.Registry
 	Runner         tofu.Runner
-	SecretsBackend secrets.Backend // optional; nil = pass empty env to runner
+	SecretsBackend secrets.Backend    // optional; nil = pass empty env to runner
+	Components     components.Registry // optional; nil = DefaultRegistry()
 }
 
 // New returns a runtime Provisioner wired against the supplied dependencies.
@@ -40,6 +42,9 @@ func New(cfg Config) (Provisioner, error) {
 	}
 	if cfg.Runner == nil {
 		return nil, fmt.Errorf("provisioner: Config.Runner is required")
+	}
+	if cfg.Components == nil {
+		cfg.Components = components.DefaultRegistry()
 	}
 	return &runtimeProvisioner{cfg: cfg}, nil
 }

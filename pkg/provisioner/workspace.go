@@ -24,10 +24,23 @@ type WorkspaceLayout struct {
 
 	Primitives []ir.ResourcePrimitive
 
-	// UpstreamRefs, if non-empty, become a `data "terraform_remote_state"`
-	// block in main.tf.json so the dependent's resources can interpolate the
-	// upstream's outputs at Tofu time.
-	UpstreamRefs []UpstreamStateRef
+	// Variables declares the typed tofu input variables this workspace
+	// expects. The provisioner passes values via `tofu plan -var name=...`;
+	// at plan time these are placeholders, at apply time real values from
+	// upstream state.
+	Variables []UpstreamVariable
+
+	// OutputBindings declares the tofu expressions for outputs this
+	// workspace publishes so its terraform.tfstate contains them after
+	// apply. Keys are output names per components.Type.Outputs(); values
+	// are HCL expressions written verbatim inside an `output {}` block.
+	OutputBindings map[string]any
+}
+
+// UpstreamVariable is one tofu `variable` block declaration.
+type UpstreamVariable struct {
+	Name     string
+	TofuType string
 }
 
 // WriteWorkspace materializes the four canonical workspace files atomically
@@ -39,23 +52,19 @@ func WriteWorkspace(layout WorkspaceLayout) error {
 	}
 
 	mainBlock := buildMain(layout.Primitives)
-	if len(layout.UpstreamRefs) > 0 {
-		data := map[string]any{}
-		for _, ref := range layout.UpstreamRefs {
-			backend := ref.Backend
-			if backend.Kind == "" {
-				backend.Kind = "local"
-			}
-			cfg := backend.Config
-			if cfg == nil {
-				cfg = map[string]any{}
-			}
-			data[tofuIdentForComponent(ref.Component)] = map[string]any{
-				"backend": backend.Kind,
-				"config":  cfg,
-			}
+	if len(layout.Variables) > 0 {
+		vars := map[string]any{}
+		for _, v := range layout.Variables {
+			vars[v.Name] = map[string]any{"type": v.TofuType}
 		}
-		mainBlock["data"] = map[string]any{"terraform_remote_state": data}
+		mainBlock["variable"] = vars
+	}
+	if len(layout.OutputBindings) > 0 {
+		outs := map[string]any{}
+		for name, expr := range layout.OutputBindings {
+			outs[name] = map[string]any{"value": expr}
+		}
+		mainBlock["output"] = outs
 	}
 
 	files := map[string]any{
