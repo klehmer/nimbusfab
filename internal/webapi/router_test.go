@@ -495,3 +495,22 @@ func TestUI_DeploymentGraph_DirectionCookie(t *testing.T) {
 		t.Errorf("query override failed; body should have TB active:\n%s", bodyOverride)
 	}
 }
+
+func TestUI_DeploymentGraph_TargetsJSONPopulated(t *testing.T) {
+	srv := newTestServerWithSeedData(t)
+	defer srv.Close()
+	resp, body := get(t, srv, "/ui/deployments/d-1/graph")
+	if resp.StatusCode != 200 {
+		t.Fatalf("status=%d", resp.StatusCode)
+	}
+	// data-targets-json is a JSON object keyed by component name.
+	if !strings.Contains(body, `data-targets-json='{`) {
+		t.Errorf("missing data-targets-json attribute; body:\n%s", body)
+	}
+	// Substitute the actual seeded component name for COMPONENT_NAME below
+	// (found by reading newTestServerWithSeedData in this file).
+	const componentNameInSeed = "net"
+	if !strings.Contains(body, `"`+componentNameInSeed+`"`) {
+		t.Errorf("targets json missing seeded component %q; body:\n%s", componentNameInSeed, body)
+	}
+}
