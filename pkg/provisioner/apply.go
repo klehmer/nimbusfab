@@ -3,6 +3,8 @@ package provisioner
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,6 +12,7 @@ import (
 	"github.com/klehmer/nimbusfab/internal/state/bridge"
 	"github.com/klehmer/nimbusfab/internal/tofu"
 	"github.com/klehmer/nimbusfab/pkg/ir"
+	"github.com/klehmer/nimbusfab/pkg/provisioner/upstream"
 )
 
 func (rp *runtimeProvisioner) Apply(ctx context.Context, in ApplyInput) (*ApplyResult, error) {
@@ -21,6 +24,12 @@ func (rp *runtimeProvisioner) Apply(ctx context.Context, in ApplyInput) (*ApplyR
 	}
 	if in.MaxRetries <= 0 {
 		in.MaxRetries = 1
+	}
+
+	// When a Project is provided, use the toposort-aware path that re-plans
+	// each target with real upstream output values and propagates blocked status.
+	if in.Project != nil {
+		return rp.applyToposorted(ctx, in)
 	}
 
 	sems := newSemaphores(resolveCaps(concurrencyCaps{
@@ -46,6 +55,210 @@ func (rp *runtimeProvisioner) Apply(ctx context.Context, in ApplyInput) (*ApplyR
 		TargetResults: results,
 		GeneratedAt:   time.Now().UTC(),
 	}, nil
+}
+
+// applyToposorted implements the toposort-aware apply path.  Targets are
+// applied in component-dependency order.  Before each target is applied its
+// workspace is re-planned with real output values extracted from already-applied
+// upstream state files.  If any upstream target failed or was blocked, all
+// downstream targets in the same component dependency chain are marked
+// RunStatusBlocked and skipped.
+func (rp *runtimeProvisioner) applyToposorted(ctx context.Context, in ApplyInput) (*ApplyResult, error) {
+	plan := in.PlanResult
+
+	// Build TargetIdent list from the plan.
+	idents := make([]upstream.TargetIdent, 0, len(plan.Targets))
+	for _, tp := range plan.Targets {
+		idents = append(idents, upstream.TargetIdent{
+			Component: tp.Component,
+			Cloud:     tp.Cloud,
+			Region:    tp.Region,
+		})
+	}
+
+	ordered, err := upstream.ToposortTargets(idents, in.Project.Components)
+	if err != nil {
+		return nil, fmt.Errorf("provisioner.Apply: toposort: %w", err)
+	}
+
+	byIdent := indexTargetsByIdent(plan.Targets)
+
+	// Track status per TargetIdent so downstream can check upstream status.
+	statusByIdent := map[upstream.TargetIdent]RunStatus{}
+
+	var results []TargetApplyResult
+
+	for _, ident := range ordered {
+		tp, ok := byIdent[ident]
+		if !ok {
+			continue
+		}
+
+		comp := findComponent(in.Project, ident.Component)
+
+		// Check if any upstream of this component (same cloud/region) is failed or blocked.
+		upstreamFailed := false
+		for _, ref := range comp.Refs {
+			upIdent := upstream.TargetIdent{
+				Component: ref.Component,
+				Cloud:     ident.Cloud,
+				Region:    ident.Region,
+			}
+			if st, exists := statusByIdent[upIdent]; exists {
+				if st == RunStatusFailed || st == RunStatusBlocked {
+					upstreamFailed = true
+					break
+				}
+			}
+		}
+
+		if upstreamFailed {
+			blockedResult := TargetApplyResult{
+				DeploymentTargetID: tp.DeploymentTargetID,
+				Component:          ident.Component,
+				Cloud:              ident.Cloud,
+				Region:             ident.Region,
+				Status:             RunStatusBlocked,
+				StartedAt:          time.Now().UTC(),
+				FinishedAt:         time.Now().UTC(),
+			}
+			statusByIdent[ident] = RunStatusBlocked
+			results = append(results, blockedResult)
+			continue
+		}
+
+		// Build real vars from upstream state files.
+		vars, varErr := rp.buildRealVars(comp, ident, byIdent)
+		if varErr != nil {
+			failedResult := TargetApplyResult{
+				DeploymentTargetID: tp.DeploymentTargetID,
+				Component:          ident.Component,
+				Cloud:              ident.Cloud,
+				Region:             ident.Region,
+				Status:             RunStatusFailed,
+				Error:              varErr,
+				StartedAt:          time.Now().UTC(),
+				FinishedAt:         time.Now().UTC(),
+			}
+			statusByIdent[ident] = RunStatusFailed
+			results = append(results, failedResult)
+			continue
+		}
+
+		startedAt := time.Now().UTC()
+
+		// Re-plan with real upstream vars.
+		ws := tofu.Workspace{Dir: tp.WorkspaceDir, Vars: vars}
+		planFile := filepath.Join(tp.WorkspaceDir, "plan.bin")
+		if _, planErr := rp.cfg.Runner.Plan(ctx, ws, tofu.PlanOpts{OutFile: planFile}); planErr != nil {
+			failedResult := TargetApplyResult{
+				DeploymentTargetID: tp.DeploymentTargetID,
+				Component:          ident.Component,
+				Cloud:              ident.Cloud,
+				Region:             ident.Region,
+				Status:             RunStatusFailed,
+				Error:              fmt.Errorf("tofu re-plan: %w", planErr),
+				StartedAt:          startedAt,
+				FinishedAt:         time.Now().UTC(),
+			}
+			statusByIdent[ident] = RunStatusFailed
+			results = append(results, failedResult)
+			continue
+		}
+
+		// Apply.
+		if applyErr := rp.cfg.Runner.Apply(ctx, ws, planFile, tofu.ApplyOpts{AutoApprove: in.AutoApprove}); applyErr != nil {
+			failedResult := TargetApplyResult{
+				DeploymentTargetID: tp.DeploymentTargetID,
+				Component:          ident.Component,
+				Cloud:              ident.Cloud,
+				Region:             ident.Region,
+				Status:             RunStatusFailed,
+				Error:              fmt.Errorf("tofu apply: %w", applyErr),
+				StartedAt:          startedAt,
+				FinishedAt:         time.Now().UTC(),
+			}
+			statusByIdent[ident] = RunStatusFailed
+			results = append(results, failedResult)
+			continue
+		}
+
+		// Capture state and outputs post-apply.
+		stateBytes, err := rp.cfg.Runner.StateShow(ctx, ws)
+		var snap *StateSnapshot
+		if err == nil {
+			if bs, perr := bridge.Parse(stateBytes); perr == nil && bs != nil {
+				snap = bridgeToProvisioner(bs, tp.DeploymentTargetID)
+			}
+		}
+		outputs, _ := rp.cfg.Runner.Output(ctx, ws)
+
+		statusByIdent[ident] = RunStatusSucceeded
+		results = append(results, TargetApplyResult{
+			DeploymentTargetID: tp.DeploymentTargetID,
+			Component:          ident.Component,
+			Cloud:              ident.Cloud,
+			Region:             ident.Region,
+			RunID:              "run-" + uuid.NewString(),
+			Status:             RunStatusSucceeded,
+			Outputs:            outputs,
+			State:              snap,
+			StartedAt:          startedAt,
+			FinishedAt:         time.Now().UTC(),
+		})
+	}
+
+	return &ApplyResult{
+		DeploymentID:  plan.DeploymentID,
+		Status:        summarizeApplyStatus(results),
+		TargetResults: results,
+		GeneratedAt:   time.Now().UTC(),
+	}, nil
+}
+
+// buildRealVars reads upstream state files and returns a vars map with real
+// values substituted for each upstream ref on comp. Returns the original
+// placeholder vars when the component has no refs.
+func (rp *runtimeProvisioner) buildRealVars(
+	comp ir.Component,
+	ident upstream.TargetIdent,
+	byIdent map[upstream.TargetIdent]TargetPlan,
+) (map[string]any, error) {
+	if len(comp.Refs) == 0 {
+		return nil, nil
+	}
+	vars := map[string]any{}
+	for _, ref := range comp.Refs {
+		upIdent := upstream.TargetIdent{
+			Component: ref.Component,
+			Cloud:     ident.Cloud,
+			Region:    ident.Region,
+		}
+		upTP, ok := byIdent[upIdent]
+		if !ok {
+			return nil, fmt.Errorf("%w: %s in %s/%s needs %s",
+				upstream.ErrCrossTargetRefUnsupported, ident.Component, ident.Cloud, ident.Region, ref.Component)
+		}
+		stateFile := filepath.Join(upTP.WorkspaceDir, "terraform.tfstate")
+		stateBytes, readErr := os.ReadFile(stateFile)
+		if readErr != nil {
+			return nil, fmt.Errorf("%w: %s: %v", upstream.ErrUpstreamStateUnreadable, ref.Component, readErr)
+		}
+		outputs, parseErr := upstream.ExtractOutputs(stateBytes)
+		if parseErr != nil {
+			return nil, parseErr
+		}
+		val, exists := outputs[ref.Output]
+		if !exists {
+			return nil, fmt.Errorf("%w: %s.%s", upstream.ErrUpstreamOutputMissing, ref.Component, ref.Output)
+		}
+		hcl, fmtErr := upstream.FormatHCLValue(val)
+		if fmtErr != nil {
+			return nil, fmt.Errorf("FormatHCLValue %s.%s: %w", ref.Component, ref.Output, fmtErr)
+		}
+		vars[upstream.VarName(ref.Component, ref.Output)] = hcl
+	}
+	return vars, nil
 }
 
 func hasAnyFailure(rs []TargetApplyResult) bool {
@@ -231,7 +444,7 @@ func summarizeApplyStatus(results []TargetApplyResult) ApplyStatus {
 			succeeded++
 		case RunStatusFailed:
 			failed++
-		case RunStatusSkipped:
+		case RunStatusSkipped, RunStatusBlocked:
 			skipped++
 		case RunStatusReverted:
 			failed++ // a reverted target is a failure outcome from the caller's POV
@@ -278,4 +491,23 @@ func bridgeToProvisioner(bs *bridge.Snapshot, deploymentTargetID string) *StateS
 		})
 	}
 	return out
+}
+
+// indexTargetsByIdent builds a lookup map from TargetIdent to TargetPlan.
+func indexTargetsByIdent(targets []TargetPlan) map[upstream.TargetIdent]TargetPlan {
+	out := map[upstream.TargetIdent]TargetPlan{}
+	for _, t := range targets {
+		out[upstream.TargetIdent{Component: t.Component, Cloud: t.Cloud, Region: t.Region}] = t
+	}
+	return out
+}
+
+// findComponent returns the ir.Component with the given name, or a zero value.
+func findComponent(p *ir.Project, name string) ir.Component {
+	for _, c := range p.Components {
+		if c.Name == name {
+			return c
+		}
+	}
+	return ir.Component{}
 }

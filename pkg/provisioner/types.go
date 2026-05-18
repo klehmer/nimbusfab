@@ -103,6 +103,9 @@ const (
 	RunStatusFailed    RunStatus = "failed"
 	RunStatusSkipped   RunStatus = "skipped"
 	RunStatusReverted  RunStatus = "reverted"
+	// RunStatusBlocked means the target was not attempted because one or more
+	// of its upstream dependencies failed during the same Apply run.
+	RunStatusBlocked RunStatus = "blocked"
 )
 
 // ApplyStatus discriminates the overall outcome of an Apply call.
@@ -126,6 +129,12 @@ type ApplyInput struct {
 	MaxConcurrentTargets  int
 	MaxConcurrentPerCloud int
 	EventSink             chan<- RunEvent
+	// Project, when non-nil, enables toposort-aware apply: upstream targets are
+	// applied first, real output values are extracted from state and substituted
+	// for placeholders before re-planning each downstream target, and downstream
+	// targets whose upstreams failed are marked RunStatusBlocked instead of
+	// being attempted.
+	Project *ir.Project
 }
 
 // ApplyResult is what the provisioner returns.
