@@ -193,6 +193,9 @@ type Deployment struct {
 	PartialFailurePolicy string
 	StartedAt            time.Time
 	FinishedAt           *time.Time
+	// DriftIntervalSeconds is the per-deployment drift poll cadence in seconds.
+	// Zero means: use the server-wide NIMBUSFAB_DRIFT_INTERVAL default.
+	DriftIntervalSeconds int
 }
 
 // DeploymentRepo manages Deployment rows.
@@ -201,6 +204,9 @@ type DeploymentRepo interface {
 	Create(ctx context.Context, d Deployment) error
 	UpdateStatus(ctx context.Context, orgID, id, status string, finishedAt *time.Time) error
 	ListByProject(ctx context.Context, orgID, projectID string, limit int) ([]Deployment, error)
+	// ListAll returns all deployments for the org ordered by started_at DESC.
+	// Used by the drift scheduler to enumerate active deployments.
+	ListAll(ctx context.Context, orgID string) ([]Deployment, error)
 }
 
 // DeploymentTarget is per-(deployment, cloud, region).
