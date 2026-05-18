@@ -107,11 +107,14 @@ type ResourcePrimitive struct {
 	Attributes map[string]any    `json:"attributes"` // raw tofu JSON body
 	DependsOn  []string          `json:"dependsOn,omitempty"`
 	Tags       map[string]string `json:"tags,omitempty"`
-	// NoTags marks resources whose tofu schema does not accept a `tags`
-	// attribute (e.g. aws_route, aws_route_table_association). The
-	// provisioner skips framework-tag injection for these so tofu doesn't
-	// reject the workspace with "no argument or block type is named 'tags'".
-	NoTags bool `json:"noTags,omitempty"`
+	// TagAttribute selects how framework tags attach to this primitive:
+	//   ""        per-cloud default — "tags" on AWS/Azure, "" (skip) on GCP
+	//   "tags"    AWS / Azure convention
+	//   "labels"  GCP convention (stricter key/value rules; injectFrameworkTags
+	//             sanitizes values for the [a-z0-9_-] + 63-char-cap constraint)
+	// Resources that reject any tag/label attribute use the empty string AND
+	// have no per-resource Tags set.
+	TagAttribute string `json:"tagAttribute,omitempty"`
 }
 
 // Composition is a user-defined component type. At validation time, every
