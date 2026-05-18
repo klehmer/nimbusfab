@@ -6,7 +6,10 @@ package inventory
 
 import (
 	"context"
+	"encoding/json"
 	"time"
+
+	"github.com/klehmer/nimbusfab/pkg/ir"
 )
 
 // Repo is the union interface that the engine depends on. Implementations
@@ -142,6 +145,18 @@ type Component struct {
 	Type      string
 	IRJSON    []byte
 	UpdatedAt time.Time
+}
+
+// UnmarshalIR returns the persisted ir.Component (including Refs) by
+// decoding the IRJSON column. Empty IRJSON returns a zero-value ir.Component
+// without error.
+func (c *Component) UnmarshalIR() (ir.Component, error) {
+	var out ir.Component
+	if len(c.IRJSON) == 0 {
+		return out, nil
+	}
+	err := json.Unmarshal(c.IRJSON, &out)
+	return out, err
 }
 
 // ComponentRepo manages Component rows.
