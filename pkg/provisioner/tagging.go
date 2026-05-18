@@ -39,7 +39,17 @@ func injectFrameworkTags(p ir.ResourcePrimitive, ctx tagContext) ir.ResourcePrim
 	return p
 }
 
+// resolveTagAttribute returns the key to write tags under in the resource's
+// Attributes, or "" to skip tagging entirely.
+//
+//	""   (unset) → per-cloud default: "tags" on AWS/Azure, "" (skip) on GCP
+//	"tags"       → explicit AWS/Azure tags key
+//	"labels"     → explicit GCP labels key (stricter key/value rules)
+//	"-"          → explicit skip — resource does not accept any tag attribute
 func resolveTagAttribute(p ir.ResourcePrimitive) string {
+	if p.TagAttribute == "-" {
+		return ""
+	}
 	if p.TagAttribute != "" {
 		return p.TagAttribute
 	}
