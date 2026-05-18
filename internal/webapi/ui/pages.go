@@ -6,6 +6,7 @@ package ui
 import (
 	"context"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -13,7 +14,10 @@ import (
 	"time"
 
 	"github.com/klehmer/nimbusfab/internal/webapi/middleware"
+	"github.com/klehmer/nimbusfab/pkg/graph"
 	"github.com/klehmer/nimbusfab/pkg/inventory"
+	"github.com/klehmer/nimbusfab/pkg/ir"
+	"github.com/klehmer/nimbusfab/pkg/provisioner/upstream"
 )
 
 //go:embed templates/*.html
@@ -256,6 +260,173 @@ func (r *Renderer) ProjectDetail(w http.ResponseWriter, req *http.Request) {
 	}))
 }
 
+// Graph renders /ui/projects/{id}/graph and /ui/deployments/{id}/graph.
+// `kind` is "project" or "deployment".
+func (r *Renderer) Graph(kind string) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		id := req.PathValue("id")
+		direction := readDirection(req)
+
+		var (
+			components []ir.Component
+			targets    []graph.TargetSnapshot
+			pageData   map[string]any
+			loadErr    error
+		)
+
+		switch kind {
+		case "deployment":
+			dep, err := r.Repo.Deployments().Get(req.Context(), r.OrgID, id)
+			if err != nil || dep == nil {
+				r.renderError(w, http.StatusNotFound, "deployment not found: "+id)
+				return
+			}
+			components, targets, loadErr = r.loadDeploymentGraph(req.Context(), dep)
+			if loadErr != nil {
+				r.renderError(w, http.StatusInternalServerError, loadErr.Error())
+				return
+			}
+			pageData = map[string]any{
+				"ID":          dep.ID,
+				"Kind":        "Deployment",
+				"StackName":   dep.StackID,
+				"OverviewURL": "/ui/deployments/" + dep.ID,
+				"GraphURL":    "/ui/deployments/" + dep.ID + "/graph",
+			}
+		case "project":
+			proj, err := r.Repo.Projects().Get(req.Context(), r.OrgID, id)
+			if err != nil || proj == nil {
+				r.renderError(w, http.StatusNotFound, "project not found: "+id)
+				return
+			}
+			components, targets, loadErr = r.loadProjectGraph(req.Context(), proj)
+			if loadErr != nil {
+				r.renderError(w, http.StatusInternalServerError, loadErr.Error())
+				return
+			}
+			pageData = map[string]any{
+				"ID":          proj.ID,
+				"Kind":        "Project",
+				"OverviewURL": "/ui/projects/" + proj.ID,
+				"GraphURL":    "/ui/projects/" + proj.ID + "/graph",
+			}
+		}
+
+		if len(components) == 0 {
+			pageData["Empty"] = true
+			pageData["Direction"] = direction
+			r.render(w, "graph.html", r.withUser(req, pageData))
+			return
+		}
+
+		// Convert ir.Component → graph.Component.
+		gComps := make([]graph.Component, len(components))
+		for i, c := range components {
+			refs := make([]graph.Ref, len(c.Refs))
+			for j, ref := range c.Refs {
+				refs[j] = graph.Ref{Component: ref.Component, Output: ref.Output, As: ref.As}
+			}
+			gComps[i] = graph.Component{Name: c.Name, Type: c.Type, Refs: refs}
+		}
+
+		// PreflightPairing → warnings (NOT fatal in the UI; just annotate).
+		var pairWarnings []string
+		var pairErrors []graph.PairingError
+		for _, pe := range upstream.PreflightPairing(components) {
+			pairWarnings = append(pairWarnings,
+				fmt.Sprintf("%s in %s/%s references %s.%s but no upstream target matches",
+					pe.Component, pe.Cloud, pe.Region, pe.Ref.Component, pe.Ref.Output))
+			pairErrors = append(pairErrors, graph.PairingError{
+				Component: pe.Component,
+				Ref:       graph.Ref{Component: pe.Ref.Component, Output: pe.Ref.Output, As: pe.Ref.As},
+				Cloud:     pe.Cloud, Region: pe.Region, Reason: pe.Reason,
+			})
+		}
+
+		out, err := graph.Layout(graph.Input{
+			Components:    gComps,
+			Targets:       targets,
+			PairingErrors: pairErrors,
+			Direction:     direction,
+		})
+		if err != nil {
+			r.renderError(w, http.StatusInternalServerError, "graph layout: "+err.Error())
+			return
+		}
+
+		tjson, _ := json.Marshal(buildTargetsJSON(targets))
+
+		pageData["Direction"] = direction
+		pageData["SVG"] = string(graph.RenderSVG(out))
+		pageData["TargetsJSON"] = string(tjson)
+		pageData["PairingWarnings"] = pairWarnings
+		r.render(w, "graph.html", r.withUser(req, pageData))
+	}
+}
+
+// readDirection picks the graph direction from query param > cookie > default "tb".
+func readDirection(req *http.Request) string {
+	if q := req.URL.Query().Get("dir"); q == "tb" || q == "lr" {
+		return q
+	}
+	if c, err := req.Cookie("nf_graph_dir"); err == nil && (c.Value == "tb" || c.Value == "lr") {
+		return c.Value
+	}
+	return "tb"
+}
+
+func buildTargetsJSON(targets []graph.TargetSnapshot) map[string][]map[string]string {
+	out := map[string][]map[string]string{}
+	for _, t := range targets {
+		out[t.Component] = append(out[t.Component], map[string]string{
+			"cloud": t.Cloud, "region": t.Region, "status": t.Status,
+		})
+	}
+	return out
+}
+
+// loadDeploymentGraph returns the components (with refs) and per-target
+// snapshots for a deployment.
+func (r *Renderer) loadDeploymentGraph(ctx context.Context, dep *inventory.Deployment) ([]ir.Component, []graph.TargetSnapshot, error) {
+	comps, err := r.Repo.Components().ListByStack(ctx, r.OrgID, dep.ProjectID, dep.StackID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("list components: %w", err)
+	}
+	irComps := make([]ir.Component, 0, len(comps))
+	for _, c := range comps {
+		ic, err := c.UnmarshalIR()
+		if err != nil {
+			continue
+		}
+		irComps = append(irComps, ic)
+	}
+	dts, err := r.Repo.DeploymentTargets().ListByDeployment(ctx, r.OrgID, dep.ID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("list targets: %w", err)
+	}
+	snaps := make([]graph.TargetSnapshot, len(dts))
+	for i, dt := range dts {
+		snaps[i] = graph.TargetSnapshot{
+			Component: dt.ComponentName, Cloud: dt.Cloud, Region: dt.Region, Status: dt.Status,
+		}
+	}
+	return irComps, snaps, nil
+}
+
+// loadProjectGraph returns the latest deployment's structure for a project,
+// or no components if no deployment has run yet.
+func (r *Renderer) loadProjectGraph(ctx context.Context, proj *inventory.Project) ([]ir.Component, []graph.TargetSnapshot, error) {
+	deps, err := r.Repo.Deployments().ListByProject(ctx, r.OrgID, proj.ID, 1)
+	if err != nil {
+		return nil, nil, fmt.Errorf("list deployments: %w", err)
+	}
+	if len(deps) == 0 {
+		return nil, nil, nil
+	}
+	// deps are sorted descending by StartedAt in the existing impl.
+	return r.loadDeploymentGraph(ctx, &deps[0])
+}
+
 func funcMap() template.FuncMap {
 	return template.FuncMap{
 		"humanStatus": humanStatus,
@@ -272,6 +443,7 @@ func funcMap() template.FuncMap {
 			}
 			return s
 		},
+		"safeHTML": func(s string) template.HTML { return template.HTML(s) },
 	}
 }
 

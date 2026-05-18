@@ -157,3 +157,17 @@ code {
   background: transparent; color: #fff; border: 1px solid #555;
   padding: 0.2rem 0.6rem; border-radius: 0.2rem; font: inherit; font-size: 0.85rem; cursor: pointer;
 }
+
+/* Graph page */
+.page-tabs { margin-bottom: 16px; font-size: 14px; }
+.graph-toolbar { display: flex; gap: 8px; align-items: center; margin: 12px 0; }
+.graph-toolbar .seg { padding: 4px 10px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+.graph-toolbar .seg.active { background: #1e4d2b; color: #fff; border-color: #1e4d2b; }
+.graph-canvas { border: 1px solid #ddd; padding: 12px; overflow: auto; }
+.graph-canvas svg { display: block; }
+.graph-node { cursor: pointer; }
+.graph-node:hover rect { stroke-width: 2; }
+#node-detail { position: fixed; right: 16px; top: 80px; width: 320px; background: #fff;
+               border: 1px solid #ddd; padding: 14px; }
+#node-detail h3 { margin-top: 0; }
+.warning-panel { background: #fff8e1; border: 1px solid #d9a73d; padding: 10px 14px; margin: 12px 0; }

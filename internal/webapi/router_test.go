@@ -367,3 +367,59 @@ func TestRouter_LoginFlow_WithSeededUser(t *testing.T) {
 func authHash(plain string) ([]byte, error) {
 	return auth.HashPassword(plain)
 }
+
+// --- Graph page tests ---
+
+func TestUI_DeploymentGraph_Renders(t *testing.T) {
+	// Seed a deployment with two components (one with a ref) and a deployment
+	// target so the graph has at least one edge and one status badge.
+	srv, _ := newServer(t, func(ctx context.Context, r *sqlite.Repo) {
+		_ = r.Projects().Create(ctx, inventory.Project{ID: "p-graph", OrgID: "default", Name: "graphdemo", CreatedAt: time.Now().UTC()})
+		_ = r.Stacks().Upsert(ctx, inventory.Stack{ID: "s-graph", OrgID: "default", ProjectID: "p-graph", Name: "dev"})
+		_ = r.Deployments().Create(ctx, inventory.Deployment{
+			ID: "d-graph", OrgID: "default", ProjectID: "p-graph", StackID: "s-graph",
+			Status: "succeeded", StartedAt: time.Now().UTC(),
+		})
+		// net component — no refs
+		netIR := `{"name":"net","type":"network","spec":{},"targets":[{"cloud":"aws","region":"us-east-1","credentialRef":"default"}]}`
+		_ = r.Components().Upsert(ctx, inventory.Component{
+			ID: "c-net", OrgID: "default", ProjectID: "p-graph", StackID: "s-graph",
+			Name: "net", Type: "network", IRJSON: []byte(netIR),
+		})
+		// app component — refs net
+		appIR := `{"name":"app","type":"compute","spec":{},"targets":[{"cloud":"aws","region":"us-east-1","credentialRef":"default"}],"refs":[{"component":"net","output":"vpc_id","as":"vpcId"}]}`
+		_ = r.Components().Upsert(ctx, inventory.Component{
+			ID: "c-app", OrgID: "default", ProjectID: "p-graph", StackID: "s-graph",
+			Name: "app", Type: "compute", IRJSON: []byte(appIR),
+		})
+		_ = r.DeploymentTargets().Create(ctx, inventory.DeploymentTarget{
+			ID: "dt-1", OrgID: "default", DeploymentID: "d-graph",
+			ComponentName: "net", Cloud: "aws", Region: "us-east-1", Status: "succeeded",
+			StartedAt: time.Now().UTC(),
+		})
+	})
+	resp, body := get(t, srv, "/ui/deployments/d-graph/graph")
+	if resp.StatusCode != 200 {
+		t.Fatalf("status=%d body=%s", resp.StatusCode, body)
+	}
+	if !strings.Contains(body, "<svg") {
+		t.Errorf("response missing <svg>; body:\n%s", body)
+	}
+	if !strings.Contains(body, "graph-toolbar") {
+		t.Errorf("response missing graph-toolbar; body:\n%s", body)
+	}
+}
+
+func TestUI_ProjectGraph_NoDeploymentPlaceholder(t *testing.T) {
+	// A project with no deployments should show the empty-state placeholder.
+	srv, _ := newServer(t, func(ctx context.Context, r *sqlite.Repo) {
+		_ = r.Projects().Create(ctx, inventory.Project{ID: "p-empty", OrgID: "default", Name: "emptyproject", CreatedAt: time.Now().UTC()})
+	})
+	resp, body := get(t, srv, "/ui/projects/p-empty/graph")
+	if resp.StatusCode != 200 {
+		t.Fatalf("status=%d body=%s", resp.StatusCode, body)
+	}
+	if !strings.Contains(body, "nimbusfab plan") {
+		t.Errorf("expected 'nimbusfab plan' placeholder copy; body:\n%s", body)
+	}
+}

@@ -114,7 +114,9 @@ func New(cfg Config) (http.Handler, error) {
 	// UI routes (cookie session preferred; PAT also accepted).
 	mux.Handle("GET /ui/projects", uiAuth(http.HandlerFunc(renderer.ListProjects)))
 	mux.Handle("GET /ui/projects/{id}", uiAuth(http.HandlerFunc(renderer.ProjectDetail)))
+	mux.Handle("GET /ui/projects/{id}/graph", uiAuth(renderer.Graph("project")))
 	mux.Handle("GET /ui/deployments/{id}", uiAuth(http.HandlerFunc(renderer.DeploymentDetail)))
+	mux.Handle("GET /ui/deployments/{id}/graph", uiAuth(renderer.Graph("deployment")))
 	mux.Handle("GET /ui/runs/{id}", uiAuth(http.HandlerFunc(renderer.RunDetail)))
 	mux.Handle("GET /ui/drift", uiAuth(http.HandlerFunc(renderer.Drift)))
 

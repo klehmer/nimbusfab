@@ -1,0 +1,45 @@
+{{define "title"}}Graph — {{shortID .ID}}{{end}}
+{{define "content"}}
+<h1>Graph — <code>{{shortID .ID}}</code></h1>
+
+<dl class="kv">
+  <dt>{{.Kind}}</dt><dd><code>{{.ID}}</code></dd>
+  {{if .StackName}}<dt>Stack</dt><dd><code>{{.StackName}}</code></dd>{{end}}
+</dl>
+
+<nav class="page-tabs">
+  <a href="{{.OverviewURL}}">Overview</a> · <a href="{{.GraphURL}}"><strong>Graph</strong></a>
+</nav>
+
+{{if .Empty}}
+<p class="muted">No deployments yet. Run <code>nimbusfab plan</code> to populate this project's graph.</p>
+{{else}}
+<div class="graph-toolbar">
+  <span class="label">Layout:</span>
+  <button class="seg {{if eq .Direction "tb"}}active{{end}}" data-dir="tb">&#9660; Top-down</button>
+  <button class="seg {{if eq .Direction "lr"}}active{{end}}" data-dir="lr">&#9654; Left-right</button>
+</div>
+
+{{if .PairingWarnings}}
+<div class="warning-panel">
+  <strong>Cross-target ref warnings:</strong>
+  <ul>
+    {{range .PairingWarnings}}<li>{{.}}</li>{{end}}
+  </ul>
+</div>
+{{end}}
+
+<div class="graph-canvas" data-targets-json='{{.TargetsJSON}}'>
+  {{.SVG | safeHTML}}
+</div>
+
+<aside id="node-detail" hidden>
+  <h3 id="node-detail-title"></h3>
+  <ul id="node-detail-targets"></ul>
+  <button type="button" id="node-detail-close">Close</button>
+</aside>
+
+<script src="/assets/app.js"></script>
+<script>nimbusfab.attachGraph();</script>
+{{end}}
+{{end}}
