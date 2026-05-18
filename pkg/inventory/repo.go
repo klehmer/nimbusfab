@@ -273,12 +273,21 @@ type RunLogRepo interface {
 }
 
 // DriftRecord is the most recent drift summary for one deployment target.
+// When returned from join-based queries (LatestByDeployment, ListByProject)
+// the joined fields ComponentName, Cloud, Region, and DeploymentID are
+// populated. Single-row lookups (Get, ListByOrg) leave them as zero values.
 type DriftRecord struct {
 	DeploymentTargetID string
 	OrgID              string
 	DetectedAt         time.Time
 	HasDrift           bool
 	SummaryJSON        []byte
+
+	// Joined from deployment_targets; populated by LatestByDeployment and ListByProject.
+	ComponentName string
+	Cloud         string
+	Region        string
+	DeploymentID  string
 }
 
 // DriftStatusRepo manages DriftRecord rows (upsert-by-target).
@@ -288,6 +297,15 @@ type DriftStatusRepo interface {
 	// ListByOrg returns every drift record for the org, newest detected
 	// first. Used by the drift overview UI / API.
 	ListByOrg(ctx context.Context, orgID string) ([]DriftRecord, error)
+	// LatestByDeployment returns the current drift_status row for every
+	// deployment_target belonging to the given deployment, with
+	// ComponentName/Cloud/Region/DeploymentID populated via a JOIN on
+	// deployment_targets. Used by the scheduler to detect edge transitions.
+	LatestByDeployment(ctx context.Context, orgID, deploymentID string) ([]DriftRecord, error)
+	// ListByProject joins drift_status → deployment_targets → deployments to
+	// return the current drift row for every target in the project. Used by
+	// the per-project drift UI page.
+	ListByProject(ctx context.Context, orgID, projectID string) ([]DriftRecord, error)
 }
 
 // CostEstimate is one estimated line item.

@@ -76,3 +76,78 @@ func (r *driftRepo) Upsert(ctx context.Context, d inventory.DriftRecord) error {
 	}
 	return nil
 }
+
+// scanDriftRow scans a row from a drift_status JOIN deployment_targets query.
+// The SELECT list must be:
+//
+//	ds.deployment_target_id, ds.org_id, ds.detected_at, ds.has_drift,
+//	ds.summary_json, dt.component_name, dt.cloud, dt.region, dt.deployment_id
+func scanDriftRow(rows *sql.Rows) (inventory.DriftRecord, error) {
+	var d inventory.DriftRecord
+	var summary, detectedAt string
+	var hasDrift int
+	if err := rows.Scan(
+		&d.DeploymentTargetID, &d.OrgID, &detectedAt, &hasDrift, &summary,
+		&d.ComponentName, &d.Cloud, &d.Region, &d.DeploymentID,
+	); err != nil {
+		return d, err
+	}
+	d.DetectedAt = mustParseTime(detectedAt)
+	d.HasDrift = hasDrift != 0
+	d.SummaryJSON = []byte(summary)
+	return d, nil
+}
+
+// LatestByDeployment returns the current drift_status row for every
+// deployment_target belonging to the given deployment, joined to
+// deployment_targets for component metadata.
+func (r *driftRepo) LatestByDeployment(ctx context.Context, orgID, deploymentID string) ([]inventory.DriftRecord, error) {
+	rows, err := r.db.QueryContext(ctx, `
+        SELECT ds.deployment_target_id, ds.org_id, ds.detected_at, ds.has_drift,
+               ds.summary_json, dt.component_name, dt.cloud, dt.region, dt.deployment_id
+          FROM drift_status ds
+          JOIN deployment_targets dt ON dt.id = ds.deployment_target_id
+         WHERE ds.org_id = ? AND dt.deployment_id = ?
+         ORDER BY ds.detected_at DESC
+    `, orgID, deploymentID)
+	if err != nil {
+		return nil, fmt.Errorf("drift.LatestByDeployment: %w", err)
+	}
+	defer rows.Close()
+	var out []inventory.DriftRecord
+	for rows.Next() {
+		d, err := scanDriftRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
+// ListByProject joins drift_status → deployment_targets → deployments to
+// return the current drift row for every target in the project.
+func (r *driftRepo) ListByProject(ctx context.Context, orgID, projectID string) ([]inventory.DriftRecord, error) {
+	rows, err := r.db.QueryContext(ctx, `
+        SELECT ds.deployment_target_id, ds.org_id, ds.detected_at, ds.has_drift,
+               ds.summary_json, dt.component_name, dt.cloud, dt.region, dt.deployment_id
+          FROM drift_status ds
+          JOIN deployment_targets dt ON dt.id = ds.deployment_target_id
+          JOIN deployments d ON d.id = dt.deployment_id
+         WHERE ds.org_id = ? AND d.project_id = ?
+         ORDER BY ds.detected_at DESC
+    `, orgID, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("drift.ListByProject: %w", err)
+	}
+	defer rows.Close()
+	var out []inventory.DriftRecord
+	for rows.Next() {
+		d, err := scanDriftRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}

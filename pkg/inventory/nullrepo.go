@@ -170,6 +170,12 @@ func (nullDrift) Upsert(ctx context.Context, d DriftRecord) error { return nil }
 func (nullDrift) ListByOrg(ctx context.Context, orgID string) ([]DriftRecord, error) {
 	return nil, ErrInventoryRequired
 }
+func (nullDrift) LatestByDeployment(ctx context.Context, orgID, deploymentID string) ([]DriftRecord, error) {
+	return nil, ErrInventoryRequired
+}
+func (nullDrift) ListByProject(ctx context.Context, orgID, projectID string) ([]DriftRecord, error) {
+	return nil, ErrInventoryRequired
+}
 
 type nullCostEst struct{}
 
