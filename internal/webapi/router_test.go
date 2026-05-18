@@ -423,3 +423,75 @@ func TestUI_ProjectGraph_NoDeploymentPlaceholder(t *testing.T) {
 		t.Errorf("expected 'nimbusfab plan' placeholder copy; body:\n%s", body)
 	}
 }
+
+func newTestServerWithSeedData(t *testing.T) *httptest.Server {
+	t.Helper()
+	srv, _ := newServer(t, func(ctx context.Context, r *sqlite.Repo) {
+		_ = r.Projects().Create(ctx, inventory.Project{ID: "p-1", OrgID: "default", Name: "demo", CreatedAt: time.Now().UTC()})
+		_ = r.Stacks().Upsert(ctx, inventory.Stack{ID: "s-1", OrgID: "default", ProjectID: "p-1", Name: "dev"})
+		_ = r.Deployments().Create(ctx, inventory.Deployment{
+			ID: "d-1", OrgID: "default", ProjectID: "p-1", StackID: "s-1",
+			Status: "succeeded", StartedAt: time.Now().UTC(),
+		})
+		netIR := `{"name":"net","type":"network","spec":{},"targets":[{"cloud":"aws","region":"us-east-1","credentialRef":"default"}]}`
+		_ = r.Components().Upsert(ctx, inventory.Component{
+			ID: "c-net", OrgID: "default", ProjectID: "p-1", StackID: "s-1",
+			Name: "net", Type: "network", IRJSON: []byte(netIR),
+		})
+		appIR := `{"name":"app","type":"compute","spec":{},"targets":[{"cloud":"aws","region":"us-east-1","credentialRef":"default"}],"refs":[{"component":"net","output":"vpc_id","as":"vpcId"}]}`
+		_ = r.Components().Upsert(ctx, inventory.Component{
+			ID: "c-app", OrgID: "default", ProjectID: "p-1", StackID: "s-1",
+			Name: "app", Type: "compute", IRJSON: []byte(appIR),
+		})
+	})
+	return srv
+}
+
+func getWithCookie(t *testing.T, srv *httptest.Server, path, cookie string) (*http.Response, string) {
+	t.Helper()
+	req, _ := http.NewRequest("GET", srv.URL+path, nil)
+	if cookie != "" {
+		req.Header.Set("Cookie", cookie)
+	}
+	resp, err := srv.Client().Do(req)
+	if err != nil {
+		t.Fatalf("get %s: %v", path, err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	return resp, string(body)
+}
+
+func TestUI_DeploymentGraph_DirectionCookie(t *testing.T) {
+	srv := newTestServerWithSeedData(t)
+	defer srv.Close()
+
+	// Default (no cookie, no query) → top-down.
+	resp, bodyTB := getWithCookie(t, srv, "/ui/deployments/d-1/graph", "")
+	if resp.StatusCode != 200 {
+		t.Fatalf("default status=%d", resp.StatusCode)
+	}
+
+	// With ?dir=lr → left-right. The SVG should have a different bounding
+	// box (width and height swap roles).
+	resp, bodyLR := getWithCookie(t, srv, "/ui/deployments/d-1/graph?dir=lr", "")
+	if resp.StatusCode != 200 {
+		t.Fatalf("?dir=lr status=%d", resp.StatusCode)
+	}
+	if bodyTB == bodyLR {
+		t.Errorf("TB and LR responses are identical; toggle has no effect")
+	}
+
+	// Cookie nf_graph_dir=lr and no query → LR. Check the rendered toolbar
+	// shows LR as active.
+	_, bodyCookie := getWithCookie(t, srv, "/ui/deployments/d-1/graph", "nf_graph_dir=lr")
+	if !strings.Contains(bodyCookie, `class="seg active" data-dir="lr"`) {
+		t.Errorf("cookie path did not render LR active; body:\n%s", bodyCookie)
+	}
+
+	// Query param overrides cookie: cookie=lr but ?dir=tb → TB.
+	_, bodyOverride := getWithCookie(t, srv, "/ui/deployments/d-1/graph?dir=tb", "nf_graph_dir=lr")
+	if !strings.Contains(bodyOverride, `class="seg active" data-dir="tb"`) {
+		t.Errorf("query override failed; body should have TB active:\n%s", bodyOverride)
+	}
+}
