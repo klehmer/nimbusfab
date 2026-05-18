@@ -56,7 +56,14 @@ func emitComputeImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 		}
 	}
 
-	subnetID := stringFromRefs(refs, "subnetId", "${data.terraform_remote_state."+tofuIdentifier(component)+".outputs.subnet_ids[0]}")
+	subnetID, err := stringRef(refs, "subnetId")
+	if err != nil {
+		return nil, err
+	}
+	vpcID, err := stringRef(refs, "vpcId")
+	if err != nil {
+		return nil, err
+	}
 	storageGB := intFromMap(target.Spec["storage"], "sizeGB", 30)
 
 	out := []ir.ResourcePrimitive{
@@ -68,7 +75,7 @@ func emitComputeImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 			Attributes: map[string]any{
 				"name":        awsResourceName(component) + "-sg",
 				"description": "Default SG for " + component,
-				"vpc_id":      stringFromRefs(refs, "vpcId", "${data.terraform_remote_state."+tofuIdentifier(component)+".outputs.vpc_id}"),
+				"vpc_id":      vpcID,
 			},
 		},
 		{
@@ -132,6 +139,22 @@ func resolveComputeSize(spec map[string]any) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("no T-shirt size satisfies vCPU>=%d memoryGB>=%v", vcpu, memGB)
+}
+
+// stringRef returns the string-typed ref under alias; errors when missing or
+// when the ref is not a string. Use this for required cross-component refs —
+// the validator and preflight should prevent missing refs, but we fail loudly
+// rather than emitting invalid tofu.
+func stringRef(refs cloud.ResolvedRefs, alias string) (string, error) {
+	v, ok := refs[alias]
+	if !ok {
+		return "", fmt.Errorf("aws.compute: required ref %q not in ResolvedRefs", alias)
+	}
+	s, ok := v.(string)
+	if !ok {
+		return "", fmt.Errorf("aws.compute: ref %q has unsupported type %T", alias, v)
+	}
+	return s, nil
 }
 
 func stringFromRefs(refs cloud.ResolvedRefs, key, fallback string) string {

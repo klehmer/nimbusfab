@@ -53,7 +53,10 @@ func emitDatabaseImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir
 		return nil, fmt.Errorf("aws.emitDatabase: %w", err)
 	}
 
-	subnetIDsAttr := subnetIDsFromRefs(refs, component)
+	subnetIDsAttr, err := subnetIDsFromRefs(refs, "subnetIds")
+	if err != nil {
+		return nil, err
+	}
 	multiAZ := boolFromSpec(target.Spec, "multiAZ", false)
 	backupRetention := 7
 	if !boolFromSpec(target.Spec, "pointInTimeRestore", true) {
@@ -127,31 +130,26 @@ func resolveDBSize(spec map[string]any) (dbSizeProfile, error) {
 }
 
 // subnetIDsFromRefs returns the value for aws_db_subnet_group.subnet_ids.
-// The provisioner populates refs["subnetIds"] with a bare tofu interpolation
-// (`${data.terraform_remote_state.<upstream>.outputs.subnet_ids}`) that
-// evaluates to a list at plan/apply time; assigning that bare string to the
-// list-typed attribute lets tofu bind the whole list directly. The state-
-// resolved []string/[]any forms are still accepted (Apply path can pre-
-// resolve from state). The fallback string preserves the legacy shape for
-// callers that bypass the provisioner.
-func subnetIDsFromRefs(refs cloud.ResolvedRefs, fallbackComp string) any {
-	if v, ok := refs["subnetIds"]; ok {
-		switch t := v.(type) {
-		case string:
-			if t != "" {
-				return t
-			}
-		case []string:
-			out := make([]any, len(t))
-			for i, s := range t {
-				out[i] = s
-			}
-			return out
-		case []any:
-			return t
-		}
+// The provisioner populates refs["subnetIds"] with either a bare tofu
+// interpolation string (evaluated to a list at plan/apply time) or a
+// pre-resolved []string/[]any from state. If the ref is absent an error is
+// returned — the validator and preflight should prevent this, but we fail
+// loudly rather than emitting invalid tofu.
+func subnetIDsFromRefs(refs cloud.ResolvedRefs, alias string) (any, error) {
+	v, ok := refs[alias]
+	if !ok {
+		return nil, fmt.Errorf("aws.database: required ref %q not in ResolvedRefs", alias)
 	}
-	return "${data.terraform_remote_state." + tofuIdentifier(fallbackComp) + ".outputs.subnet_ids}"
+	switch x := v.(type) {
+	case []string:
+		return x, nil
+	case []any:
+		return x, nil
+	case string:
+		return x, nil
+	default:
+		return nil, fmt.Errorf("aws.database: ref %q has unsupported type %T", alias, v)
+	}
 }
 
 func boolFromSpec(spec map[string]any, key string, def bool) bool {

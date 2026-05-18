@@ -90,7 +90,10 @@ func TestProvisionerApply_TopoOrderAndRealVarsRebound(t *testing.T) {
 		Stacks: map[string]ir.Stack{"dev": {Name: "dev", StateBackend: ir.StateBackend{Kind: "local"}}},
 		Components: []ir.Component{
 			{Name: "web-app", Type: "compute",
-				Refs: []ir.ComponentRef{{Component: "web-network", Output: "subnet_ids", As: "subnetId"}},
+				Refs: []ir.ComponentRef{
+					{Component: "web-network", Output: "subnet_ids", As: "subnetId"},
+					{Component: "web-network", Output: "vpc_id", As: "vpcId"},
+				},
 				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1",
 					Spec: map[string]any{"size": "small", "instanceCount": 1}}}},
 			{Name: "web-network", Type: "network",
@@ -168,7 +171,10 @@ func TestProvisionerApply_DownstreamBlockedOnUpstreamFailure(t *testing.T) {
 		Stacks: map[string]ir.Stack{"dev": {Name: "dev", StateBackend: ir.StateBackend{Kind: "local"}}},
 		Components: []ir.Component{
 			{Name: "web-app", Type: "compute",
-				Refs: []ir.ComponentRef{{Component: "web-network", Output: "subnet_ids", As: "subnetId"}},
+				Refs: []ir.ComponentRef{
+					{Component: "web-network", Output: "subnet_ids", As: "subnetId"},
+					{Component: "web-network", Output: "vpc_id", As: "vpcId"},
+				},
 				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1",
 					Spec: map[string]any{"size": "small", "instanceCount": 1}}}},
 			{Name: "web-network", Type: "network",

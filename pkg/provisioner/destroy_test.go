@@ -49,7 +49,10 @@ func TestProvisionerDestroy_ReverseTopoOrder(t *testing.T) {
 				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1",
 					Spec: map[string]any{"cidr": "10.0.0.0/16", "subnetCount": 1}}}},
 			{Name: "web-app", Type: "compute",
-				Refs: []ir.ComponentRef{{Component: "web-network", Output: "subnet_ids", As: "subnetId"}},
+				Refs: []ir.ComponentRef{
+					{Component: "web-network", Output: "subnet_ids", As: "subnetId"},
+					{Component: "web-network", Output: "vpc_id", As: "vpcId"},
+				},
 				Targets: []ir.DeploymentTarget{{Cloud: "aws", Region: "us-east-1",
 					Spec: map[string]any{"size": "small", "instanceCount": 1}}}},
 		},

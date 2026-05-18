@@ -2,6 +2,7 @@ package aws_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/klehmer/nimbusfab/internal/cloud/aws"
@@ -94,5 +95,21 @@ func TestEmitDatabase_UnknownEngine(t *testing.T) {
 	}, cloud.ResolvedRefs{"subnetIds": []string{"s"}})
 	if err == nil {
 		t.Error("expected error for unsupported engine")
+	}
+}
+
+func TestEmitDatabase_MissingSubnetIDsRefErrors(t *testing.T) {
+	a := aws.New()
+	target := ir.DeploymentTarget{
+		Cloud: "aws", Region: "us-east-1",
+		Spec: map[string]any{"__component": "orders-db", "__type": "database",
+			"engine": "postgres", "size": "small"},
+	}
+	_, err := a.Emit(context.Background(), target, cloud.ResolvedRefs{})
+	if err == nil {
+		t.Fatal("expected Emit to fail when subnetIds ref is missing")
+	}
+	if !strings.Contains(err.Error(), "subnetIds") && !strings.Contains(err.Error(), "ref") {
+		t.Errorf("error should mention missing ref; got: %v", err)
 	}
 }
