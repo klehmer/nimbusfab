@@ -4,6 +4,7 @@
 package upstream
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 
@@ -134,6 +135,58 @@ func PlanPlaceholders(refs []ir.ComponentRef, all []ir.Component, reg components
 		name := VarName(r.Component, r.Output)
 		out[name] = placeholderFor(name, outDecl.TofuType())
 	}
+	return out, nil
+}
+
+// ErrCrossTargetRefUnsupported fires when a dependent target has no upstream
+// target in the same (cloud, region). v1.1 explicitly does not support
+// cross-cloud or cross-region refs.
+var ErrCrossTargetRefUnsupported = errors.New("cross-target ref unsupported (no matching upstream target in same cloud/region)")
+
+// TargetIdent is the (component, cloud, region) tuple uniquely identifying a
+// deployment target for ordering and pairing purposes.
+type TargetIdent struct {
+	Component string
+	Cloud     string
+	Region    string
+}
+
+// Pair finds the upstream target matching dep's (cloud, region). Returns
+// ErrCrossTargetRefUnsupported if no exact match exists.
+func Pair(dep TargetIdent, upstream string, all []TargetIdent) (TargetIdent, error) {
+	for _, t := range all {
+		if t.Component == upstream && t.Cloud == dep.Cloud && t.Region == dep.Region {
+			return t, nil
+		}
+	}
+	return TargetIdent{}, fmt.Errorf("%w: %s in %s/%s needs %s",
+		ErrCrossTargetRefUnsupported, dep.Component, dep.Cloud, dep.Region, upstream)
+}
+
+// ToposortTargets orders targets by (component-toposort-rank, cloud, region).
+// All targets of an upstream component appear before any target of a
+// downstream component, regardless of (cloud, region).
+func ToposortTargets(targets []TargetIdent, comps []ir.Component) ([]TargetIdent, error) {
+	ordered, err := Toposort(comps)
+	if err != nil {
+		return nil, err
+	}
+	rank := map[string]int{}
+	for i, c := range ordered {
+		rank[c.Name] = i
+	}
+	out := make([]TargetIdent, len(targets))
+	copy(out, targets)
+	sort.SliceStable(out, func(i, j int) bool {
+		ri, rj := rank[out[i].Component], rank[out[j].Component]
+		if ri != rj {
+			return ri < rj
+		}
+		if out[i].Cloud != out[j].Cloud {
+			return out[i].Cloud < out[j].Cloud
+		}
+		return out[i].Region < out[j].Region
+	})
 	return out, nil
 }
 
