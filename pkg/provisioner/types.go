@@ -246,6 +246,7 @@ type TargetDriftReport struct {
 	Cloud              string
 	Region             string
 	HasDrift           bool
+	Skipped            bool // true when upstream state was unavailable; drift was not checked
 	Drifted            []DriftedResource
 	Gone               []DriftedResource
 	Discovered         []DriftedResource
