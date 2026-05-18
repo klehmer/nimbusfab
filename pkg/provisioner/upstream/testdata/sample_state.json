@@ -1,0 +1,10 @@
+{
+  "version": 4,
+  "terraform_version": "1.7.0",
+  "outputs": {
+    "vpc_id": { "value": "vpc-abc123", "type": "string" },
+    "subnet_ids": { "value": ["subnet-1", "subnet-2"], "type": ["list","string"] },
+    "port": { "value": 5432, "type": "number" }
+  },
+  "resources": []
+}

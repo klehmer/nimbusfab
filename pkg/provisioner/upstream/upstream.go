@@ -4,6 +4,7 @@
 package upstream
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -202,5 +203,65 @@ func placeholderFor(varName, tofuType string) string {
 		return "false"
 	default:
 		return `"__nimbusfab_placeholder_` + varName + `__"`
+	}
+}
+
+// ErrUpstreamStateUnreadable wraps any malformed-JSON or missing-file
+// error reading an upstream workspace's terraform.tfstate.
+var ErrUpstreamStateUnreadable = errors.New("upstream state unreadable")
+
+// ErrUpstreamOutputMissing fires when the upstream applied successfully but
+// the expected output name isn't present in its state.
+var ErrUpstreamOutputMissing = errors.New("upstream output missing from state")
+
+// ExtractOutputs parses a tofu state JSON byte slice and returns the top-level
+// `outputs` map, keyed by output name with the raw value (string / []any /
+// number / bool / nested map).
+func ExtractOutputs(state []byte) (map[string]any, error) {
+	var parsed struct {
+		Outputs map[string]struct {
+			Value any `json:"value"`
+		} `json:"outputs"`
+	}
+	if err := json.Unmarshal(state, &parsed); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrUpstreamStateUnreadable, err)
+	}
+	out := make(map[string]any, len(parsed.Outputs))
+	for name, o := range parsed.Outputs {
+		out[name] = o.Value
+	}
+	return out, nil
+}
+
+// FormatHCLValue turns a Go value (string / []any / number / bool) into an
+// HCL literal suitable for `tofu plan -var name=value`. Tofu accepts JSON
+// for complex types, so we round-trip through json.Marshal for lists/maps
+// and use bare/quoted forms for scalars.
+func FormatHCLValue(v any) (string, error) {
+	switch x := v.(type) {
+	case string:
+		b, err := json.Marshal(x)
+		if err != nil {
+			return "", err
+		}
+		return string(b), nil
+	case bool:
+		if x {
+			return "true", nil
+		}
+		return "false", nil
+	case float64:
+		if x == float64(int64(x)) {
+			return fmt.Sprintf("%d", int64(x)), nil
+		}
+		return fmt.Sprintf("%g", x), nil
+	case int, int64:
+		return fmt.Sprintf("%d", x), nil
+	default:
+		b, err := json.Marshal(x)
+		if err != nil {
+			return "", err
+		}
+		return string(b), nil
 	}
 }
