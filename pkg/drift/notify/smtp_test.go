@@ -90,4 +90,7 @@ func TestSMTP_SendsFormattedEmail(t *testing.T) {
 	if !strings.Contains(body, "orders-db") || !strings.Contains(body, "dep-1") {
 		t.Errorf("expected email body to mention orders-db + dep-1; got: %s", body)
 	}
+	if !strings.Contains(body, "Subject: [nimbusfab] Drift") {
+		t.Errorf("expected Subject header in email; got body:\n%s", body)
+	}
 }

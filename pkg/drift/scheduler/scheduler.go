@@ -8,11 +8,9 @@ package scheduler
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/klehmer/nimbusfab/pkg/drift/notify"
@@ -119,6 +117,7 @@ func (s *Scheduler) tick(ctx context.Context) {
 
 	now := time.Now()
 
+loop:
 	for _, d := range deployments {
 		d := d // capture loop var
 
@@ -140,7 +139,7 @@ func (s *Scheduler) tick(ctx context.Context) {
 		select {
 		case s.sem <- struct{}{}: // slot acquired
 		case <-ctx.Done():
-			break
+			break loop
 		}
 
 		wg.Add(1)
@@ -306,14 +305,3 @@ func driftSummary(tr engine.TargetDriftReport) string {
 		len(tr.Discovered), len(tr.Drifted), len(tr.Gone))
 }
 
-// summaryJSON serialises a DriftReport target entry for storage.  The
-// function exists so callers can marshal without import cycles; it is not
-// used by the scheduler itself but exported for server wiring.
-func summaryJSON(v any) []byte {
-	b, _ := json.Marshal(v)
-	return b
-}
-
-// inflight is a package-level atomic used in tests to observe concurrency.
-// Production code does not touch it; tests inject observation via the engine.
-var inflight atomic.Int64

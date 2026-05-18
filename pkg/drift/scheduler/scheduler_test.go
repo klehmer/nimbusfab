@@ -402,3 +402,38 @@ func TestTransitionEvents(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Test: ctx cancel mid-iteration stops goroutine launches (labeled-break fix)
+// ---------------------------------------------------------------------------
+
+func TestScheduler_CtxCancelMidIteration_StopsLaunches(t *testing.T) {
+	// Seed many due deployments + a slow engine. Cancel ctx after the first
+	// drift starts. Assert no more than a small margin of engine calls fired.
+	eng := &fakeEngine{delay: 50 * time.Millisecond}
+	deps := make([]inventory.Deployment, 20)
+	for i := range deps {
+		deps[i] = inventory.Deployment{
+			ID:     fmt.Sprintf("dep-%d", i),
+			OrgID:  "default",
+			Status: "succeeded",
+		}
+	}
+	repo := newFakeRepo(deps, nil)
+	s := New(Config{
+		OrgID:          "default",
+		GlobalInterval: 50 * time.Millisecond,
+		MaxConcurrent:  2,
+	}, repo, eng, notify.NopNotifier{})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { s.Run(ctx); close(done) }()
+	time.Sleep(20 * time.Millisecond) // let first tick start a couple of drifts
+	cancel()
+	<-done
+	// Without the labeled-break fix, we'd see ~20 calls (one per deployment).
+	// With the fix, the loop exits after ctx cancels.
+	if got := eng.calls.Load(); got > 10 { // generous bound
+		t.Errorf("expected scheduler to stop launching drifts on ctx cancel; got %d calls", got)
+	}
+}
