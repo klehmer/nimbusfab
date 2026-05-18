@@ -47,7 +47,7 @@ func emitStorageImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 			Cloud:    "aws",
 			TofuType: "aws_s3_bucket_versioning",
 			TofuName: name,
-			TagAttribute: "-",
+			TagAttribute: ir.TagAttributeSkip,
 			Attributes: map[string]any{
 				"bucket": "${aws_s3_bucket." + name + ".id}",
 				"versioning_configuration": []any{map[string]any{
@@ -60,7 +60,7 @@ func emitStorageImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 			Cloud:    "aws",
 			TofuType: "aws_s3_bucket_public_access_block",
 			TofuName: name,
-			TagAttribute: "-",
+			TagAttribute: ir.TagAttributeSkip,
 			Attributes: map[string]any{
 				"bucket":                  "${aws_s3_bucket." + name + ".id}",
 				"block_public_acls":       blockPublic,
@@ -74,7 +74,7 @@ func emitStorageImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 			Cloud:    "aws",
 			TofuType: "aws_s3_bucket_server_side_encryption_configuration",
 			TofuName: name,
-			TagAttribute: "-",
+			TagAttribute: ir.TagAttributeSkip,
 			Attributes: map[string]any{
 				"bucket": "${aws_s3_bucket." + name + ".id}",
 				"rule": []any{map[string]any{

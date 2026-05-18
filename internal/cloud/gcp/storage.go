@@ -41,10 +41,11 @@ func emitStorageImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 	name := tofuIdent(component)
 	return []ir.ResourcePrimitive{
 		{
-			ID:       fmt.Sprintf("%s.gcp-%s.bucket", component, target.Region),
-			Cloud:    "gcp",
-			TofuType: "google_storage_bucket",
-			TofuName: name,
+			ID:           fmt.Sprintf("%s.gcp-%s.bucket", component, target.Region),
+			Cloud:        "gcp",
+			TofuType:     "google_storage_bucket",
+			TofuName:     name,
+			TagAttribute: "labels",
 			Attributes: map[string]any{
 				"name":                        bucketName,
 				"location":                    strings.ToUpper(target.Region),

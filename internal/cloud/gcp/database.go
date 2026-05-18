@@ -38,6 +38,7 @@ func emitDatabaseImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir
 	if component == "" {
 		component = "database"
 	}
+	deploymentID, _ := target.Spec["__deployment_id"].(string)
 	size, _ := target.Spec["size"].(string)
 	if size == "" {
 		size = "small"
@@ -63,7 +64,7 @@ func emitDatabaseImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir
 	}
 
 	name := tofuIdent(component)
-	instanceName := gcpResourceNameSimple(component) + "-sql"
+	instanceName := gcpResourceName(component, deploymentID) + "-sql"
 
 	return []ir.ResourcePrimitive{
 		{

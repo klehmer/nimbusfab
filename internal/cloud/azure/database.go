@@ -104,7 +104,7 @@ func emitDatabaseImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir
 				Cloud:        "azure",
 				TofuType:     "azurerm_postgresql_flexible_server_database",
 				TofuName:     name,
-				TagAttribute: "-", // azurerm_postgresql_flexible_server_database does not support tags
+				TagAttribute: ir.TagAttributeSkip, // azurerm_postgresql_flexible_server_database does not support tags
 				Attributes: map[string]any{
 					"name":      "appdb",
 					"server_id": "${azurerm_postgresql_flexible_server." + name + ".id}",
@@ -141,7 +141,7 @@ func emitDatabaseImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir
 				Cloud:        "azure",
 				TofuType:     "azurerm_mysql_flexible_server_database",
 				TofuName:     name,
-				TagAttribute: "-", // azurerm_mysql_flexible_server_database does not support tags
+				TagAttribute: ir.TagAttributeSkip, // azurerm_mysql_flexible_server_database does not support tags
 				Attributes: map[string]any{
 					"name":                "appdb",
 					"resource_group_name": "${azurerm_resource_group." + name + ".name}",

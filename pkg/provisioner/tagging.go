@@ -47,7 +47,7 @@ func injectFrameworkTags(p ir.ResourcePrimitive, ctx tagContext) ir.ResourcePrim
 //	"labels"     → explicit GCP labels key (stricter key/value rules)
 //	"-"          → explicit skip — resource does not accept any tag attribute
 func resolveTagAttribute(p ir.ResourcePrimitive) string {
-	if p.TagAttribute == "-" {
+	if p.TagAttribute == ir.TagAttributeSkip {
 		return ""
 	}
 	if p.TagAttribute != "" {

@@ -11,6 +11,12 @@ package ir
 // APIVersionV1Alpha1 is the current IR contract version. Pre-1.0 we are alpha.
 const APIVersionV1Alpha1 = "infra.dev/v1alpha1"
 
+// TagAttributeSkip indicates the primitive's resource type rejects any
+// tag/label attribute (e.g., aws_route, azurerm_subnet, google_compute_network).
+// Setting TagAttribute = TagAttributeSkip causes injectFrameworkTags to
+// leave the primitive unchanged regardless of cloud.
+const TagAttributeSkip = "-"
+
 // TargetMode controls how a Component fans out across clouds.
 type TargetMode string
 

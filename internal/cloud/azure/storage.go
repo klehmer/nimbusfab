@@ -64,7 +64,7 @@ func emitStorageImpl(target ir.DeploymentTarget, refs cloud.ResolvedRefs) ([]ir.
 			Cloud:        "azure",
 			TofuType:     "azurerm_storage_container",
 			TofuName:     name,
-			TagAttribute: "-", // azurerm_storage_container does not support tags
+			TagAttribute: ir.TagAttributeSkip, // azurerm_storage_container does not support tags
 			Attributes: map[string]any{
 				"name":                  "default",
 				"storage_account_name":  "${azurerm_storage_account." + name + ".name}",
