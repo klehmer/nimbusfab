@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/klehmer/nimbusfab/pkg/components"
 	"github.com/klehmer/nimbusfab/pkg/ir"
 )
 
@@ -99,4 +100,54 @@ func Toposort(components []ir.Component) ([]ir.Component, error) {
 		return nil, fmt.Errorf("upstream.Toposort: cycle detected (placed %d of %d components)", len(out), len(components))
 	}
 	return out, nil
+}
+
+// PlanPlaceholders builds {varName: hcl-formatted-placeholder} for each ref
+// declared on a dependent component. The component's upstream Type is looked
+// up via the registry to determine each output's TofuType, then a structural
+// placeholder of that type is encoded as an HCL literal suitable for a
+// `tofu plan -var name=value` flag.
+//
+// Returned values are HCL literals: strings are double-quoted; lists are
+// JSON-arrays-of-strings (which tofu accepts as list(string)); numbers and
+// bools are bare tokens. Refs pointing at components not in `all` are
+// silently dropped; the validator's Phase 5 catches structural errors.
+func PlanPlaceholders(refs []ir.ComponentRef, all []ir.Component, reg components.Registry) (map[string]string, error) {
+	out := map[string]string{}
+	byName := map[string]ir.Component{}
+	for _, c := range all {
+		byName[c.Name] = c
+	}
+	for _, r := range refs {
+		upstream, ok := byName[r.Component]
+		if !ok {
+			continue
+		}
+		typ, ok := reg.Type(upstream.Type)
+		if !ok {
+			continue
+		}
+		outDecl, ok := typ.Outputs()[r.Output]
+		if !ok {
+			continue
+		}
+		name := VarName(r.Component, r.Output)
+		out[name] = placeholderFor(name, outDecl.TofuType())
+	}
+	return out, nil
+}
+
+func placeholderFor(varName, tofuType string) string {
+	switch tofuType {
+	case "string":
+		return `"__nimbusfab_placeholder_` + varName + `__"`
+	case "list(string)":
+		return `["__nimbusfab_placeholder_` + varName + `_0__"]`
+	case "number":
+		return "0"
+	case "bool":
+		return "false"
+	default:
+		return `"__nimbusfab_placeholder_` + varName + `__"`
+	}
 }
