@@ -62,6 +62,9 @@ func (fakeAdapter) DefaultStateBackend(context.Context, ir.DeploymentTarget) (ir
 func (fakeAdapter) ProviderBlock(context.Context, ir.DeploymentTarget, cloud.Credentials) (map[string]any, error) {
 	return nil, nil
 }
+func (fakeAdapter) OutputBindings(context.Context, ir.DeploymentTarget, []ir.ResourcePrimitive) (map[string]string, error) {
+	return map[string]string{}, nil
+}
 
 func TestEstimate_EmptyInput(t *testing.T) {
 	est := estimator.New(&fakeProvider{})
