@@ -53,7 +53,7 @@ func newPlanCommand() *cobra.Command {
 				ProjectPath: projectPath,
 				Stack:       stack,
 				Adapters:    reg,
-				Runner:      tofu.NewExecRunner(),
+				Runner:      defaultRunner(),
 				Inventory:   repo,
 				Stdout:      cmd.OutOrStdout(),
 				Stderr:      cmd.ErrOrStderr(),

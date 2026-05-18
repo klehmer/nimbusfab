@@ -42,7 +42,7 @@ func newDriftCommand() *cobra.Command {
 			defer repo.Close()
 			code := runDrift(cmd.Context(), driftArgs{
 				PositionalArg: arg, Stack: stack,
-				Adapters: reg, Runner: tofu.NewExecRunner(),
+				Adapters: reg, Runner: defaultRunner(),
 				Inventory: repo,
 				Stdout:    cmd.OutOrStdout(), Stderr: cmd.ErrOrStderr(),
 			})

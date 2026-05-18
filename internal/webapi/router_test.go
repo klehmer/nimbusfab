@@ -433,12 +433,12 @@ func newTestServerWithSeedData(t *testing.T) *httptest.Server {
 			ID: "d-1", OrgID: "default", ProjectID: "p-1", StackID: "s-1",
 			Status: "succeeded", StartedAt: time.Now().UTC(),
 		})
-		netIR := `{"name":"net","type":"network","spec":{},"targets":[{"cloud":"aws","region":"us-east-1","credentialRef":"default"}]}`
+		netIR := `{"name":"net","type":"network","spec":{"cidr":"10.0.0.0/16","subnetCount":2},"targets":[{"cloud":"aws","region":"us-east-1","credentialRef":"default"}]}`
 		_ = r.Components().Upsert(ctx, inventory.Component{
 			ID: "c-net", OrgID: "default", ProjectID: "p-1", StackID: "s-1",
 			Name: "net", Type: "network", IRJSON: []byte(netIR),
 		})
-		appIR := `{"name":"app","type":"compute","spec":{},"targets":[{"cloud":"aws","region":"us-east-1","credentialRef":"default"}],"refs":[{"component":"net","output":"vpc_id","as":"vpcId"}]}`
+		appIR := `{"name":"app","type":"compute","spec":{"size":"small","instanceCount":1},"targets":[{"cloud":"aws","region":"us-east-1","credentialRef":"default"}],"refs":[{"component":"net","output":"vpc_id","as":"vpcId"}]}`
 		_ = r.Components().Upsert(ctx, inventory.Component{
 			ID: "c-app", OrgID: "default", ProjectID: "p-1", StackID: "s-1",
 			Name: "app", Type: "compute", IRJSON: []byte(appIR),
@@ -512,5 +512,28 @@ func TestUI_DeploymentGraph_TargetsJSONPopulated(t *testing.T) {
 	const componentNameInSeed = "net"
 	if !strings.Contains(body, `"`+componentNameInSeed+`"`) {
 		t.Errorf("targets json missing seeded component %q; body:\n%s", componentNameInSeed, body)
+	}
+}
+
+func TestUI_DeploymentGraph_ComponentsJSONPopulated(t *testing.T) {
+	srv := newTestServerWithSeedData(t)
+	defer srv.Close()
+	resp, body := get(t, srv, "/ui/deployments/d-1/graph")
+	if resp.StatusCode != 200 {
+		t.Fatalf("status=%d", resp.StatusCode)
+	}
+	// html/template HTML-escapes `"` inside single-quoted attribute values
+	// (to &#34;), so we assert the wire-encoded form. The browser DOM decodes
+	// it back transparently for the JS to JSON.parse.
+	if !strings.Contains(body, `data-components-json='{`) {
+		t.Errorf("missing data-components-json attribute; body:\n%s", body)
+	}
+	// The "net" component's spec has cidr "10.0.0.0/16".
+	if !strings.Contains(body, `cidr&#34;:&#34;10.0.0.0/16`) {
+		t.Errorf("data-components-json missing net.spec.cidr; body:\n%s", body)
+	}
+	// And the type label.
+	if !strings.Contains(body, `type&#34;:&#34;network`) {
+		t.Errorf("data-components-json missing net.type=network; body:\n%s", body)
 	}
 }

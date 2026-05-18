@@ -341,10 +341,12 @@ func (r *Renderer) Graph(kind string) http.HandlerFunc {
 		}
 
 		tjson, _ := json.Marshal(buildTargetsJSON(targets))
+		cjson, _ := json.Marshal(buildComponentsJSON(components))
 
 		pageData["Direction"] = direction
 		pageData["SVG"] = string(graph.RenderSVG(out))
 		pageData["TargetsJSON"] = string(tjson)
+		pageData["ComponentsJSON"] = string(cjson)
 		pageData["PairingWarnings"] = pairWarnings
 		r.render(w, "graph.html", r.withUser(req, pageData))
 	}
@@ -367,6 +369,28 @@ func buildTargetsJSON(targets []graph.TargetSnapshot) map[string][]map[string]st
 		out[t.Component] = append(out[t.Component], map[string]string{
 			"cloud": t.Cloud, "region": t.Region, "status": t.Status,
 		})
+	}
+	return out
+}
+
+// buildComponentsJSON returns per-component metadata (type, spec) for the
+// graph page's node-detail panel. Reserved internal keys ("__component",
+// "__type") that the provisioner injects into spec at planOne time are
+// stripped so the panel only shows user-facing fields.
+func buildComponentsJSON(components []ir.Component) map[string]map[string]any {
+	out := map[string]map[string]any{}
+	for _, c := range components {
+		spec := map[string]any{}
+		for k, v := range c.Spec {
+			if k == "__component" || k == "__type" {
+				continue
+			}
+			spec[k] = v
+		}
+		out[c.Name] = map[string]any{
+			"type": c.Type,
+			"spec": spec,
+		}
 	}
 	return out
 }

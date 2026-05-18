@@ -59,7 +59,7 @@ func newApplyCommand() *cobra.Command {
 				AutoApprove:    autoApprove,
 				PartialFailure: partialFailure,
 				Adapters:       reg,
-				Runner:         tofu.NewExecRunner(),
+				Runner:         defaultRunner(),
 				Inventory:      repo,
 				Stdout:         cmd.OutOrStdout(),
 				Stderr:         cmd.ErrOrStderr(),
